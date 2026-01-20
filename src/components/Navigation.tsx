@@ -32,6 +32,9 @@ export function Navigation() {
             <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               About
             </Link>
+            <Link to="/faq" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              FAQ
+            </Link>
           </div>
 
           {/* Desktop CTA */}
@@ -68,6 +71,9 @@ export function Navigation() {
               </Link>
               <Link to="/about" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
                 About
+              </Link>
+              <Link to="/faq" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
+                FAQ
               </Link>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 <Button variant="ghost" className="justify-start">
