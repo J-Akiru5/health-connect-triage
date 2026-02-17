@@ -16,12 +16,12 @@ const Index = () => {
   const { session, profile } = useAuth();
 
   useEffect(() => {
-    if (session && profile?.role === "patient") {
+    if (session && (profile?.role === "patient" || profile?.role === "clinician")) {
       navigate("/dashboard", { replace: true });
     }
   }, [session, profile?.role, navigate]);
 
-  if (session && profile?.role === "patient") {
+  if (session && (profile?.role === "patient" || profile?.role === "clinician")) {
     return null;
   }
 

@@ -15,6 +15,8 @@ import Dashboard from "./pages/Dashboard";
 import Referrals from "./pages/Referrals";
 import Notifications from "./pages/Notifications";
 import MedicalHistory from "./pages/MedicalHistory";
+import TriageMonitor from "./pages/TriageMonitor";
+import PatientHistory from "./pages/PatientHistory";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
@@ -80,6 +82,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MedicalHistory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/triage-monitor"
+              element={
+                <ProtectedRoute>
+                  <TriageMonitor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/patient-history"
+              element={
+                <ProtectedRoute>
+                  <PatientHistory />
                 </ProtectedRoute>
               }
             />

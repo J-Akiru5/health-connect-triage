@@ -143,6 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!insertError) p = await fetchProfile(data.user.id);
       }
       setProfile(p);
+      await supabase.from("audit_logs").insert({
+        user_id: data.user.id,
+        action: "login",
+        resource: "auth",
+        details: {},
+      });
     }
   }, [fetchProfile]);
 

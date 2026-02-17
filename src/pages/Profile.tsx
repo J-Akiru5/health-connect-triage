@@ -31,7 +31,167 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { User, FileText, Loader2 } from "lucide-react";
+import { User, FileText, Loader2, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
+
+const clinicianProfileSchema = z.object({
+  fullName: z.string().min(1, "Name is required"),
+  phone: z.string().optional(),
+  assignedBarangayId: z.string().uuid().optional().or(z.literal("")),
+});
+
+type ClinicianProfileValues = z.infer<typeof clinicianProfileSchema>;
+
+function ClinicianProfileForm({ user, profile }: { user: { id: string; email?: string } | null; profile: { full_name: string | null } | null }) {
+  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const form = useForm<ClinicianProfileValues>({
+    resolver: zodResolver(clinicianProfileSchema),
+    defaultValues: { fullName: "", phone: "", assignedBarangayId: "" },
+  });
+
+  useEffect(() => {
+    (async () => {
+      const { data: b } = await supabase.from("barangays").select("id, name").order("name");
+      setBarangays(b ?? []);
+      const { data: p } = await supabase.from("profiles").select("full_name, phone, assigned_barangay_id").eq("id", user?.id ?? "").single();
+      if (p) {
+        form.reset({
+          fullName: (p as { full_name: string | null }).full_name ?? "",
+          phone: (p as { phone?: string }).phone ?? "",
+          assignedBarangayId: (p as { assigned_barangay_id?: string }).assigned_barangay_id ?? "",
+        });
+      }
+      setLoading(false);
+    })();
+  }, [user?.id, form]);
+
+  async function onSubmit(values: ClinicianProfileValues) {
+    if (!user?.id) return;
+    setSaving(true);
+    await supabase
+      .from("profiles")
+      .update({
+        full_name: values.fullName,
+        phone: values.phone || null,
+        assigned_barangay_id: values.assignedBarangayId || null,
+      })
+      .eq("id", user.id);
+    setSaving(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <p className="text-muted-foreground">Loading profile…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <main className="container mx-auto px-4 pt-24 pb-20 max-w-xl">
+        <div className="flex items-center gap-4 mb-8">
+          <Link to="/dashboard">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Update profile</h1>
+            <p className="text-sm text-muted-foreground">Name, contact, and assigned barangay</p>
+          </div>
+        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Clinician details</CardTitle>
+                <CardDescription>Update your display name and contact information.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Dr. Juan Dela Cruz" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact number</FormLabel>
+                      <FormControl>
+                        <Input type="tel" placeholder="0917-123-4567" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="space-y-2">
+                  <FormLabel>Email</FormLabel>
+                  <Input value={user?.email ?? ""} readOnly className="bg-muted" />
+                  <p className="text-xs text-muted-foreground">Email is managed by your account and cannot be changed here.</p>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="assignedBarangayId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assigned barangay</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select barangay (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          {barangays.map((b) => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+            <div className="flex gap-3">
+              <Button type="submit" disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  "Save changes"
+                )}
+              </Button>
+              <Button type="button" variant="outline" asChild>
+                <Link to="/dashboard">Cancel</Link>
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </main>
+    </div>
+  );
+}
 
 const profileSchema = z.object({
   lastName: z.string().optional(),
@@ -224,6 +384,10 @@ export default function Profile() {
     );
   }
 
+  if (profile?.role === "clinician") {
+    return <ClinicianProfileForm user={user} profile={profile} />;
+  }
+
   if (profile?.role !== "patient") {
     return (
       <div className="min-h-screen bg-background">
@@ -235,7 +399,7 @@ export default function Profile() {
               <CardDescription>You are signed in as {profile?.full_name ?? user?.email}.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Profile editing is available for patients only.</p>
+              <p className="text-sm text-muted-foreground">Profile editing is available for patients and clinicians only.</p>
             </CardContent>
           </Card>
         </main>
