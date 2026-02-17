@@ -50,8 +50,9 @@ export default function Login() {
     clearError();
     setIsSubmitting(true);
     try {
-      await signIn(values.email, values.password);
-      navigate(from, { replace: true });
+      const profile = await signIn(values.email, values.password);
+      const destination = profile?.role === "admin" ? "/admin" : from;
+      navigate(destination, { replace: true });
     } catch {
       // error set in context
     } finally {

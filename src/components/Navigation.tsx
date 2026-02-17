@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Heart, LogOut, Menu, User, X } from "lucide-react";
+import { Heart, LogOut, Menu, User, X, Shield } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
@@ -62,6 +62,14 @@ export function Navigation() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {profile?.role === "admin" && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin" className="gap-2">
+                        <Shield className="w-4 h-4" />
+                        Admin
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard">Dashboard</Link>
                   </DropdownMenuItem>
@@ -120,6 +128,11 @@ export function Navigation() {
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 {session && profile ? (
                   <>
+                    {profile.role === "admin" && (
+                      <Button variant="outline" className="justify-start gap-2" asChild>
+                        <Link to="/admin"><Shield className="w-4 h-4" /> Admin</Link>
+                      </Button>
+                    )}
                     <Button variant="outline" className="justify-start" asChild>
                       <Link to="/profile">Profile</Link>
                     </Button>

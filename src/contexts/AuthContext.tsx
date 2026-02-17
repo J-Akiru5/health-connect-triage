@@ -21,7 +21,7 @@ type AuthState = {
 
 type AuthContextValue = AuthState & {
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ userId: string } | null>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<Profile | null>;
   signOut: () => Promise<void>;
   clearError: () => void;
 };
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [fetchProfile]
   );
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string): Promise<Profile | null> => {
     setError(null);
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email,
@@ -149,7 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resource: "auth",
         details: {},
       });
+      return p;
     }
+    return null;
   }, [fetchProfile]);
 
   const signOut = useCallback(async () => {

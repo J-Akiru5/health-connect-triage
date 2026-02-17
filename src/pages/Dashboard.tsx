@@ -211,12 +211,16 @@ export default function Dashboard() {
     })();
   }, [user?.id, isBhw]);
 
-  if (!user || (!isPatient && !isClinician && !isBhw)) {
+  if (!user || (!isPatient && !isClinician && !isBhw && profile?.role !== "admin")) {
+    if (profile?.role === "admin") {
+      navigate("/admin", { replace: true });
+      return null;
+    }
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
         <main className="container mx-auto px-4 pt-24 pb-12 text-center">
-          <p className="text-muted-foreground">Dashboard is available for patients, Barangay Health Workers, and clinicians. Please log in with an appropriate account.</p>
+          <p className="text-muted-foreground">Dashboard is available for patients, Barangay Health Workers, clinicians, and admins. Please log in with an appropriate account.</p>
           <Button asChild className="mt-4">
             <Link to="/login">Log in</Link>
           </Button>

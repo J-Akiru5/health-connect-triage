@@ -23,6 +23,15 @@ import BHWRegisterPatient from "./pages/BHWRegisterPatient";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
+import { AdminRoute } from "@/components/AdminRoute";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminBarangays from "./pages/admin/AdminBarangays";
+import AdminAITriage from "./pages/admin/AdminAITriage";
+import AdminTeleconsultReferrals from "./pages/admin/AdminTeleconsultReferrals";
+import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminAudit from "./pages/admin/AdminAudit";
+import AdminResearchExports from "./pages/admin/AdminResearchExports";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +137,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Admin routes — System Administrator workflow */}
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+            <Route path="/admin/barangays" element={<AdminRoute><AdminBarangays /></AdminRoute>} />
+            <Route path="/admin/ai-triage" element={<AdminRoute><AdminAITriage /></AdminRoute>} />
+            <Route path="/admin/teleconsult-referrals" element={<AdminRoute><AdminTeleconsultReferrals /></AdminRoute>} />
+            <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
+            <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
+            <Route path="/admin/research-exports" element={<AdminRoute><AdminResearchExports /></AdminRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
