@@ -1,10 +1,24 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Heart, LogOut, Menu, User, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
+  const { session, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    await signOut();
+    navigate("/", { replace: true });
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -37,14 +51,36 @@ export function Navigation() {
             </Link>
           </div>
 
-          {/* Desktop CTA */}
+          {/* Desktop CTA / User menu */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm">
-              Log In
-            </Button>
-            <Button variant="default" size="sm">
-              Get Started
-            </Button>
+            {session && profile ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <User className="w-4 h-4" />
+                    <span className="max-w-[120px] truncate">{profile.full_name ?? profile.role}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/consultations">Consultations</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/login">Log in</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/signup">Sign up</Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -76,12 +112,21 @@ export function Navigation() {
                 FAQ
               </Link>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
-                <Button variant="ghost" className="justify-start">
-                  Log In
-                </Button>
-                <Button variant="default">
-                  Get Started
-                </Button>
+                {session && profile ? (
+                  <Button variant="outline" className="justify-start" onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign out
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" className="justify-start" asChild>
+                      <Link to="/login">Log in</Link>
+                    </Button>
+                    <Button variant="default" asChild>
+                      <Link to="/signup">Sign up</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
