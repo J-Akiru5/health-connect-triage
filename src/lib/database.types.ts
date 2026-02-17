@@ -79,3 +79,13 @@ export type MedicalHistory = {
   created_at: string;
   updated_at: string;
 };
+
+export type SymptomAssessmentInsert = {
+  user_id: string;
+  reported_by?: string | null;
+  symptoms?: string[];
+  duration?: string | null;
+  severity?: string | null;
+  notes?: string | null;
+  vitals?: Record<string, unknown>;
+};

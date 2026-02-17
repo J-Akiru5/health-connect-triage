@@ -17,6 +17,8 @@ import Notifications from "./pages/Notifications";
 import MedicalHistory from "./pages/MedicalHistory";
 import TriageMonitor from "./pages/TriageMonitor";
 import PatientHistory from "./pages/PatientHistory";
+import BHWAssistIntake from "./pages/BHWAssistIntake";
+import BHWActivities from "./pages/BHWActivities";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
@@ -90,6 +92,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <TriageMonitor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bhw/assist-intake"
+              element={
+                <ProtectedRoute>
+                  <BHWAssistIntake />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bhw/activities"
+              element={
+                <ProtectedRoute>
+                  <BHWActivities />
                 </ProtectedRoute>
               }
             />

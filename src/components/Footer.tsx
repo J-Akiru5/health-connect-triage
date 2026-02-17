@@ -51,7 +51,7 @@ export function Footer() {
             <h4 className="font-semibold mb-4">For Health Workers</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/bhw-portal" className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors">
+                <Link to="/dashboard" className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors">
                   BHW Portal
                 </Link>
               </li>

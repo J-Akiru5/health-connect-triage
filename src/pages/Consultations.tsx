@@ -67,9 +67,12 @@ const Consultations = () => {
   const [loadingConsultations, setLoadingConsultations] = useState(true);
   const [providerConsults, setProviderConsults] = useState<ProviderConsultRow[]>([]);
   const [loadingProvider, setLoadingProvider] = useState(true);
+  const [bhwConsults, setBhwConsults] = useState<ProviderConsultRow[]>([]);
+  const [loadingBhw, setLoadingBhw] = useState(true);
   const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const isClinician = profile?.role === "clinician";
+  const isBhw = profile?.role === "bhw";
 
   useEffect(() => {
     (async () => {
@@ -105,6 +108,43 @@ const Consultations = () => {
       setLoadingConsultations(false);
     })();
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !isBhw) {
+      setLoadingBhw(false);
+      return;
+    }
+    (async () => {
+      const { data: consults } = await supabase
+        .from("teleconsultations")
+        .select("id, patient_id, status, scheduled_at, created_at, assessment_id")
+        .order("created_at", { ascending: false });
+      if (!consults?.length) {
+        setBhwConsults([]);
+        setLoadingBhw(false);
+        return;
+      }
+      const patientIds = [...new Set(consults.map((c: { patient_id: string }) => c.patient_id))];
+      const assessmentIds = consults.map((c: { assessment_id: string | null }) => c.assessment_id).filter(Boolean) as string[];
+      const [profRes, triageRes] = await Promise.all([
+        supabase.from("profiles").select("id, full_name").in("id", patientIds),
+        assessmentIds.length ? supabase.from("ai_triage_results").select("assessment_id, triage_level").in("assessment_id", assessmentIds) : { data: [] as { assessment_id: string; triage_level: string }[] },
+      ]);
+      const nameMap = new Map((profRes.data ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
+      const triageMap = new Map((triageRes.data ?? []).map((t: { assessment_id: string; triage_level: string }) => [t.assessment_id, t.triage_level]));
+      const rows: ProviderConsultRow[] = consults.map((c: { id: string; patient_id: string; status: string; scheduled_at: string | null; created_at: string; assessment_id: string | null }) => ({
+        id: c.id,
+        patient_id: c.patient_id,
+        patient_name: nameMap.get(c.patient_id) ?? "Patient",
+        status: c.status,
+        scheduled_at: c.scheduled_at,
+        created_at: c.created_at,
+        triage_level: c.assessment_id ? triageMap.get(c.assessment_id) ?? null : null,
+      }));
+      setBhwConsults(rows);
+      setLoadingBhw(false);
+    })();
+  }, [user?.id, isBhw]);
 
   useEffect(() => {
     if (!user?.id || !isClinician) {
@@ -245,14 +285,26 @@ const Consultations = () => {
             </div>
           </div>
 
-          <Tabs defaultValue={isClinician ? "provider" : "my-appointments"} className="w-full">
-            <TabsList className={`grid w-full max-w-2xl mx-auto mb-8 ${isClinician ? "grid-cols-2" : "grid-cols-2"}`}>
+          <Tabs defaultValue={isClinician ? "provider" : isBhw ? "bhw-info" : "my-appointments"} className="w-full">
+            <TabsList className={`grid w-full max-w-2xl mx-auto mb-8 ${isClinician ? "grid-cols-2" : isBhw ? "grid-cols-1" : "grid-cols-2"}`}>
               {isClinician && (
                 <TabsTrigger value="provider">My Schedule</TabsTrigger>
               )}
-              <TabsTrigger value="my-appointments">{isClinician ? "All consultations" : "My Appointments"}</TabsTrigger>
-              {!isClinician && <TabsTrigger value="book">Schedule New Consultation</TabsTrigger>}
+              {isBhw && <TabsTrigger value="bhw-info">Schedule / Facilitate</TabsTrigger>}
+              <TabsTrigger value="my-appointments">{isClinician ? "All consultations" : isBhw ? "Barangay consultations" : "My Appointments"}</TabsTrigger>
+              {!isClinician && !isBhw && <TabsTrigger value="book">Schedule New Consultation</TabsTrigger>}
             </TabsList>
+
+            {isBhw && (
+              <TabsContent value="bhw-info" className="mt-0">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Facilitate teleconsultation</CardTitle>
+                    <CardDescription>To schedule a teleconsultation for a patient in your barangay: use Dashboard → Assist Symptom Reporting, complete the form for the patient, then click &quot;Schedule teleconsultation for patient&quot; on the triage result.</CardDescription>
+                  </CardHeader>
+                </Card>
+              </TabsContent>
+            )}
 
             {isClinician && (
               <TabsContent value="provider" className="mt-0">
@@ -495,7 +547,49 @@ const Consultations = () => {
 
             {/* My Appointments Tab */}
             <TabsContent value="my-appointments">
-              {loadingConsultations ? (
+              {isBhw ? (
+                <>
+                  {loadingBhw ? (
+                    <Card>
+                      <CardContent className="py-12 flex items-center justify-center gap-2">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                        <span className="text-muted-foreground">Loading…</span>
+                      </CardContent>
+                    </Card>
+                  ) : bhwConsults.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        No teleconsultations for patients in your barangay yet. Use Assist Symptom Reporting to submit an intake and schedule one.
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Barangay patient consultations</CardTitle>
+                        <CardDescription>Teleconsultations you or the system scheduled for patients in your barangay.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-3">
+                          {bhwConsults.map((c) => (
+                            <li key={c.id} className="rounded-lg border p-4 flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="font-medium">{c.patient_name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {c.scheduled_at ? format(new Date(c.scheduled_at), "MMM d, yyyy · h:mm a") : `Requested ${format(new Date(c.created_at), "MMM d")}`}
+                                  {c.triage_level && (
+                                    <Badge variant={c.triage_level === "emergency" || c.triage_level === "urgent" ? "destructive" : "secondary"} className="ml-2">{c.triage_level}</Badge>
+                                  )}
+                                </p>
+                              </div>
+                              <Badge variant="outline">{c.status}</Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              ) : loadingConsultations ? (
                 <Card>
                   <CardContent className="py-12 flex items-center justify-center gap-2">
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
