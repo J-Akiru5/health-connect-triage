@@ -100,7 +100,7 @@ export default function PatientHistory() {
           <Link to="/dashboard">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="w-4 h-4" />
-            </Link>
+            </Button>
           </Link>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">

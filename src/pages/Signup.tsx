@@ -255,6 +255,7 @@ export default function Signup() {
                             <FormMessage />
                           </FormItem>
                         )}
+                    />
                     )}
                     <FormField
                       control={form.control}

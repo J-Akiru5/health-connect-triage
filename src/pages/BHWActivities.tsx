@@ -71,7 +71,7 @@ export default function BHWActivities() {
       setPatients(
         ppList.map((r: { user_id: string; first_name: string | null; last_name: string | null }) => ({
           user_id: r.user_id,
-          full_name: nameMap.get(r.user_id) ?? [r.first_name, r.last_name].filter(Boolean).join(" ") || "Patient",
+          full_name: nameMap.get(r.user_id) ?? ([r.first_name, r.last_name].filter(Boolean).join(" ") || "Patient"),
         }))
       );
       setLoadingPatients(false);

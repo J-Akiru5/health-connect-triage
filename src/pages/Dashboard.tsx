@@ -189,7 +189,7 @@ export default function Dashboard() {
       const nameMap = new Map((profData ?? []).map((x: { id: string; full_name: string | null }) => [x.id, x.full_name]));
       const patients = ppList.map((r: { user_id: string; first_name: string | null; last_name: string | null }) => ({
         user_id: r.user_id,
-        full_name: nameMap.get(r.user_id) ?? [r.first_name, r.last_name].filter(Boolean).join(" ") || "Patient",
+        full_name: nameMap.get(r.user_id) ?? ([r.first_name, r.last_name].filter(Boolean).join(" ") || "Patient"),
         first_name: r.first_name,
         last_name: r.last_name,
       }));

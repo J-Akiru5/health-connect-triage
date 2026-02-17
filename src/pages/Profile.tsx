@@ -98,7 +98,7 @@ function ClinicianProfileForm({ user, profile }: { user: { id: string; email?: s
           <Link to="/dashboard">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="w-4 h-4" />
-            </Link>
+            </Button>
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Update profile</h1>
