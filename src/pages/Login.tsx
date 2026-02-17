@@ -22,12 +22,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { Heart } from "lucide-react";
+import { Heart, ArrowLeft } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email"),
   password: z.string().min(1, "Password is required"),
+  rememberMe: z.boolean().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -41,7 +43,7 @@ export default function Login() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", rememberMe: false },
   });
 
   async function onSubmit(values: LoginFormValues) {
@@ -69,7 +71,7 @@ export default function Login() {
         </Link>
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Log in</CardTitle>
+            <CardTitle>Login</CardTitle>
             <CardDescription>
               Sign in to access consultations and health services.
             </CardDescription>
@@ -87,7 +89,7 @@ export default function Login() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Username / Email</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
@@ -118,12 +120,33 @@ export default function Login() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="rememberMe"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center gap-2">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <FormLabel className="font-normal cursor-pointer">Remember me</FormLabel>
+                    </FormItem>
+                  )}
+                />
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Signing in…" : "Sign in"}
-                </Button>
-                <p className="text-sm text-muted-foreground text-center">
+                <div className="flex gap-2 w-full">
+                  <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                    {isSubmitting ? "Signing in…" : "Login"}
+                  </Button>
+                  <Button type="button" variant="outline" asChild>
+                    <Link to="/">Back</Link>
+                  </Button>
+                </div>
+                <div className="flex justify-between w-full text-sm">
+                  <Link to="/signup" className="text-primary font-medium hover:underline">Sign up</Link>
+                  <Link to="#" className="text-muted-foreground hover:underline">Forgot password?</Link>
+                </div>
+                <p className="text-sm text-muted-foreground text-center hidden">
                   Don’t have an account?{" "}
                   <Link to="/signup" className="text-primary font-medium hover:underline">
                     Sign up

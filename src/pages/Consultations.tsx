@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,20 +26,24 @@ import {
   Video,
   CheckCircle2,
   AlertCircle,
+  Loader2,
+  ArrowLeft,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
-interface Consultation {
+interface ConsultationRow {
   id: string;
-  date: Date;
-  time: string;
-  provider: string;
-  type: "in-person" | "teleconsultation";
-  status: "upcoming" | "completed" | "cancelled";
-  reason: string;
+  status: string;
+  scheduled_at: string | null;
+  created_at: string;
+  provider: { full_name: string | null } | null;
 }
 
 const Consultations = () => {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [formData, setFormData] = useState({
@@ -49,28 +53,45 @@ const Consultations = () => {
     consultationType: "",
     reason: "",
   });
+  const [consultations, setConsultations] = useState<ConsultationRow[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(true);
+  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Mock data for existing consultations
-  const [consultations] = useState<Consultation[]>([
-    {
-      id: "1",
-      date: new Date(2026, 0, 15),
-      time: "10:00 AM",
-      provider: "Dr. Maria Santos - RHU",
-      type: "teleconsultation",
-      status: "upcoming",
-      reason: "Follow-up for hypertension",
-    },
-    {
-      id: "2",
-      date: new Date(2025, 11, 20),
-      time: "2:30 PM",
-      provider: "BHW Juan Dela Cruz",
-      type: "in-person",
-      status: "completed",
-      reason: "General check-up",
-    },
-  ]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("barangays").select("id, name").order("name");
+      setBarangays(data ?? []);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoadingConsultations(false);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("teleconsultations")
+        .select("id, status, scheduled_at, created_at, provider_id")
+        .eq("patient_id", user.id)
+        .order("created_at", { ascending: false });
+      const providerIds = [...new Set((data ?? []).map((r: { provider_id: string }) => r.provider_id))];
+      const { data: profData } = providerIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", providerIds)
+        : { data: [] };
+      const profMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p]));
+      const rows = (data ?? []).map((r: { id: string; status: string; scheduled_at: string | null; created_at: string; provider_id: string }) => ({
+        id: r.id,
+        status: r.status,
+        scheduled_at: r.scheduled_at,
+        created_at: r.created_at,
+        provider: profMap.get(r.provider_id) ?? null,
+      }));
+      setConsultations(rows);
+      setLoadingConsultations(false);
+    })();
+  }, [user?.id]);
 
   const availableTimeSlots = [
     "8:00 AM",
@@ -83,48 +104,69 @@ const Consultations = () => {
     "4:00 PM",
   ];
 
-  const barangays = [
-    "Barangay 1",
-    "Barangay 2",
-    "Barangay 3",
-    "Barangay 4",
-    "Barangay 5",
-  ];
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log("Booking consultation:", { selectedDate, selectedTime, formData });
-    alert("Consultation booking request submitted! You will receive a confirmation shortly.");
-    // Reset form
-    setFormData({
-      fullName: "",
-      phoneNumber: "",
-      barangay: "",
-      consultationType: "",
-      reason: "",
-    });
-    setSelectedTime("");
-    setSelectedDate(new Date());
-  };
-
-  const getStatusBadge = (status: Consultation["status"]) => {
-    switch (status) {
-      case "upcoming":
-        return <Badge className="bg-primary">Upcoming</Badge>;
-      case "completed":
-        return <Badge className="bg-green-500">Completed</Badge>;
-      case "cancelled":
-        return <Badge variant="destructive">Cancelled</Badge>;
+    if (!user?.id) {
+      alert("Please log in to book a consultation.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data: clinicians } = await supabase.from("profiles").select("id").eq("role", "clinician").limit(1);
+      const providerId = clinicians?.[0]?.id;
+      if (!providerId) {
+        alert("No provider is available at the moment. Please try again later.");
+        setSubmitting(false);
+        return;
+      }
+      const scheduledAt = selectedDate && selectedTime
+        ? new Date(`${selectedDate.toISOString().slice(0, 10)} ${selectedTime}`).toISOString()
+        : null;
+      await supabase.from("teleconsultations").insert({
+        patient_id: user.id,
+        provider_id: providerId,
+        status: "scheduled",
+        scheduled_at: scheduledAt,
+      });
+      const { data: updated } = await supabase
+        .from("teleconsultations")
+        .select("id, status, scheduled_at, created_at, provider_id")
+        .eq("patient_id", user.id)
+        .order("created_at", { ascending: false });
+      const provIds = [...new Set((updated ?? []).map((x: { provider_id: string }) => x.provider_id))];
+      const { data: pData } = provIds.length ? await supabase.from("profiles").select("id, full_name").in("id", provIds) : { data: [] };
+      const pm = new Map((pData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p]));
+      const rows = (updated ?? []).map((r: { id: string; status: string; scheduled_at: string | null; created_at: string; provider_id: string }) => ({
+        id: r.id,
+        status: r.status,
+        scheduled_at: r.scheduled_at,
+        created_at: r.created_at,
+        provider: pm.get(r.provider_id) ?? null,
+      }));
+      setConsultations(rows);
+      setFormData({ fullName: "", phoneNumber: "", barangay: "", consultationType: "", reason: "" });
+      setSelectedTime("");
+      setSelectedDate(new Date());
+      alert("Consultation request submitted! You will receive a confirmation shortly.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to submit. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const getTypeIcon = (type: Consultation["type"]) => {
-    return type === "teleconsultation" ? (
-      <Video className="w-4 h-4" />
-    ) : (
-      <Stethoscope className="w-4 h-4" />
-    );
+  const displayStatus = (status: string) => {
+    if (status === "scheduled" || status === "in_progress") return "upcoming";
+    if (status === "completed") return "completed";
+    return "cancelled";
+  };
+
+  const getStatusBadge = (status: string) => {
+    const s = displayStatus(status);
+    if (s === "upcoming") return <Badge className="bg-primary">Upcoming</Badge>;
+    if (s === "completed") return <Badge className="bg-green-500">Completed</Badge>;
+    return <Badge variant="destructive">Cancelled</Badge>;
   };
 
   return (
@@ -134,19 +176,26 @@ const Consultations = () => {
       <div className="pt-24 pb-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-              Book a Consultation
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Schedule an appointment with healthcare providers at your local barangay health center or rural health unit.
-            </p>
+          <div className="flex items-center gap-4 mb-8">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+                Teleconsultation Appointments
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Schedule and join consultations with healthcare providers.
+              </p>
+            </div>
           </div>
 
-          <Tabs defaultValue="book" className="w-full">
+          <Tabs defaultValue="my-appointments" className="w-full">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
-              <TabsTrigger value="book">Book Consultation</TabsTrigger>
               <TabsTrigger value="my-appointments">My Appointments</TabsTrigger>
+              <TabsTrigger value="book">Schedule New Consultation</TabsTrigger>
             </TabsList>
 
             {/* Book Consultation Tab */}
@@ -220,8 +269,8 @@ const Consultations = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {barangays.map((barangay) => (
-                              <SelectItem key={barangay} value={barangay}>
-                                {barangay}
+                              <SelectItem key={barangay.id} value={barangay.id}>
+                                {barangay.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -315,9 +364,18 @@ const Consultations = () => {
                     </div>
 
                     <div className="flex gap-4 pt-4">
-                      <Button type="submit" size="lg" className="flex-1">
-                        <CalendarIcon className="w-4 h-4 mr-2" />
-                        Book Consultation
+                      <Button type="submit" size="lg" className="flex-1" disabled={submitting}>
+                        {submitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Submitting…
+                          </>
+                        ) : (
+                          <>
+                            <CalendarIcon className="w-4 h-4 mr-2" />
+                            Book Consultation
+                          </>
+                        )}
                       </Button>
                     </div>
                   </form>
@@ -327,7 +385,14 @@ const Consultations = () => {
 
             {/* My Appointments Tab */}
             <TabsContent value="my-appointments">
-              {consultations.length === 0 ? (
+              {loadingConsultations ? (
+                <Card>
+                  <CardContent className="py-12 flex items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    <span className="text-muted-foreground">Loading appointments…</span>
+                  </CardContent>
+                </Card>
+              ) : consultations.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -335,7 +400,7 @@ const Consultations = () => {
                       No Appointments Yet
                     </h3>
                     <p className="text-muted-foreground mb-6">
-                      You haven't booked any consultations yet. Book your first appointment above.
+                      You haven't booked any consultations yet. Book your first appointment above or use the Symptom Checker to request one after triage.
                     </p>
                     <Button onClick={() => document.querySelector('[value="book"]')?.click()}>
                       Book Now
@@ -344,66 +409,57 @@ const Consultations = () => {
                 </Card>
               ) : (
                 <div className="space-y-4">
-                  {consultations.map((consultation) => (
-                    <Card key={consultation.id}>
-                      <CardContent className="p-6">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-3">
-                              {getTypeIcon(consultation.type)}
-                              <h3 className="text-lg font-semibold text-foreground">
-                                {consultation.provider}
-                              </h3>
-                              {getStatusBadge(consultation.status)}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-2">
-                                <CalendarIcon className="w-4 h-4" />
-                                {format(consultation.date, "MMMM d, yyyy")}
+                  {consultations.map((consultation) => {
+                    const date = consultation.scheduled_at ? new Date(consultation.scheduled_at) : new Date(consultation.created_at);
+                    const timeStr = consultation.scheduled_at ? format(date, "h:mm a") : "To be scheduled";
+                    const statusDisplay = displayStatus(consultation.status);
+                    return (
+                      <Card key={consultation.id}>
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-3">
+                                <Video className="w-4 h-4" />
+                                <h3 className="text-lg font-semibold text-foreground">
+                                  {consultation.provider?.full_name ?? "Provider"}
+                                </h3>
+                                {getStatusBadge(consultation.status)}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Clock className="w-4 h-4" />
-                                {consultation.time}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {consultation.type === "teleconsultation" ? (
-                                  <>
-                                    <Video className="w-4 h-4" />
-                                    Teleconsultation
-                                  </>
-                                ) : (
-                                  <>
-                                    <Stethoscope className="w-4 h-4" />
-                                    In-Person
-                                  </>
-                                )}
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-2">
+                                  <CalendarIcon className="w-4 h-4" />
+                                  {format(date, "MMMM d, yyyy")}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-4 h-4" />
+                                  {timeStr}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Video className="w-4 h-4" />
+                                  Teleconsultation
+                                </div>
                               </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-medium">Reason:</span> {consultation.reason}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            {consultation.status === "upcoming" && (
-                              <>
+                            <div className="flex flex-wrap gap-2">
+                              {statusDisplay === "upcoming" && (
+                                <>
+                                  <Button size="sm">Join Now</Button>
+                                  <Button variant="outline" size="sm">
+                                    Reschedule
+                                  </Button>
+                                </>
+                              )}
+                              {statusDisplay === "completed" && (
                                 <Button variant="outline" size="sm">
-                                  Reschedule
+                                  View Details
                                 </Button>
-                                <Button variant="outline" size="sm" className="text-destructive">
-                                  Cancel
-                                </Button>
-                              </>
-                            )}
-                            {consultation.status === "completed" && (
-                              <Button variant="outline" size="sm">
-                                View Details
-                              </Button>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>

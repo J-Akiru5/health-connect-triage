@@ -63,6 +63,9 @@ export function Navigation() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
+                    <Link to="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link to="/consultations">Consultations</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
@@ -113,10 +116,15 @@ export function Navigation() {
               </Link>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 {session && profile ? (
-                  <Button variant="outline" className="justify-start" onClick={handleSignOut}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign out
-                  </Button>
+                  <>
+                    <Button variant="outline" className="justify-start" asChild>
+                      <Link to="/profile">Profile</Link>
+                    </Button>
+                    <Button variant="outline" className="justify-start" onClick={handleSignOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign out
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button variant="ghost" className="justify-start" asChild>

@@ -20,7 +20,7 @@ type AuthState = {
 };
 
 type AuthContextValue = AuthState & {
-  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ userId: string } | null>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [ensureSessionAndProfile, fetchProfile]);
 
   const signUp = useCallback(
-    async (email: string, password: string, fullName: string, role: UserRole) => {
+    async (email: string, password: string, fullName: string, role: UserRole): Promise<{ userId: string } | null> => {
       setError(null);
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -112,10 +112,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Email confirmation required");
       }
       if (data.user) {
-        // Profile is created by DB trigger on auth.users insert; fetch it
         const p = await fetchProfile(data.user.id);
         setProfile(p);
+        return { userId: data.user.id };
       }
+      return null;
     },
     [fetchProfile]
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -6,9 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, Loader2 } from "lucide-react";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
+
+const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "non_urgent" | "home_care"> = {
+  emergency: "emergency",
+  urgent: "urgent",
+  "non-urgent": "non_urgent",
+  "home-care": "home_care",
+};
 
 interface SymptomCategory {
   name: string;
@@ -96,8 +106,30 @@ function calculateTriage(selectedSymptoms: string[], selectedRiskFactors: string
   if (totalSeverity >= 8) return "urgent";
   if (totalSeverity >= 4) return "non-urgent";
   if (totalSeverity >= 1) return "home-care";
-  
+
   return null;
+}
+
+function getRiskScore(level: TriageLevel): number {
+  if (!level) return 0;
+  switch (level) {
+    case "emergency": return 95;
+    case "urgent": return 75;
+    case "non-urgent": return 50;
+    case "home-care": return 25;
+    default: return 0;
+  }
+}
+
+function getTriageLevelLabel(level: TriageLevel): string {
+  if (!level) return "—";
+  switch (level) {
+    case "emergency": return "HIGH";
+    case "urgent": return "HIGH";
+    case "non-urgent": return "MEDIUM";
+    case "home-care": return "LOW";
+    default: return "—";
+  }
 }
 
 const triageResults = {
@@ -144,14 +176,31 @@ const triageResults = {
 };
 
 export default function SymptomChecker() {
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const [step, setStep] = useState(1);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedRiskFactors, setSelectedRiskFactors] = useState<string[]>([]);
   const [triageResult, setTriageResult] = useState<TriageLevel>(null);
-  const [patientInfo, setPatientInfo] = useState({ name: "", age: "", duration: "" });
+  const [patientInfo, setPatientInfo] = useState({
+    name: "",
+    age: "",
+    duration: "",
+    durationDays: "",
+    severity: "" as "" | "mild" | "moderate" | "severe",
+    notes: "",
+    bpSystolic: "",
+    bpDiastolic: "",
+    hr: "",
+    tempC: "",
+  });
+  const [savedAssessmentId, setSavedAssessmentId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [requestingConsult, setRequestingConsult] = useState(false);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
+  const isPatient = profile?.role === "patient";
 
   const toggleSymptom = (symptomId: string) => {
     setSelectedSymptoms(prev =>
@@ -181,10 +230,44 @@ export default function SymptomChecker() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const result = calculateTriage(selectedSymptoms, selectedRiskFactors);
     setTriageResult(result);
     setStep(4);
+    if (user?.id && result) {
+      setSaving(true);
+      try {
+        const { data: assessment, error: assessErr } = await supabase
+          .from("symptom_assessments")
+          .insert({
+            user_id: user.id,
+            symptoms: selectedSymptoms,
+            duration: patientInfo.duration || null,
+            severity: patientInfo.severity || (result === "emergency" || result === "urgent" ? "severe" : result === "non-urgent" ? "moderate" : "mild"),
+            notes: patientInfo.notes || null,
+            vitals: {
+              ...(patientInfo.bpSystolic && patientInfo.bpDiastolic ? { bp_systolic: Number(patientInfo.bpSystolic), bp_diastolic: Number(patientInfo.bpDiastolic) } : {}),
+              ...(patientInfo.hr ? { hr: Number(patientInfo.hr) } : {}),
+              ...(patientInfo.tempC ? { temp_c: Number(patientInfo.tempC) } : {}),
+            },
+          })
+          .select("id")
+          .single();
+        if (assessErr) throw assessErr;
+        await supabase.from("ai_triage_results").insert({
+          assessment_id: assessment.id,
+          triage_level: TRIAGE_TO_DB[result],
+          recommended_action: triageResults[result].action,
+          model_version: "rule-based-v1",
+          factors: [...selectedSymptoms, ...selectedRiskFactors],
+        });
+        setSavedAssessmentId(assessment.id);
+      } catch (e) {
+        console.error("Failed to save assessment", e);
+      } finally {
+        setSaving(false);
+      }
+    }
   };
 
   const handleReset = () => {
@@ -192,8 +275,40 @@ export default function SymptomChecker() {
     setSelectedSymptoms([]);
     setSelectedRiskFactors([]);
     setTriageResult(null);
-    setPatientInfo({ name: "", age: "", duration: "" });
+    setPatientInfo({ name: "", age: "", duration: "", durationDays: "", severity: "", notes: "", bpSystolic: "", bpDiastolic: "", hr: "", tempC: "" });
+    setSavedAssessmentId(null);
   };
+
+  async function handleRequestTeleconsultation() {
+    if (!user?.id || !savedAssessmentId || !triageResult) return;
+    setRequestingConsult(true);
+    try {
+      const { data: clinicians } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("role", "clinician")
+        .limit(1);
+      const providerId = clinicians?.[0]?.id;
+      if (!providerId) {
+        alert("No provider is available at the moment. Please try again later or contact your BHW.");
+        setRequestingConsult(false);
+        return;
+      }
+      await supabase.from("teleconsultations").insert({
+        patient_id: user.id,
+        provider_id: providerId,
+        assessment_id: savedAssessmentId,
+        status: "scheduled",
+        scheduled_at: null,
+      });
+      navigate("/consultations");
+    } catch (e) {
+      console.error("Failed to request teleconsultation", e);
+      alert("Could not submit request. Please try again.");
+    } finally {
+      setRequestingConsult(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -217,9 +332,9 @@ export default function SymptomChecker() {
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                   <User className="w-6 h-6 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Let's start with basic information</CardTitle>
+                <CardTitle className="text-2xl">Report Symptoms</CardTitle>
                 <CardDescription>
-                  This helps us provide more accurate triage recommendations.
+                  Date: {new Date().toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })} — This helps us provide accurate triage.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -259,6 +374,91 @@ export default function SymptomChecker() {
                     <option value="week">About a week</option>
                     <option value="weeks">More than a week</option>
                   </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Duration (days)</Label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g. 3"
+                    value={patientInfo.durationDays}
+                    onChange={(e) => setPatientInfo({ ...patientInfo, durationDays: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Severity</Label>
+                  <div className="flex flex-wrap gap-4">
+                    {(["mild", "moderate", "severe"] as const).map((s) => (
+                      <label key={s} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="severity"
+                          checked={patientInfo.severity === s}
+                          onChange={() => setPatientInfo({ ...patientInfo, severity: s })}
+                          className="rounded-full border-input"
+                        />
+                        <span className="capitalize">{s}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2 rounded-lg border border-border p-4">
+                  <Label className="text-muted-foreground">Optional vitals</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs">BP (mmHg)</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          placeholder="120"
+                          className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm"
+                          value={patientInfo.bpSystolic}
+                          onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })}
+                        />
+                        <span className="text-muted-foreground">/</span>
+                        <input
+                          type="number"
+                          placeholder="80"
+                          className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm"
+                          value={patientInfo.bpDiastolic}
+                          onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">HR (bpm)</Label>
+                      <input
+                        type="number"
+                        placeholder="72"
+                        className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm mt-1"
+                        value={patientInfo.hr}
+                        onChange={(e) => setPatientInfo({ ...patientInfo, hr: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Temp (°C)</Label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="36.5"
+                        className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm mt-1"
+                        value={patientInfo.tempC}
+                        onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Additional notes</Label>
+                  <textarea
+                    id="notes"
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Any other details..."
+                    value={patientInfo.notes}
+                    onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })}
+                  />
                 </div>
                 <Button onClick={handleNext} size="lg" className="w-full">
                   Continue
@@ -375,20 +575,39 @@ export default function SymptomChecker() {
                       const Icon = triageResults[triageResult].icon;
                       return <Icon className="w-8 h-8" />;
                     })()}
-                    <CardTitle className="text-2xl">{triageResults[triageResult].title}</CardTitle>
+                    <CardTitle className="text-2xl">AI Triage Result</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
-                  <p className="text-lg text-foreground">
-                    {triageResults[triageResult].description}
-                  </p>
-                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 rounded-lg bg-muted">
+                      <p className="text-sm text-muted-foreground">Risk Score</p>
+                      <p className="text-2xl font-bold text-foreground">{getRiskScore(triageResult)} / 100</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted">
+                      <p className="text-sm text-muted-foreground">Triage Level</p>
+                      <p className="text-2xl font-bold text-foreground">{getTriageLevelLabel(triageResult)}</p>
+                    </div>
+                  </div>
                   <div className="p-4 rounded-lg bg-secondary">
                     <h4 className="font-semibold text-foreground mb-2">Recommended Action</h4>
-                    <p className="text-muted-foreground">
-                      {triageResults[triageResult].action}
-                    </p>
+                    <p className="text-foreground">→ {triageResults[triageResult].action}</p>
+                    {triageResult === "urgent" && <p className="text-foreground mt-1">→ Contact BHW for Assistance</p>}
                   </div>
+                  {selectedSymptoms.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-foreground mb-2">Symptom Summary</h4>
+                      <p className="text-muted-foreground">
+                        {selectedSymptoms
+                          .map((id) => symptomCategories.flatMap((c) => c.symptoms).find((s) => s.id === id)?.label)
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-foreground">
+                    {triageResults[triageResult].description}
+                  </p>
 
                   <div className="p-4 rounded-lg border border-border">
                     <h4 className="font-semibold text-foreground mb-2">Contact Information</h4>
@@ -402,15 +621,39 @@ export default function SymptomChecker() {
                       <strong>Disclaimer:</strong> This AI-assisted triage is for guidance only and does not replace professional medical diagnosis. Always consult a healthcare provider for proper evaluation.
                     </p>
                   </div>
+                  {saving && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving your assessment…
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
-              <div className="flex gap-3">
-                <Button onClick={handleReset} variant="outline" size="lg" className="flex-1">
-                  Start New Assessment
-                </Button>
-                <Button size="lg" className="flex-1">
-                  Book Consultation
+              <div className="flex flex-wrap gap-3">
+                {isPatient && user ? (
+                  <Button
+                    size="lg"
+                    className="flex-1 min-w-[180px]"
+                    onClick={handleRequestTeleconsultation}
+                    disabled={requestingConsult || !savedAssessmentId}
+                  >
+                    {requestingConsult ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Requesting…
+                      </>
+                    ) : (
+                      "Request Teleconsultation"
+                    )}
+                  </Button>
+                ) : (
+                  <Button size="lg" className="flex-1 min-w-[180px]" asChild>
+                    <Link to="/consultations">Request Teleconsultation</Link>
+                  </Button>
+                )}
+                <Button variant="outline" size="lg" asChild>
+                  <Link to={user ? "/dashboard" : "/"}>Back to Dashboard</Link>
                 </Button>
               </div>
             </div>

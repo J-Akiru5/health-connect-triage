@@ -10,6 +10,11 @@ import SymptomChecker from "./pages/SymptomChecker";
 import FAQ from "./pages/FAQ";
 import About from "./pages/About";
 import Consultations from "./pages/Consultations";
+import Profile from "./pages/Profile";
+import Dashboard from "./pages/Dashboard";
+import Referrals from "./pages/Referrals";
+import Notifications from "./pages/Notifications";
+import MedicalHistory from "./pages/MedicalHistory";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
@@ -35,6 +40,46 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Consultations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/referrals"
+              element={
+                <ProtectedRoute>
+                  <Referrals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/medical-history"
+              element={
+                <ProtectedRoute>
+                  <MedicalHistory />
                 </ProtectedRoute>
               }
             />
