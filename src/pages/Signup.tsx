@@ -81,6 +81,7 @@ export default function Signup() {
   const [step, setStep] = useState(1);
   const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/";
+  const bhwPrefill = (location.state as { bhwPrefill?: Partial<SignupFormValues> } | null)?.bhwPrefill;
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -117,6 +118,31 @@ export default function Signup() {
       setBarangays(data ?? []);
     })();
   }, [isPatient]);
+
+  useEffect(() => {
+    if (!bhwPrefill) return;
+    const fullName = [bhwPrefill.firstName, bhwPrefill.middleInitial, bhwPrefill.lastName].filter(Boolean).join(" ").trim();
+    form.reset({
+      fullName: fullName || "",
+      email: bhwPrefill.email ?? "",
+      password: "",
+      confirmPassword: "",
+      role: "patient",
+      lastName: bhwPrefill.lastName ?? "",
+      firstName: bhwPrefill.firstName ?? "",
+      middleInitial: bhwPrefill.middleInitial ?? "",
+      dateOfBirth: bhwPrefill.dateOfBirth ?? "",
+      sex: bhwPrefill.sex,
+      street: bhwPrefill.street ?? "",
+      barangayId: bhwPrefill.barangayId ?? "",
+      city: bhwPrefill.city ?? "",
+      province: bhwPrefill.province ?? "",
+      zipCode: bhwPrefill.zipCode ?? "",
+      contactPhone: bhwPrefill.contactPhone ?? "",
+      careConsent: bhwPrefill.careConsent ?? false,
+      researchConsent: bhwPrefill.researchConsent ?? false,
+    });
+  }, [bhwPrefill]);
 
   async function onSubmit(values: SignupFormValues) {
     if (values.role === "patient" && !values.careConsent) {
@@ -197,9 +223,11 @@ export default function Signup() {
           <CardHeader>
             <CardTitle>Create an account</CardTitle>
             <CardDescription>
-              {isPatient && maxStep > 1
-                ? `Step ${step} of ${maxStep}: ${step === 1 ? "Account" : step === 2 ? "Name & basic info" : step === 3 ? "Address & contact" : "Consent"}`
-                : "Register as a patient, health worker, clinician, or administrator."}
+              {bhwPrefill && isPatient
+                ? "Completing patient registration (pre-filled by BHW). Set password below."
+                : isPatient && maxStep > 1
+                  ? `Step ${step} of ${maxStep}: ${step === 1 ? "Account" : step === 2 ? "Name & basic info" : step === 3 ? "Address & contact" : "Consent"}`
+                  : "Register as a patient, health worker, clinician, or administrator."}
             </CardDescription>
           </CardHeader>
           <Form {...form}>

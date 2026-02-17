@@ -148,14 +148,14 @@ export default function TriageMonitor() {
       <Navigation />
       <main className="container mx-auto px-4 pt-24 pb-20 max-w-4xl">
         <div className="flex items-center gap-4 mb-8">
-          <Link to="/dashboard">
-            <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/dashboard">
               <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Activity className="w-5 h-5 text-primary" />
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Activity className="w-6 h-6 text-primary" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">AI Triage Monitor</h1>
@@ -167,27 +167,27 @@ export default function TriageMonitor() {
         </div>
 
         {loading ? (
-          <Card>
-            <CardContent className="py-12 flex items-center justify-center gap-2">
+          <Card className="rounded-2xl border shadow-sm">
+            <CardContent className="py-16 flex items-center justify-center gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               <span className="text-muted-foreground">Loading…</span>
             </CardContent>
           </Card>
         ) : rows.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
+          <Card className="rounded-2xl border shadow-sm">
+            <CardContent className="py-16 text-center">
               <p className="text-muted-foreground">No AI triage results for your assigned patients yet.</p>
-              <Button asChild variant="outline" className="mt-4">
+              <Button asChild variant="outline" className="mt-4 rounded-xl">
                 <Link to="/dashboard">Back to Dashboard</Link>
               </Button>
             </CardContent>
           </Card>
         ) : (
           <>
-            <Card>
+            <Card className="rounded-2xl border shadow-sm overflow-hidden">
               <CardHeader>
                 <CardTitle>Patient triage overview</CardTitle>
-                <CardDescription>Risk score and triage level from AI-assisted triage (JC-3 research use)</CardDescription>
+                <CardDescription>Risk score and triage level from AI-assisted triage. View details or notify Nurse/Physician for urgent cases.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -216,23 +216,23 @@ export default function TriageMonitor() {
             </Card>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button variant="outline" asChild className="gap-2">
+              <Button variant="outline" asChild className="gap-2 rounded-xl">
                 <Link to="/consultations">
                   <Video className="w-4 h-4" />
                   Assign teleconsultation
                 </Link>
               </Button>
-              <Button variant="outline" asChild className="gap-2">
+              <Button variant="outline" asChild className="gap-2 rounded-xl">
                 <Link to="/referrals">
                   <ArrowRightLeft className="w-4 h-4" />
                   Escalate referral
                 </Link>
               </Button>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2 rounded-xl">
                 <CheckCircle2 className="w-4 h-4" />
                 Mark follow-up completed
               </Button>
-              <Button variant="ghost" asChild>
+              <Button variant="ghost" asChild className="rounded-xl">
                 <Link to="/dashboard">Back to Dashboard</Link>
               </Button>
             </div>

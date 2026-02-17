@@ -62,25 +62,24 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-12 flex flex-col items-center">
-        <Link to="/" className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Heart className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold text-foreground">BarangayHealth</span>
-        </Link>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Login</CardTitle>
-            <CardDescription>
-              Sign in to access consultations and health services.
-            </CardDescription>
-          </CardHeader>
+      <main className="container mx-auto px-4 pt-20 pb-16 flex flex-col items-center justify-center min-h-[calc(100vh-5rem)]">
+        <div className="w-full max-w-[420px]">
+          <Link to="/" className="flex items-center justify-center gap-2 mb-10">
+            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+              <Heart className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold text-foreground">BarangayHealth</span>
+          </Link>
+          <Card className="rounded-2xl border shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-6 py-5 border-b">
+              <h1 className="text-xl font-bold text-foreground">Login</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Sign in to access the platform</p>
+            </div>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardContent className="space-y-4">
+              <CardContent className="p-6 space-y-4">
                 {error && (
-                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
+                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2">
                     {error}
                   </p>
                 )}
@@ -95,6 +94,7 @@ export default function Login() {
                           type="email"
                           autoComplete="email"
                           placeholder="you@example.com"
+                          className="rounded-xl h-11"
                           {...field}
                         />
                       </FormControl>
@@ -113,6 +113,7 @@ export default function Login() {
                           type="password"
                           autoComplete="current-password"
                           placeholder="••••••••"
+                          className="rounded-xl h-11"
                           {...field}
                         />
                       </FormControl>
@@ -128,20 +129,18 @@ export default function Login() {
                       <FormControl>
                         <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <FormLabel className="font-normal cursor-pointer">Remember me</FormLabel>
+                      <FormLabel className="font-normal cursor-pointer text-muted-foreground">Remember me</FormLabel>
                     </FormItem>
                   )}
                 />
               </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <div className="flex gap-2 w-full">
-                  <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                    {isSubmitting ? "Signing in…" : "Login"}
-                  </Button>
-                  <Button type="button" variant="outline" asChild>
-                    <Link to="/">Back</Link>
-                  </Button>
-                </div>
+              <CardFooter className="p-6 pt-0 flex flex-col gap-4">
+                <Button type="submit" className="w-full rounded-xl h-11 font-medium" disabled={isSubmitting}>
+                  {isSubmitting ? "Signing in…" : "Login"}
+                </Button>
+                <Button type="button" variant="outline" className="w-full rounded-xl" asChild>
+                  <Link to="/">Back</Link>
+                </Button>
                 <div className="flex justify-between w-full text-sm">
                   <Link to="/signup" className="text-primary font-medium hover:underline">Sign up</Link>
                   <Link to="#" className="text-muted-foreground hover:underline">Forgot password?</Link>
@@ -156,6 +155,7 @@ export default function Login() {
             </form>
           </Form>
         </Card>
+        </div>
       </main>
     </div>
   );

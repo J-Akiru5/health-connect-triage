@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Users,
   Calendar,
+  UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -226,120 +227,118 @@ export default function Dashboard() {
 
   if (isBhw) {
     const bhwMenuItems = [
-      { to: "/bhw/assist-intake", icon: Stethoscope, label: "Assist Symptom Reporting" },
-      { to: "/triage-monitor", icon: ClipboardList, label: "Monitor AI Triage Results" },
-      { to: "/consultations", icon: Video, label: "Schedule / Facilitate Teleconsultation" },
-      { to: "/bhw/activities", icon: Users, label: "Home Visits & Follow-Up" },
-      { to: "/referrals", icon: ArrowRightLeft, label: "Referral Coordination" },
-      { to: "/notifications", icon: Bell, label: "Notifications / Alerts" },
-      { to: "/profile", icon: UserCog, label: "Update Profile" },
+      { num: 1, to: "/bhw/register-patient", icon: UserPlus, label: "Register New Patient / Emergency Report" },
+      { num: 2, to: "/bhw/assist-intake", icon: Stethoscope, label: "Patient Symptom Reporting (Assisted)" },
+      { num: 3, to: "/triage-monitor", icon: ClipboardList, label: "Monitor AI Triage Results" },
+      { num: 4, to: "/consultations", icon: Video, label: "Teleconsultation Coordination" },
+      { num: 5, to: "/referrals", icon: ArrowRightLeft, label: "Manage Referrals & Escalations" },
+      { num: 6, to: "/bhw/activities", icon: Users, label: "Patient Follow-Up" },
+      { num: 7, to: "/notifications", icon: Bell, label: "Notifications / Alerts" },
+      { num: 8, to: "/profile", icon: UserCog, label: "Update Profile" },
     ];
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <main className="container mx-auto px-4 pt-24 pb-20 max-w-2xl">
-          <Card className="mb-8 border-primary/20 bg-card">
-            <CardHeader className="pb-2">
+        <main className="container mx-auto px-4 pt-20 pb-24 max-w-3xl">
+          {/* Hero */}
+          <div className="rounded-2xl bg-gradient-to-br from-primary/90 to-primary text-primary-foreground p-6 sm:p-8 mb-8 shadow-lg">
+            <p className="text-primary-foreground/80 text-sm font-medium uppercase tracking-wider">Telehealth Rural Barangay Platform</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mt-1">BHW Dashboard</h1>
+            <p className="mt-3 text-primary-foreground/95">Welcome, {profile?.full_name ?? "BHW"}</p>
+            {bhwBarangayName && (
+              <p className="text-sm text-primary-foreground/80 mt-1">Barangay: {bhwBarangayName}</p>
+            )}
+          </div>
+
+          {/* Emergency / High-risk banner */}
+          {bhwHighRiskCount > 0 && (
+            <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-primary" />
+                <div className="w-10 h-10 rounded-xl bg-destructive/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl">Barangay Health Worker Dashboard</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-0.5">Welcome, {profile?.full_name ?? "BHW"}</p>
-                  {bhwBarangayName && (
-                    <p className="text-sm text-muted-foreground">Assigned Barangay: {bhwBarangayName}</p>
-                  )}
+                  <p className="font-semibold text-foreground">High-risk triage cases</p>
+                  <p className="text-sm text-muted-foreground">{bhwHighRiskCount} patient(s) need prioritization</p>
                 </div>
               </div>
-            </CardHeader>
-          </Card>
-
-          {bhwHighRiskCount > 0 && (
-            <Card className="mb-6 border-destructive/50 bg-destructive/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-destructive" />
-                  High-risk triage cases
-                </CardTitle>
-                <CardDescription>{bhwHighRiskCount} patient(s) need prioritization. Review triage and follow up.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild variant="outline" size="sm" className="gap-2">
-                  <Link to="/triage-monitor">
-                    <ClipboardList className="w-4 h-4" />
-                    View Triage Monitor
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+              <Button asChild size="sm" className="gap-2 bg-destructive hover:bg-destructive/90">
+                <Link to="/triage-monitor">
+                  <ClipboardList className="w-4 h-4" />
+                  View Triage Monitor
+                </Link>
+              </Button>
+            </div>
           )}
 
-          <Card className="mb-6">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Assigned patients
-              </CardTitle>
-              <CardDescription>Patients in your barangay ({bhwPatients.length})</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {bhwLoading ? (
-                <div className="flex items-center gap-2 py-4 text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading…
-                </div>
-              ) : bhwPatients.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No patients assigned to your barangay yet.</p>
-              ) : (
-                <ul className="space-y-2 max-h-48 overflow-y-auto">
-                  {bhwPatients.slice(0, 10).map((p) => (
-                    <li key={p.user_id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                      <span className="font-medium text-sm">{p.full_name ?? "Patient"}</span>
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/bhw/assist-intake?patient=${p.user_id}`}>Assist intake</Link>
-                      </Button>
-                    </li>
-                  ))}
-                  {bhwPatients.length > 10 && (
-                    <li className="text-sm text-muted-foreground pt-1">+ {bhwPatients.length - 10} more</li>
-                  )}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          {/* Quick: Emergency report */}
+          <div className="mb-6">
+            <Button asChild className="w-full rounded-xl h-12 font-semibold gap-2 shadow-md" size="lg">
+              <Link to="/bhw/assist-intake">
+                <Stethoscope className="w-5 h-5" />
+                Emergency Quick Report (Patient Assisted)
+              </Link>
+            </Button>
+          </div>
 
-          <div className="grid gap-3">
-            {bhwMenuItems.map(({ to, icon: Icon, label }) => (
+          {/* Assigned patients strip */}
+          <div className="rounded-2xl border bg-card p-4 mb-8 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-foreground flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                Assigned patients
+              </h2>
+              <span className="text-sm text-muted-foreground">{bhwPatients.length} in barangay</span>
+            </div>
+            {bhwLoading ? (
+              <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading…
+              </div>
+            ) : bhwPatients.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No patients in your barangay yet. Register a new patient below.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {bhwPatients.slice(0, 8).map((p) => (
+                  <Button key={p.user_id} asChild variant="secondary" size="sm" className="rounded-lg">
+                    <Link to={`/bhw/assist-intake?patient=${p.user_id}`}>{p.full_name ?? "Patient"}</Link>
+                  </Button>
+                ))}
+                {bhwPatients.length > 8 && (
+                  <span className="text-xs text-muted-foreground self-center">+{bhwPatients.length - 8} more</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Main actions grid */}
+          <div className="space-y-2">
+            {bhwMenuItems.map(({ num, to, icon: Icon, label }) => (
               <Link key={to} to={to}>
-                <Card className="transition-colors hover:bg-muted/50 cursor-pointer">
-                  <CardContent className="flex items-center gap-4 py-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <span className="font-medium text-foreground">{label}</span>
-                    {to === "/notifications" && unreadNotifications > 0 && (
-                      <Badge variant="destructive" className="ml-auto">{unreadNotifications}</Badge>
-                    )}
-                    <ArrowRight className="w-4 h-4 ml-auto text-muted-foreground shrink-0" />
-                  </CardContent>
-                </Card>
+                <div className="rounded-2xl border bg-card p-4 flex items-center gap-4 hover:bg-muted/40 hover:border-primary/20 transition-all shadow-sm">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm">{num}</span>
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="font-medium text-foreground flex-1">{label}</span>
+                  {to === "/notifications" && unreadNotifications > 0 && (
+                    <Badge variant="destructive" className="shrink-0">{unreadNotifications}</Badge>
+                  )}
+                  <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                </div>
               </Link>
             ))}
-            <Card className="border-border">
-              <CardContent className="py-4">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-4 text-muted-foreground hover:text-destructive"
-                  onClick={handleLogout}
-                >
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <LogOut className="w-5 h-5" />
-                  </div>
-                  Logout
-                </Button>
-              </CardContent>
-            </Card>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-4 hover:bg-muted/40 hover:border-destructive/30 transition-all text-muted-foreground hover:text-destructive"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted font-bold text-sm">—</span>
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <span className="font-medium flex-1 text-left">Logout</span>
+            </button>
           </div>
         </main>
       </div>

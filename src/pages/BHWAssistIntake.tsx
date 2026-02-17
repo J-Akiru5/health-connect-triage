@@ -271,33 +271,49 @@ export default function BHWAssistIntake() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20 max-w-3xl">
-        <div className="mb-8">
+      <main className="container mx-auto px-4 pt-20 pb-24 max-w-3xl">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/dashboard">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+          </Button>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Stethoscope className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Patient Symptom Reporting</h1>
+              <p className="text-sm text-muted-foreground">Assisted intake for residents. Submits to AI triage.</p>
+            </div>
+          </div>
+        </div>
+        <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>Step {step} of {totalSteps}</span>
             <span>{Math.round(progress)}%</span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-2 rounded-full" />
         </div>
 
         {step === 1 && (
-          <Card>
+          <Card className="rounded-2xl border shadow-sm">
             <CardHeader>
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                <User className="w-6 h-6 text-primary" />
-              </div>
-              <CardTitle className="text-xl">Select patient</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="w-5 h-5 text-primary" />
+                Select patient
+              </CardTitle>
               <CardDescription>Choose the patient you are assisting. They must be in your assigned barangay.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {loadingPatients ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="flex items-center gap-2 text-muted-foreground py-4">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Loading patients…
                 </div>
               ) : (
                 <Select value={patientId ?? ""} onValueChange={(v) => setPatientId(v || null)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-xl h-11">
                     <SelectValue placeholder="Select patient" />
                   </SelectTrigger>
                   <SelectContent>
@@ -347,7 +363,7 @@ export default function BHWAssistIntake() {
                 <Label>Notes</Label>
                 <textarea rows={2} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground" value={patientInfo.notes} onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })} placeholder="Additional notes…" />
               </div>
-              <Button onClick={() => setStep(2)} size="lg" className="w-full" disabled={!patientId}>
+              <Button onClick={() => setStep(2)} size="lg" className="w-full rounded-xl" disabled={!patientId}>
                 Continue to symptoms
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -356,10 +372,10 @@ export default function BHWAssistIntake() {
         )}
 
         {step === 2 && (
-          <Card>
+          <Card className="rounded-2xl border shadow-sm">
             <CardHeader>
-              <CardTitle>Symptoms (for {selectedPatientName})</CardTitle>
-              <CardDescription>Select all that apply.</CardDescription>
+              <CardTitle className="text-lg">Symptoms — {selectedPatientName}</CardTitle>
+              <CardDescription>Select all that apply. Useful for residents without smartphones.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {symptomCategories.map((cat) => (
@@ -367,7 +383,7 @@ export default function BHWAssistIntake() {
                   <h3 className="font-semibold text-sm mb-2">{cat.name}</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {cat.symptoms.map((s) => (
-                      <label key={s.id} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer ${selectedSymptoms.includes(s.id) ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <label key={s.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${selectedSymptoms.includes(s.id) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
                         <Checkbox checked={selectedSymptoms.includes(s.id)} onCheckedChange={() => toggleSymptom(s.id)} />
                         <span className="text-sm">{s.label}</span>
                       </label>
@@ -390,9 +406,9 @@ export default function BHWAssistIntake() {
         )}
 
         {step === 3 && (
-          <Card>
+          <Card className="rounded-2xl border shadow-sm">
             <CardHeader>
-              <CardTitle>Risk factors</CardTitle>
+              <CardTitle className="text-lg">Risk factors</CardTitle>
               <CardDescription>Select all that apply to the patient.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -421,7 +437,7 @@ export default function BHWAssistIntake() {
 
         {step === 4 && triageResult && (
           <div className="space-y-6">
-            <Card className="border-2 border-primary/30">
+            <Card className="rounded-2xl border-2 border-primary/30 shadow-sm overflow-hidden">
               <CardHeader className="bg-primary/5">
                 <CardTitle className="flex items-center gap-2">
                   {(() => {

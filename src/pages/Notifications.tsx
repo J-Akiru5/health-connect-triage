@@ -45,18 +45,18 @@ export default function Notifications() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20">
+      <main className="container mx-auto px-4 pt-20 pb-24">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
                 <ArrowLeft className="w-4 h-4" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <div className="flex items-center justify-between flex-1">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Bell className="w-5 h-5 text-primary" />
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Bell className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
@@ -64,7 +64,7 @@ export default function Notifications() {
                 </div>
               </div>
               {notifications.some((n) => !n.read_at) && (
-                <Button variant="outline" size="sm" onClick={markAllRead} className="gap-2">
+                <Button variant="outline" size="sm" onClick={markAllRead} className="gap-2 rounded-xl">
                   <CheckCheck className="w-4 h-4" />
                   Mark All Read
                 </Button>
@@ -73,47 +73,48 @@ export default function Notifications() {
           </div>
 
           {loading ? (
-            <Card>
-              <CardContent className="py-12 flex items-center justify-center gap-2">
+            <Card className="rounded-2xl border shadow-sm">
+              <CardContent className="py-16 flex items-center justify-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 <span className="text-muted-foreground">Loading…</span>
               </CardContent>
             </Card>
           ) : notifications.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
+            <Card className="rounded-2xl border shadow-sm">
+              <CardContent className="py-16 text-center">
+                <Bell className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
                 <p className="text-muted-foreground">No notifications yet.</p>
-                <Button asChild className="mt-4" variant="outline">
+                <Button asChild className="mt-4 rounded-xl" variant="outline">
                   <Link to="/dashboard">Back to Dashboard</Link>
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <>
-              <Card className="mb-6">
+              <Card className="rounded-2xl border shadow-sm overflow-hidden mb-6">
                 <CardContent className="p-0 divide-y">
                   {notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`flex gap-3 p-4 ${!n.read_at ? "bg-muted/50" : ""}`}
+                      className={`flex gap-4 p-4 sm:p-5 ${!n.read_at ? "bg-primary/5 border-l-4 border-l-primary" : ""}`}
                     >
-                      <div className="shrink-0 mt-0.5">
+                      <div className="shrink-0">
                         {n.read_at ? (
-                          <span className="text-xs text-muted-foreground">Read</span>
+                          <span className="text-xs text-muted-foreground font-medium">Read</span>
                         ) : (
-                          <span className="text-xs font-medium text-primary">Unread</span>
+                          <span className="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">Unread</span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-foreground">{n.title}</p>
                         {n.body && <p className="text-sm text-muted-foreground mt-0.5">{n.body}</p>}
-                        <p className="text-xs text-muted-foreground mt-1">{format(new Date(n.created_at), "MMM d, h:mm a")}</p>
+                        <p className="text-xs text-muted-foreground mt-2">{format(new Date(n.created_at), "MMM d, h:mm a")}</p>
                       </div>
                     </div>
                   ))}
                 </CardContent>
               </Card>
-              <Button variant="outline" asChild>
+              <Button variant="outline" className="rounded-xl" asChild>
                 <Link to="/dashboard">Back to Dashboard</Link>
               </Button>
             </>
