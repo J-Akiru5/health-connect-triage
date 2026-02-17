@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Heart, LogOut, Menu, User, X, Shield } from "lucide-react";
+import { Heart, LogOut, Menu, User, X, Shield, ChevronDown, UserPlus, LogIn, AlertCircle, Info } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
@@ -86,14 +86,40 @@ export function Navigation() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/login">Log in</Link>
-                </Button>
-                <Button size="sm" asChild>
-                  <Link to="/signup">Sign up</Link>
-                </Button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    Get started
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link to="/signup" className="gap-2 cursor-pointer">
+                      <UserPlus className="w-4 h-4" />
+                      Register
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/login" className="gap-2 cursor-pointer">
+                      <LogIn className="w-4 h-4" />
+                      Login
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/symptom-checker" className="gap-2 cursor-pointer">
+                      <AlertCircle className="w-4 h-4" />
+                      Emergency Quick Report (No Login)
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/about" className="gap-2 cursor-pointer">
+                      <Info className="w-4 h-4" />
+                      Info / About
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
 
@@ -143,12 +169,18 @@ export function Navigation() {
                   </>
                 ) : (
                   <>
-                    <Button variant="ghost" className="justify-start" asChild>
-                      <Link to="/login">Log in</Link>
-                    </Button>
-                    <Button variant="default" asChild>
-                      <Link to="/signup">Sign up</Link>
-                    </Button>
+                    <Link to="/signup" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
+                      <UserPlus className="w-4 h-4" /> Register
+                    </Link>
+                    <Link to="/login" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
+                      <LogIn className="w-4 h-4" /> Login
+                    </Link>
+                    <Link to="/symptom-checker" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" /> Emergency Quick Report (No Login)
+                    </Link>
+                    <Link to="/about" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
+                      <Info className="w-4 h-4" /> Info / About
+                    </Link>
                   </>
                 )}
               </div>

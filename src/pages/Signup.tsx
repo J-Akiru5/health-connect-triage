@@ -67,7 +67,8 @@ const signupSchema = z.object({
   careConsent: z.boolean().optional(),
   researchConsent: z.boolean().optional(),
 }).refine((d) => d.role !== "patient" || (d.password === d.confirmPassword), { message: "Passwords must match", path: ["confirmPassword"] })
-  .refine((d) => d.role !== "patient" || (d.firstName?.trim() && d.lastName?.trim()), { message: "First and last name required", path: ["firstName"] });
+  .refine((d) => d.role !== "patient" || (d.firstName?.trim() && d.lastName?.trim()), { message: "First and last name required", path: ["firstName"] })
+  .refine((d) => d.role !== "patient" || d.careConsent === true, { message: "You must accept the care consent to register.", path: ["careConsent"] });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
@@ -108,8 +109,10 @@ export default function Signup() {
   });
 
   const role = form.watch("role");
+  const careConsent = form.watch("careConsent");
   const isPatient = role === "patient";
   const maxStep = isPatient ? 4 : 1;
+  const canSubmitPatient = !isPatient || careConsent === true;
 
   useEffect(() => {
     if (!isPatient) return;
@@ -511,7 +514,10 @@ export default function Signup() {
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-start gap-2">
                             <FormControl>
-                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                              <Checkbox
+                                checked={field.value === true}
+                                onCheckedChange={(v) => field.onChange(v === true)}
+                              />
                             </FormControl>
                             <div className="space-y-1">
                               <FormLabel className="font-medium">Accept Terms & Consent (Care + Research) <span className="text-destructive">*</span></FormLabel>
@@ -529,7 +535,10 @@ export default function Signup() {
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-start gap-2">
                             <FormControl>
-                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                              <Checkbox
+                                checked={field.value === true}
+                                onCheckedChange={(v) => field.onChange(v === true)}
+                              />
                             </FormControl>
                             <div className="space-y-1">
                               <FormLabel className="font-medium">Research / data sharing (optional)</FormLabel>
@@ -571,29 +580,20 @@ export default function Signup() {
                       Continue
                       <ArrowRight className="w-4 h-4" />
                     </Button>
-                  ) : (
-                    <>
-                      <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                        {isSubmitting ? "Creating account…" : "Submit"}
-                      </Button>
-                      <Button type="button" variant="outline" asChild>
-                        <Link to="/">Cancel</Link>
-                      </Button>
-                    </>
-                  )}
+                  ) : maxStep > 1 ? (
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={isSubmitting || !canSubmitPatient}
+                    >
+                      {isSubmitting ? "Creating account…" : "Submit"}
+                    </Button>
+                  ) : null}
                 </div>
                 {step === 1 && maxStep === 1 && (
-                  <>
-                    <Button type="submit" className="w-full" disabled={isSubmitting}>
-                      {isSubmitting ? "Creating account…" : "Create account"}
-                    </Button>
-                    <p className="text-sm text-muted-foreground text-center">
-                      Already have an account?{" "}
-                      <Link to="/login" className="text-primary font-medium hover:underline">
-                        Log in
-                      </Link>
-                    </p>
-                  </>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Creating account…" : "Create account"}
+                  </Button>
                 )}
                 {step === maxStep && (
                   <p className="text-sm text-muted-foreground text-center">

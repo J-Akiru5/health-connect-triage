@@ -51,7 +51,8 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       const profile = await signIn(values.email, values.password);
-      const destination = profile?.role === "admin" ? "/admin" : from;
+      const destination =
+        profile?.role === "admin" ? "/admin" : profile?.role === "bhw" || profile?.role === "patient" || profile?.role === "clinician" ? "/dashboard" : from;
       navigate(destination, { replace: true });
     } catch {
       // error set in context
