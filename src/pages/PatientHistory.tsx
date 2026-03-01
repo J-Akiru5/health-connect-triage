@@ -11,6 +11,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, FileText, Loader2, User, Stethoscope, MessageSquare, ArrowRightLeft, ChevronRight } from "lucide-react";
@@ -35,7 +46,15 @@ export default function PatientHistory() {
     medications: string | null;
     allergies: string | null;
     notes: string | null;
+    pregnancy_status: string | null;
   } | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [histFormConditions, setHistFormConditions] = useState("");
+  const [histFormMedications, setHistFormMedications] = useState("");
+  const [histFormAllergies, setHistFormAllergies] = useState("");
+  const [histFormIsPregnant, setHistFormIsPregnant] = useState(false);
+  const [histFormNotes, setHistFormNotes] = useState("");
+  const [histSaving, setHistSaving] = useState(false);
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [visitHistory, setVisitHistory] = useState<VisitItem[]>([]);
@@ -74,7 +93,7 @@ export default function PatientHistory() {
     (async () => {
       const [ppRes, mhRes] = await Promise.all([
         supabase.from("patient_profiles").select("first_name, last_name, date_of_birth").eq("user_id", selectedPatientId).maybeSingle(),
-        supabase.from("medical_histories").select("conditions, medications, allergies, notes").eq("user_id", selectedPatientId).maybeSingle(),
+        supabase.from("medical_histories").select("conditions, medications, allergies, notes, pregnancy_status").eq("user_id", selectedPatientId).maybeSingle(),
       ]);
       setPatientProfile(ppRes.data as typeof patientProfile);
       setMedicalHistory(mhRes.data as typeof medicalHistory);
@@ -155,6 +174,58 @@ export default function PatientHistory() {
       setLoadingDetail(false);
     })();
   }, [selectedPatientId]);
+
+  function openHistoryDialog() {
+    setHistFormConditions(medicalHistory?.conditions ?? "");
+    setHistFormMedications(medicalHistory?.medications ?? "");
+    setHistFormAllergies(medicalHistory?.allergies ?? "");
+    setHistFormIsPregnant(medicalHistory?.pregnancy_status === "pregnant");
+    setHistFormNotes(medicalHistory?.notes ?? "");
+    setHistoryDialogOpen(true);
+  }
+
+  async function handleHistorySave() {
+    if (!selectedPatientId || !user?.id) return;
+    setHistSaving(true);
+    try {
+      const payload = {
+        conditions: histFormConditions.trim() || null,
+        medications: histFormMedications.trim() || null,
+        allergies: histFormAllergies.trim() || null,
+        pregnancy_status: histFormIsPregnant ? "pregnant" : null,
+        notes: histFormNotes.trim() || null,
+        updated_at: new Date().toISOString(),
+      };
+      const { data: existing } = await supabase
+        .from("medical_histories")
+        .select("id")
+        .eq("user_id", selectedPatientId)
+        .maybeSingle();
+      if (existing?.id) {
+        await supabase.from("medical_histories").update(payload).eq("id", existing.id);
+      } else {
+        await supabase.from("medical_histories").insert({ user_id: selectedPatientId, ...payload });
+      }
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        action: "medical_history_updated",
+        resource: "medical_histories",
+        details: { patient_id: selectedPatientId },
+      });
+      setMedicalHistory({
+        conditions: payload.conditions,
+        medications: payload.medications,
+        allergies: payload.allergies,
+        notes: payload.notes,
+        pregnancy_status: payload.pregnancy_status,
+      });
+      setHistoryDialogOpen(false);
+    } catch (e) {
+      console.error("Save history failed", e);
+    } finally {
+      setHistSaving(false);
+    }
+  }
 
   const patientName = patients.find((p) => p.id === selectedPatientId)?.name ?? "Patient";
   const conditionsList = medicalHistory?.conditions?.split("\n").filter(Boolean) ?? [];
@@ -292,7 +363,7 @@ export default function PatientHistory() {
                         </div>
                       )}
                       <div className="pt-4 flex gap-3">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={openHistoryDialog}>
                           Add / Update history
                         </Button>
                         <Button variant="ghost" asChild>
@@ -389,6 +460,77 @@ export default function PatientHistory() {
             )}
           </>
         )}
+      {/* Add / Update Medical History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add / Update medical history</DialogTitle>
+            <DialogDescription>
+              Update the medical record for {patientName}. All fields are optional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="hist-conditions">Conditions</Label>
+              <Textarea
+                id="hist-conditions"
+                rows={3}
+                className="resize-none"
+                placeholder="One per line (e.g. Hypertension, Diabetes)"
+                value={histFormConditions}
+                onChange={(e) => setHistFormConditions(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="hist-medications">Medications</Label>
+              <Textarea
+                id="hist-medications"
+                rows={3}
+                className="resize-none"
+                placeholder="One per line (e.g. Metformin 500mg)"
+                value={histFormMedications}
+                onChange={(e) => setHistFormMedications(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="hist-allergies">Allergies</Label>
+              <Textarea
+                id="hist-allergies"
+                rows={2}
+                className="resize-none"
+                placeholder="e.g. Penicillin, Aspirin"
+                value={histFormAllergies}
+                onChange={(e) => setHistFormAllergies(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <Checkbox
+                checked={histFormIsPregnant}
+                onCheckedChange={(c) => setHistFormIsPregnant(!!c)}
+              />
+              <span className="text-sm font-medium">Currently pregnant</span>
+            </label>
+            <div className="grid gap-2">
+              <Label htmlFor="hist-notes">Clinical notes</Label>
+              <Textarea
+                id="hist-notes"
+                rows={2}
+                className="resize-none"
+                placeholder="Additional clinical notes"
+                value={histFormNotes}
+                onChange={(e) => setHistFormNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleHistorySave} disabled={histSaving} className="gap-2">
+              {histSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </main>
     </div>
   );

@@ -15,6 +15,7 @@ import {
   X,
   Heart,
   BarChart3,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,6 +29,7 @@ const adminNav = [
   { to: "/admin/audit", icon: FileText, label: "Audit & Reporting" },
   { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/admin/research-exports", icon: Database, label: "Research Exports" },
+  { to: "/admin/settings", icon: Settings, label: "System Settings" },
 ];
 
 type AdminLayoutProps = { children: React.ReactNode };

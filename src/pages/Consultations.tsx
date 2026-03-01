@@ -31,7 +31,16 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   MessageSquare,
+  Star,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -81,6 +90,11 @@ const Consultations = () => {
   const [queueUpdatingId, setQueueUpdatingId] = useState<string | null>(null);
   const isClinician = profile?.role === "clinician";
   const isBhw = profile?.role === "bhw";
+  const [feedbackDialogId, setFeedbackDialogId] = useState<string | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [existingFeedbackIds, setExistingFeedbackIds] = useState<Set<string>>(new Set());
 
   const loadProviderConsults = useCallback(async () => {
     if (!user?.id || !isClinician) return;
@@ -146,6 +160,15 @@ const Consultations = () => {
         provider: profMap.get(r.provider_id) ?? null,
       }));
       setConsultations(rows);
+      const completedIds = rows.filter((r) => r.status === "completed").map((r) => r.id);
+      if (completedIds.length > 0) {
+        const { data: fb } = await supabase
+          .from("consultation_feedback")
+          .select("consultation_id")
+          .eq("patient_id", user.id)
+          .in("consultation_id", completedIds);
+        setExistingFeedbackIds(new Set((fb ?? []).map((f: { consultation_id: string }) => f.consultation_id)));
+      }
       setLoadingConsultations(false);
     })();
   }, [user?.id]);
@@ -195,6 +218,27 @@ const Consultations = () => {
     setLoadingProvider(true);
     loadProviderConsults().then(() => setLoadingProvider(false));
   }, [user?.id, isClinician, loadProviderConsults]);
+
+  async function handleFeedbackSubmit() {
+    if (!user?.id || !feedbackDialogId || feedbackRating === 0) return;
+    setFeedbackSubmitting(true);
+    try {
+      await supabase.from("consultation_feedback").insert({
+        consultation_id: feedbackDialogId,
+        patient_id: user.id,
+        rating: feedbackRating,
+        comment: feedbackComment.trim() || null,
+      });
+      setExistingFeedbackIds((prev) => new Set([...prev, feedbackDialogId]));
+      setFeedbackDialogId(null);
+      setFeedbackRating(0);
+      setFeedbackComment("");
+    } catch (e) {
+      console.error("Feedback submit failed", e);
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }
 
   async function handleStartConsultation(consultationId: string) {
     setQueueUpdatingId(consultationId);
@@ -760,9 +804,26 @@ const Consultations = () => {
                                 </>
                               )}
                               {statusDisplay === "completed" && (
-                                <Button variant="outline" size="sm">
-                                  View Details
-                                </Button>
+                                existingFeedbackIds.has(consultation.id) ? (
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Star className="w-3 h-3" />
+                                    Feedback submitted
+                                  </span>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => {
+                                      setFeedbackDialogId(consultation.id);
+                                      setFeedbackRating(0);
+                                      setFeedbackComment("");
+                                    }}
+                                  >
+                                    <Star className="w-3.5 h-3.5" />
+                                    Leave Feedback
+                                  </Button>
+                                )
                               )}
                             </div>
                           </div>
@@ -834,6 +895,58 @@ const Consultations = () => {
         teleconsultationId={referralTeleconsultationId}
         onSuccess={() => {}}
       />
+
+      {/* Feedback Dialog */}
+      <Dialog open={!!feedbackDialogId} onOpenChange={(open) => !open && setFeedbackDialogId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rate your consultation</DialogTitle>
+            <DialogDescription>Share your experience to help us improve our service.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Rating</Label>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setFeedbackRating(n)}
+                    className={`text-2xl transition-colors ${n <= feedbackRating ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-300"}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              {feedbackRating > 0 && (
+                <p className="text-xs text-muted-foreground">{feedbackRating} out of 5 stars</p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fb-comment">Comment (optional)</Label>
+              <Textarea
+                id="fb-comment"
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                rows={3}
+                className="resize-none"
+                placeholder="How was your experience?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeedbackDialogId(null)}>Cancel</Button>
+            <Button
+              onClick={handleFeedbackSubmit}
+              disabled={feedbackSubmitting || feedbackRating === 0}
+              className="gap-2"
+            >
+              {feedbackSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>

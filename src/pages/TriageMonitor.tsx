@@ -32,7 +32,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
-import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2, Pencil, AlertCircle, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2, Pencil, AlertCircle, Users, ClipboardList } from "lucide-react";
 
 const TRIAGE_LEVELS = ["emergency", "urgent", "non_urgent", "home_care"] as const;
 
@@ -65,6 +65,15 @@ export default function TriageMonitor() {
   const [assignBHWNotes, setAssignBHWNotes] = useState("");
   const [assignBHWSubmitting, setAssignBHWSubmitting] = useState(false);
   const [assignBHWLoading, setAssignBHWLoading] = useState(false);
+  const [symptomRow, setSymptomRow] = useState<TriageRow | null>(null);
+  const [symptomDetail, setSymptomDetail] = useState<{
+    symptoms: string[] | null;
+    notes: string | null;
+    duration: string | null;
+    severity: string | null;
+    vitals: Record<string, unknown> | null;
+  } | null>(null);
+  const [symptomLoading, setSymptomLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.id || (profile?.role !== "clinician" && profile?.role !== "bhw")) {
@@ -155,6 +164,30 @@ export default function TriageMonitor() {
       setLoading(false);
     })();
   }, [user?.id, profile?.role]);
+
+  async function openSymptomDetail(r: TriageRow) {
+    setSymptomRow(r);
+    setSymptomDetail(null);
+    setSymptomLoading(true);
+    try {
+      const { data } = await supabase
+        .from("symptom_assessments")
+        .select("symptoms, notes, duration, severity, vitals")
+        .eq("id", r.assessment_id)
+        .single();
+      setSymptomDetail(data ? {
+        symptoms: Array.isArray(data.symptoms) ? data.symptoms : null,
+        notes: (data as { notes?: string | null }).notes ?? null,
+        duration: (data as { duration?: string | null }).duration ?? null,
+        severity: (data as { severity?: string | null }).severity ?? null,
+        vitals: (data as { vitals?: Record<string, unknown> | null }).vitals ?? null,
+      } : null);
+    } catch (e) {
+      console.error("Failed to load symptom detail", e);
+    } finally {
+      setSymptomLoading(false);
+    }
+  }
 
   async function handleMarkFollowUp(r: TriageRow) {
     if (!user?.id) return;
@@ -459,6 +492,15 @@ export default function TriageMonitor() {
                                 Assign BHW
                               </Button>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => openSymptomDetail(r)}
+                            >
+                              <ClipboardList className="w-3.5 h-3.5" />
+                              View Symptoms
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -543,6 +585,76 @@ export default function TriageMonitor() {
               prefilledPatient={referralPatient}
               onSuccess={() => setReferralPatient(null)}
             />
+
+            {/* Symptom Detail Dialog */}
+            <Dialog open={!!symptomRow} onOpenChange={(open) => !open && setSymptomRow(null)}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Symptom details — {symptomRow?.patient_name}</DialogTitle>
+                  <DialogDescription>Reported symptoms, duration, severity, vitals, and notes.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4 text-sm">
+                  {symptomLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading…
+                    </div>
+                  ) : symptomDetail ? (
+                    <>
+                      <div>
+                        <p className="font-medium text-muted-foreground mb-1">Symptoms</p>
+                        {symptomDetail.symptoms?.length ? (
+                          <ul className="list-disc list-inside space-y-0.5">
+                            {symptomDetail.symptoms.map((s) => (
+                              <li key={s} className="capitalize">{s.replace(/-/g, " ")}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-muted-foreground">None recorded.</p>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">Duration</p>
+                          <p>{symptomDetail.duration ?? "—"}</p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">Severity</p>
+                          <p className="capitalize">{symptomDetail.severity ?? "—"}</p>
+                        </div>
+                      </div>
+                      {symptomDetail.vitals && Object.keys(symptomDetail.vitals).length > 0 && (
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">Vitals</p>
+                          <ul className="space-y-0.5">
+                            {symptomDetail.vitals.bp_systolic != null && (
+                              <li>BP: {String(symptomDetail.vitals.bp_systolic)}/{String(symptomDetail.vitals.bp_diastolic)} mmHg</li>
+                            )}
+                            {symptomDetail.vitals.hr != null && (
+                              <li>HR: {String(symptomDetail.vitals.hr)} bpm</li>
+                            )}
+                            {symptomDetail.vitals.temp_c != null && (
+                              <li>Temp: {String(symptomDetail.vitals.temp_c)} °C</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                      {symptomDetail.notes && (
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">Notes</p>
+                          <p className="whitespace-pre-wrap text-muted-foreground">{symptomDetail.notes}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">No symptom data found for this assessment.</p>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setSymptomRow(null)}>Close</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Assign BHW Modal */}
             <Dialog open={!!assignBHWRow} onOpenChange={(open) => !open && setAssignBHWRow(null)}>

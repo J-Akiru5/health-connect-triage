@@ -233,6 +233,20 @@ export default function BHWAssistIntake() {
         status: "scheduled",
         scheduled_at: null,
       });
+      const patientName = patients.find((p) => p.user_id === patientId)?.full_name ?? "Patient";
+      const bhwName = profile?.full_name ?? "BHW";
+      await supabase.from("notifications").insert([
+        {
+          user_id: patientId,
+          message: "A teleconsultation has been scheduled for you.",
+          type: "system",
+        },
+        {
+          user_id: providerId,
+          message: `New teleconsultation request from patient ${patientName} assigned by BHW ${bhwName}.`,
+          type: "system",
+        },
+      ]);
       await supabase.from("bhw_activities").insert({
         bhw_id: user.id,
         patient_id: patientId,

@@ -195,6 +195,13 @@ export default function Signup() {
               ]
             : []),
         ]);
+        if (bhwPrefill) {
+          await supabase.from("notifications").insert({
+            user_id: result.userId,
+            message: "Welcome! Your account has been registered by your Barangay Health Worker.",
+            type: "system",
+          });
+        }
       }
       navigate(from, { replace: true });
     } catch {

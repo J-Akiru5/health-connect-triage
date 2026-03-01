@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
-import { Loader2, BarChart3, Stethoscope, ArrowRightLeft } from "lucide-react";
+import { Loader2, BarChart3, Stethoscope, ArrowRightLeft, Download } from "lucide-react";
 
 type TriageCounts = { emergency: number; urgent: number; non_urgent: number; home_care: number };
 type ReferralStats = { total: number; byStatus: Record<string, number>; byUrgency: Record<string, number> };
@@ -59,6 +59,37 @@ export default function AdminAnalytics() {
     })();
   }, []);
 
+  function handleExportCSV() {
+    const lines: string[] = ["Category,Label,Value"];
+    if (triageCounts) {
+      lines.push(`Triage,Emergency,${triageCounts.emergency}`);
+      lines.push(`Triage,Urgent,${triageCounts.urgent}`);
+      lines.push(`Triage,Non-urgent,${triageCounts.non_urgent}`);
+      lines.push(`Triage,Home care,${triageCounts.home_care}`);
+    }
+    if (referralStats) {
+      lines.push(`Referrals,Total,${referralStats.total}`);
+      Object.entries(referralStats.byStatus).forEach(([status, n]) => {
+        lines.push(`Referrals by status,${status},${n}`);
+      });
+      Object.entries(referralStats.byUrgency).forEach(([urgency, n]) => {
+        lines.push(`Referrals by urgency,${urgency},${n}`);
+      });
+    }
+    topFactors.forEach(({ id, count }) => {
+      lines.push(`Top factor,${id.replace(/,/g, " ")},${count}`);
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `analytics-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) {
     return (
       <AdminLayout>
@@ -73,11 +104,17 @@ export default function AdminAnalytics() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground mt-1">
-            Case counts by triage level, common symptoms/factors, and referral rates for reporting and research.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+            <p className="text-muted-foreground mt-1">
+              Case counts by triage level, common symptoms/factors, and referral rates for reporting and research.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={handleExportCSV}>
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

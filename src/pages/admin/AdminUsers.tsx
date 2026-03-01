@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Pencil, UserX, UserCheck } from "lucide-react";
+import { Loader2, Plus, Pencil, UserX, UserCheck, KeyRound } from "lucide-react";
 import type { UserRole } from "@/lib/database.types";
 
 type ProfileRow = {
@@ -47,6 +47,10 @@ export default function AdminUsers() {
   const [editBarangayId, setEditBarangayId] = useState<string | "">("");
   const [editFullName, setEditFullName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [resetRow, setResetRow] = useState<ProfileRow | null>(null);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSending, setResetSending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const load = async () => {
     const { data: profData } = await supabase
@@ -112,6 +116,27 @@ export default function AdminUsers() {
     setEditingId(null);
     setSaving(false);
     load();
+  }
+
+  async function handleResetPassword() {
+    if (!resetRow || !resetEmail.trim()) return;
+    setResetSending(true);
+    try {
+      await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      await supabase.from("audit_logs").insert({
+        user_id: currentUser?.id ?? null,
+        action: "admin_password_reset",
+        resource: "profiles",
+        details: { profile_id: resetRow.id, email: resetEmail.trim() },
+      });
+      setResetSent(true);
+    } catch (e) {
+      console.error("Reset failed", e);
+    } finally {
+      setResetSending(false);
+    }
   }
 
   async function toggleActive(p: ProfileRow) {
@@ -264,6 +289,19 @@ export default function AdminUsers() {
                               <Pencil className="h-3 w-3" />
                               Edit
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1 text-muted-foreground"
+                              onClick={() => {
+                                setResetRow(p);
+                                setResetEmail("");
+                                setResetSent(false);
+                              }}
+                            >
+                              <KeyRound className="h-3 w-3" />
+                              Reset PW
+                            </Button>
                             {p.id !== currentUser?.id && (
                               <Button
                                 size="sm"
@@ -295,6 +333,45 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!resetRow} onOpenChange={(open) => { if (!open) { setResetRow(null); setResetSent(false); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reset password</DialogTitle>
+            <DialogDescription>
+              {resetSent
+                ? "A password reset email has been sent. The user can follow the link to set a new password."
+                : `Send a password reset email for ${resetRow?.full_name ?? "this user"}.`}
+            </DialogDescription>
+          </DialogHeader>
+          {!resetSent && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="reset-email">User email address</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="user@example.com"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetRow(null); setResetSent(false); }}>
+              {resetSent ? "Close" : "Cancel"}
+            </Button>
+            {!resetSent && (
+              <Button onClick={handleResetPassword} disabled={resetSending || !resetEmail.trim()} className="gap-2">
+                {resetSending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Send reset email
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
