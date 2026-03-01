@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -12,8 +13,13 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, FileText, Loader2, User } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, User, Stethoscope, MessageSquare, ArrowRightLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
+
+type VisitItem =
+  | { type: "triage"; date: string; triageLevel: string; reportedBy: string | null; assessmentId: string }
+  | { type: "consultation"; date: string; id: string; status: string; providerName: string | null }
+  | { type: "referral"; date: string; id: string; facilityName: string; urgency: string; status: string };
 
 export default function PatientHistory() {
   const { user, profile } = useAuth();
@@ -32,6 +38,7 @@ export default function PatientHistory() {
   } | null>(null);
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [visitHistory, setVisitHistory] = useState<VisitItem[]>([]);
 
   useEffect(() => {
     if (!user?.id || profile?.role !== "clinician") {
@@ -60,6 +67,7 @@ export default function PatientHistory() {
     if (!selectedPatientId) {
       setPatientProfile(null);
       setMedicalHistory(null);
+      setVisitHistory([]);
       return;
     }
     setLoadingDetail(true);
@@ -70,6 +78,80 @@ export default function PatientHistory() {
       ]);
       setPatientProfile(ppRes.data as typeof patientProfile);
       setMedicalHistory(mhRes.data as typeof medicalHistory);
+
+      const items: VisitItem[] = [];
+
+      const { data: assessments } = await supabase
+        .from("symptom_assessments")
+        .select("id, created_at, reported_by")
+        .eq("user_id", selectedPatientId)
+        .order("created_at", { ascending: false });
+      const assessmentIds = (assessments ?? []).map((a: { id: string }) => a.id);
+      const reportedByIds = [...new Set((assessments ?? []).map((a: { reported_by: string | null }) => a.reported_by).filter(Boolean))] as string[];
+
+      let reporterNames: Map<string, string> = new Map();
+      if (reportedByIds.length > 0) {
+        const { data: reporters } = await supabase.from("profiles").select("id, full_name").in("id", reportedByIds);
+        reporterNames = new Map((reporters ?? []).map((r: { id: string; full_name: string | null }) => [r.id, r.full_name ?? "Staff"]));
+      }
+
+      if (assessmentIds.length > 0) {
+        const { data: triageRows } = await supabase
+          .from("ai_triage_results")
+          .select("assessment_id, triage_level, created_at")
+          .in("assessment_id", assessmentIds);
+        const assessMap = new Map((assessments ?? []).map((a: { id: string; created_at: string; reported_by: string | null }) => [a.id, { created_at: a.created_at, reported_by: a.reported_by }]));
+        (triageRows ?? []).forEach((t: { assessment_id: string; triage_level: string; created_at: string }) => {
+          const a = assessMap.get(t.assessment_id);
+          items.push({
+            type: "triage",
+            date: t.created_at,
+            triageLevel: t.triage_level,
+            reportedBy: a?.reported_by ? reporterNames.get(a.reported_by) ?? null : null,
+            assessmentId: t.assessment_id,
+          });
+        });
+      }
+
+      const { data: consults } = await supabase
+        .from("teleconsultations")
+        .select("id, created_at, status, provider_id")
+        .eq("patient_id", selectedPatientId)
+        .order("created_at", { ascending: false });
+      const providerIds = [...new Set((consults ?? []).map((c: { provider_id: string }) => c.provider_id))];
+      let providerNames: Map<string, string> = new Map();
+      if (providerIds.length > 0) {
+        const { data: provs } = await supabase.from("profiles").select("id, full_name").in("id", providerIds);
+        providerNames = new Map((provs ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Provider"]));
+      }
+      (consults ?? []).forEach((c: { id: string; created_at: string; status: string; provider_id: string }) => {
+        items.push({
+          type: "consultation",
+          date: c.created_at,
+          id: c.id,
+          status: c.status,
+          providerName: providerNames.get(c.provider_id) ?? null,
+        });
+      });
+
+      const { data: refs } = await supabase
+        .from("referrals")
+        .select("id, created_at, facility_name, urgency, status")
+        .eq("patient_id", selectedPatientId)
+        .order("created_at", { ascending: false });
+      (refs ?? []).forEach((r: { id: string; created_at: string; facility_name: string; urgency: string; status: string }) => {
+        items.push({
+          type: "referral",
+          date: r.created_at,
+          id: r.id,
+          facilityName: r.facility_name,
+          urgency: r.urgency,
+          status: r.status,
+        });
+      });
+
+      items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setVisitHistory(items);
       setLoadingDetail(false);
     })();
   }, [selectedPatientId]);
@@ -218,6 +300,89 @@ export default function PatientHistory() {
                         </Button>
                       </div>
                     </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedPatientId && !loadingDetail && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="text-lg">Visit history</CardTitle>
+                  <CardDescription>
+                    Triage events, consultations, and referrals for this patient. Newest first.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {visitHistory.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4">No visits recorded yet.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {visitHistory.map((item) => {
+                        const dateStr = format(new Date(item.date), "MMM d, yyyy · h:mm a");
+                        if (item.type === "triage") {
+                          const levelLabel = item.triageLevel === "emergency" || item.triageLevel === "urgent" ? "High" : item.triageLevel === "non_urgent" ? "Moderate" : "Low";
+                          return (
+                            <li key={`triage-${item.assessmentId}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                  <Stethoscope className="w-4 h-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm text-foreground">Triage</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {dateStr}
+                                    {item.reportedBy ? ` · ${item.reportedBy}` : ""} · {levelLabel}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant={item.triageLevel === "emergency" || item.triageLevel === "urgent" ? "destructive" : "secondary"} className="shrink-0">
+                                {levelLabel}
+                              </Badge>
+                            </li>
+                          );
+                        }
+                        if (item.type === "consultation") {
+                          return (
+                            <li key={`consultation-${item.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                  <MessageSquare className="w-4 h-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm text-foreground">Consultation</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {dateStr} · {item.providerName ?? "Provider"} · {item.status}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button variant="ghost" size="sm" asChild className="shrink-0 gap-1">
+                                <Link to={`/consultations/${item.id}/chat`}>
+                                  Open chat
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </Link>
+                              </Button>
+                            </li>
+                          );
+                        }
+                        return (
+                          <li key={`referral-${item.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="shrink-0 w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                                <ArrowRightLeft className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm text-foreground">Referral</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {dateStr} · {item.facilityName} · {item.urgency} · {item.status}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="shrink-0">{item.status}</Badge>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </CardContent>
               </Card>

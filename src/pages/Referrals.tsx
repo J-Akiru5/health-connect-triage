@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
 import { ArrowRightLeft, Loader2, ArrowLeft, FileText, Phone, UserPlus, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -34,8 +35,65 @@ export default function Referrals() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [referralModalOpen, setReferralModalOpen] = useState(false);
+  const [patientsList, setPatientsList] = useState<CreateReferralPrefilledPatient[]>([]);
   const isClinician = profile?.role === "clinician";
   const isBhw = profile?.role === "bhw";
+
+  const loadReferrals = async () => {
+    if (!user?.id) return;
+    if (isClinician) {
+      const { data } = await supabase
+        .from("referrals")
+        .select("id, patient_id, facility_name, urgency, status, created_at, required_documents")
+        .eq("from_provider_id", user.id)
+        .order("created_at", { ascending: false });
+      const patientIds = [...new Set((data ?? []).map((r: { patient_id: string }) => r.patient_id))];
+      const { data: profData } = patientIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+        : { data: [] };
+      const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
+      setReferrals(
+        (data ?? []).map((r: { id: string; patient_id: string; facility_name: string; urgency: string; status: string; created_at: string; required_documents: string | null }) => ({
+          ...r,
+          patient_name: nameMap.get(r.patient_id),
+        }))
+      );
+    } else if (isBhw) {
+      const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
+      const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
+      if (!barangayId) {
+        setReferrals([]);
+        return;
+      }
+      const { data: ppList } = await supabase.from("patient_profiles").select("user_id").eq("barangay_id", barangayId);
+      const bhwPatientIds = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
+      if (bhwPatientIds.length === 0) {
+        setReferrals([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("referrals")
+        .select("id, patient_id, facility_name, urgency, status, created_at, required_documents")
+        .in("patient_id", bhwPatientIds)
+        .order("created_at", { ascending: false });
+      const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", bhwPatientIds);
+      const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
+      setReferrals(
+        (data ?? []).map((r: { id: string; patient_id: string; facility_name: string; urgency: string; status: string; created_at: string; required_documents: string | null }) => ({
+          ...r,
+          patient_name: nameMap.get(r.patient_id),
+        }))
+      );
+    } else {
+      const { data } = await supabase
+        .from("referrals")
+        .select("id, facility_name, urgency, status, created_at, required_documents")
+        .eq("patient_id", user.id)
+        .order("created_at", { ascending: false });
+      setReferrals(data ?? []);
+    }
+  };
 
   useEffect(() => {
     if (!user?.id) {
@@ -98,6 +156,53 @@ export default function Referrals() {
     })();
   }, [user?.id, isClinician, isBhw]);
 
+  useEffect(() => {
+    if (!user?.id || (!isClinician && !isBhw)) {
+      setPatientsList([]);
+      return;
+    }
+    (async () => {
+      if (isClinician) {
+        const { data: consults } = await supabase
+          .from("teleconsultations")
+          .select("patient_id")
+          .eq("provider_id", user.id);
+        const ids = [...new Set((consults ?? []).map((c: { patient_id: string }) => c.patient_id))];
+        if (ids.length === 0) {
+          setPatientsList([]);
+          return;
+        }
+        const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+        setPatientsList(
+          (profData ?? []).map((p: { id: string; full_name: string | null }) => ({
+            id: p.id,
+            name: p.full_name ?? "Patient",
+          }))
+        );
+      } else {
+        const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
+        const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
+        if (!barangayId) {
+          setPatientsList([]);
+          return;
+        }
+        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").eq("barangay_id", barangayId);
+        const ids = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
+        if (ids.length === 0) {
+          setPatientsList([]);
+          return;
+        }
+        const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+        setPatientsList(
+          (profData ?? []).map((p: { id: string; full_name: string | null }) => ({
+            id: p.id,
+            name: p.full_name ?? "Patient",
+          }))
+        );
+      }
+    })();
+  }, [user?.id, isClinician, isBhw]);
+
   const pending = referrals.filter((r) => r.status === "pending" || r.status === "confirmed");
   const urgencyColor = (u: string) =>
     u === "emergency" ? "destructive" : u === "urgent" ? "default" : "secondary";
@@ -132,23 +237,34 @@ export default function Referrals() {
       <Navigation />
       <main className="container mx-auto px-4 pt-24 pb-20">
         <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-8">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <ArrowRightLeft className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{isClinician ? "Referrals / Escalations" : "Referrals"}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {isClinician ? "Review, approve, and assign BHW follow-up" : isBhw ? "Update referral status for patients in your barangay" : "Escalations and facility referrals"}
-                </p>
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <Link to="/dashboard">
+                <Button variant="ghost" size="icon">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <ArrowRightLeft className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">{isClinician ? "Referrals / Escalations" : "Referrals"}</h1>
+                  <p className="text-sm text-muted-foreground">
+                    {isClinician ? "Review, approve, and assign BHW follow-up" : isBhw ? "Update referral status for patients in your barangay" : "Escalations and facility referrals"}
+                  </p>
+                </div>
               </div>
             </div>
+            {(isClinician || isBhw) && (
+              <Button
+                onClick={() => setReferralModalOpen(true)}
+                className="gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                Create referral
+              </Button>
+            )}
           </div>
 
           {loading ? (
@@ -339,6 +455,16 @@ export default function Referrals() {
             </>
           )}
         </div>
+
+        {(isClinician || isBhw) && (
+          <CreateReferralModal
+            open={referralModalOpen}
+            onOpenChange={setReferralModalOpen}
+            prefilledPatient={null}
+            patientsList={patientsList}
+            onSuccess={loadReferrals}
+          />
+        )}
       </main>
     </div>
   );

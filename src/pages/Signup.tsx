@@ -522,7 +522,10 @@ export default function Signup() {
                             <div className="space-y-1">
                               <FormLabel className="font-medium">Accept Terms & Consent (Care + Research) <span className="text-destructive">*</span></FormLabel>
                               <p className="text-sm text-muted-foreground">
-                                I agree to use this platform for telehealth and understand that advice is for support only and does not replace in-person care.
+                                I agree to use this platform for telehealth and understand that advice is for support only and does not replace in-person care.{" "}
+                                <Link to="/privacy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+                                  Read our Privacy & Data Use Notice
+                                </Link>
                               </p>
                               <FormMessage />
                             </div>

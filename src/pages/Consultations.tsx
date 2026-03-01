@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,11 +29,13 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
+  ArrowRightLeft,
+  MessageSquare,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
 
 interface ConsultationRow {
   id: string;
@@ -53,6 +56,7 @@ interface ProviderConsultRow {
 }
 
 const Consultations = () => {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -71,8 +75,45 @@ const Consultations = () => {
   const [loadingBhw, setLoadingBhw] = useState(true);
   const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [referralModalOpen, setReferralModalOpen] = useState(false);
+  const [referralPrefilled, setReferralPrefilled] = useState<CreateReferralPrefilledPatient | null>(null);
+  const [referralTeleconsultationId, setReferralTeleconsultationId] = useState<string | undefined>(undefined);
+  const [queueUpdatingId, setQueueUpdatingId] = useState<string | null>(null);
   const isClinician = profile?.role === "clinician";
   const isBhw = profile?.role === "bhw";
+
+  const loadProviderConsults = useCallback(async () => {
+    if (!user?.id || !isClinician) return;
+    const { data: consults } = await supabase
+      .from("teleconsultations")
+      .select("id, patient_id, status, scheduled_at, created_at, assessment_id")
+      .eq("provider_id", user.id)
+      .order("scheduled_at", { ascending: true, nullsFirst: false });
+    if (!consults?.length) {
+      setProviderConsults([]);
+      return;
+    }
+    const patientIds = [...new Set(consults.map((c: { patient_id: string }) => c.patient_id))];
+    const assessmentIds = consults.map((c: { assessment_id: string | null }) => c.assessment_id).filter(Boolean) as string[];
+    const [profRes, triageRes] = await Promise.all([
+      supabase.from("profiles").select("id, full_name").in("id", patientIds),
+      assessmentIds.length
+        ? supabase.from("ai_triage_results").select("assessment_id, triage_level").in("assessment_id", assessmentIds)
+        : { data: [] as { assessment_id: string; triage_level: string }[] },
+    ]);
+    const nameMap = new Map((profRes.data ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
+    const triageMap = new Map((triageRes.data ?? []).map((t: { assessment_id: string; triage_level: string }) => [t.assessment_id, t.triage_level]));
+    const rows: ProviderConsultRow[] = consults.map((c: { id: string; patient_id: string; status: string; scheduled_at: string | null; created_at: string; assessment_id: string | null }) => ({
+      id: c.id,
+      patient_id: c.patient_id,
+      patient_name: nameMap.get(c.patient_id) ?? "Patient",
+      status: c.status,
+      scheduled_at: c.scheduled_at,
+      created_at: c.created_at,
+      triage_level: c.assessment_id ? triageMap.get(c.assessment_id) ?? null : null,
+    }));
+    setProviderConsults(rows);
+  }, [user?.id, isClinician]);
 
   useEffect(() => {
     (async () => {
@@ -151,40 +192,40 @@ const Consultations = () => {
       setLoadingProvider(false);
       return;
     }
-    (async () => {
-      const { data: consults } = await supabase
+    setLoadingProvider(true);
+    loadProviderConsults().then(() => setLoadingProvider(false));
+  }, [user?.id, isClinician, loadProviderConsults]);
+
+  async function handleStartConsultation(consultationId: string) {
+    setQueueUpdatingId(consultationId);
+    try {
+      await supabase
         .from("teleconsultations")
-        .select("id, patient_id, status, scheduled_at, created_at, assessment_id")
-        .eq("provider_id", user.id)
-        .order("scheduled_at", { ascending: true, nullsFirst: false });
-      if (!consults?.length) {
-        setProviderConsults([]);
-        setLoadingProvider(false);
-        return;
-      }
-      const patientIds = [...new Set(consults.map((c: { patient_id: string }) => c.patient_id))];
-      const assessmentIds = consults.map((c: { assessment_id: string | null }) => c.assessment_id).filter(Boolean) as string[];
-      const [profRes, triageRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name").in("id", patientIds),
-        assessmentIds.length
-          ? supabase.from("ai_triage_results").select("assessment_id, triage_level").in("assessment_id", assessmentIds)
-          : { data: [] as { assessment_id: string; triage_level: string }[] },
-      ]);
-      const nameMap = new Map((profRes.data ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
-      const triageMap = new Map((triageRes.data ?? []).map((t: { assessment_id: string; triage_level: string }) => [t.assessment_id, t.triage_level]));
-      const rows: ProviderConsultRow[] = consults.map((c: { id: string; patient_id: string; status: string; scheduled_at: string | null; created_at: string; assessment_id: string | null }) => ({
-        id: c.id,
-        patient_id: c.patient_id,
-        patient_name: nameMap.get(c.patient_id) ?? "Patient",
-        status: c.status,
-        scheduled_at: c.scheduled_at,
-        created_at: c.created_at,
-        triage_level: c.assessment_id ? triageMap.get(c.assessment_id) ?? null : null,
-      }));
-      setProviderConsults(rows);
-      setLoadingProvider(false);
-    })();
-  }, [user?.id, isClinician]);
+        .update({ status: "in_progress", started_at: new Date().toISOString() })
+        .eq("id", consultationId);
+      await loadProviderConsults();
+    } catch (e) {
+      console.error("Start consultation failed", e);
+    } finally {
+      setQueueUpdatingId(null);
+    }
+  }
+
+  async function handleCompleteConsultation(consultationId: string) {
+    setQueueUpdatingId(consultationId);
+    try {
+      await supabase
+        .from("teleconsultations")
+        .update({ status: "completed", ended_at: new Date().toISOString() })
+        .eq("id", consultationId);
+      await loadProviderConsults();
+      navigate(`/consultations/${consultationId}/chat`, { state: { openTab: "notes" } });
+    } catch (e) {
+      console.error("Complete consultation failed", e);
+    } finally {
+      setQueueUpdatingId(null);
+    }
+  }
 
   const availableTimeSlots = [
     "8:00 AM",
@@ -311,7 +352,7 @@ const Consultations = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>Teleconsultation appointments</CardTitle>
-                    <CardDescription>Upcoming appointments. Join session or reschedule and notify BHW.</CardDescription>
+                    <CardDescription>Your queue: start a consultation, complete it, then add notes. Open chat to message the patient.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {loadingProvider ? (
@@ -341,7 +382,45 @@ const Consultations = () => {
                                 )}
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                <Button size="sm">Join session</Button>
+                                <Button size="sm" asChild>
+                                  <Link to={`/consultations/${c.id}/chat`}>
+                                    <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                                    Open chat
+                                  </Link>
+                                </Button>
+                                {c.status === "scheduled" && (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    disabled={queueUpdatingId === c.id}
+                                    onClick={() => handleStartConsultation(c.id)}
+                                  >
+                                    {queueUpdatingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Start"}
+                                  </Button>
+                                )}
+                                {(c.status === "scheduled" || c.status === "in_progress") && (
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={queueUpdatingId === c.id}
+                                    onClick={() => handleCompleteConsultation(c.id)}
+                                  >
+                                    {queueUpdatingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Complete"}
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1"
+                                  onClick={() => {
+                                    setReferralPrefilled({ id: c.patient_id, name: c.patient_name });
+                                    setReferralTeleconsultationId(c.id);
+                                    setReferralModalOpen(true);
+                                  }}
+                                >
+                                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  Refer to facility
+                                </Button>
                                 <Button variant="outline" size="sm">Reschedule / Notify BHW</Button>
                                 <Badge variant="outline">{c.status}</Badge>
                               </div>
@@ -581,7 +660,28 @@ const Consultations = () => {
                                   )}
                                 </p>
                               </div>
-                              <Badge variant="outline">{c.status}</Badge>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Button variant="outline" size="sm" asChild className="gap-1">
+                                  <Link to={`/consultations/${c.id}/chat`}>
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    Open chat
+                                  </Link>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1"
+                                  onClick={() => {
+                                    setReferralPrefilled({ id: c.patient_id, name: c.patient_name });
+                                    setReferralTeleconsultationId(c.id);
+                                    setReferralModalOpen(true);
+                                  }}
+                                >
+                                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  Refer to facility
+                                </Button>
+                                <Badge variant="outline">{c.status}</Badge>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -645,6 +745,12 @@ const Consultations = () => {
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
+                              <Button variant="outline" size="sm" asChild className="gap-1">
+                                <Link to={`/consultations/${consultation.id}/chat`}>
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  Open chat
+                                </Link>
+                              </Button>
                               {statusDisplay === "upcoming" && (
                                 <>
                                   <Button size="sm">Join Now</Button>
@@ -714,6 +820,20 @@ const Consultations = () => {
           </div>
         </div>
       </div>
+
+      <CreateReferralModal
+        open={referralModalOpen}
+        onOpenChange={(open) => {
+          setReferralModalOpen(open);
+          if (!open) {
+            setReferralPrefilled(null);
+            setReferralTeleconsultationId(undefined);
+          }
+        }}
+        prefilledPatient={referralPrefilled}
+        teleconsultationId={referralTeleconsultationId}
+        onSuccess={() => {}}
+      />
 
       <Footer />
     </div>

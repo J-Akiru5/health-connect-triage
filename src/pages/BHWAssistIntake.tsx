@@ -459,6 +459,32 @@ export default function BHWAssistIntake() {
                   </div>
                 </div>
                 <p className="font-medium">Recommended: {triageResults[triageResult].action}</p>
+                {(selectedSymptoms.length > 0 || selectedRiskFactors.length > 0) && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-4">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Factors considered</h4>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      These symptoms and risk factors contributed to the triage level.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedSymptoms.map((id) => {
+                        const label = symptomCategories.flatMap((c) => c.symptoms).find((s) => s.id === id)?.label ?? id;
+                        return (
+                          <span key={id} className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                            {label}
+                          </span>
+                        );
+                      })}
+                      {selectedRiskFactors.map((id) => {
+                        const label = riskFactors.find((f) => f.id === id)?.label ?? id;
+                        return (
+                          <span key={`rf-${id}`} className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2.5 py-0.5 text-xs font-medium">
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {saving && (
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />

@@ -10,6 +10,7 @@ import SymptomChecker from "./pages/SymptomChecker";
 import FAQ from "./pages/FAQ";
 import About from "./pages/About";
 import Consultations from "./pages/Consultations";
+import ConsultationChat from "./pages/ConsultationChat";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import Referrals from "./pages/Referrals";
@@ -22,6 +23,7 @@ import BHWActivities from "./pages/BHWActivities";
 import BHWRegisterPatient from "./pages/BHWRegisterPatient";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "@/components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -32,6 +34,7 @@ import AdminTeleconsultReferrals from "./pages/admin/AdminTeleconsultReferrals";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminAudit from "./pages/admin/AdminAudit";
 import AdminResearchExports from "./pages/admin/AdminResearchExports";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -49,11 +52,20 @@ const App = () => (
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route
               path="/consultations"
               element={
                 <ProtectedRoute>
                   <Consultations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/consultations/:consultationId/chat"
+              element={
+                <ProtectedRoute>
+                  <ConsultationChat />
                 </ProtectedRoute>
               }
             />
@@ -145,6 +157,7 @@ const App = () => (
             <Route path="/admin/teleconsult-referrals" element={<AdminRoute><AdminTeleconsultReferrals /></AdminRoute>} />
             <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
             <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
+            <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
             <Route path="/admin/research-exports" element={<AdminRoute><AdminResearchExports /></AdminRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

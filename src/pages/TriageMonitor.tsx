@@ -12,9 +12,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2 } from "lucide-react";
+import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
+import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2, Pencil, AlertCircle } from "lucide-react";
+
+const TRIAGE_LEVELS = ["emergency", "urgent", "non_urgent", "home_care"] as const;
 
 type TriageRow = {
   id: string;
@@ -24,12 +44,20 @@ type TriageRow = {
   risk_score: number | null;
   triage_level: string;
   created_at: string;
+  validated_triage_level: string | null;
+  provider_rationale: string | null;
 };
 
 export default function TriageMonitor() {
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<TriageRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [validateRow, setValidateRow] = useState<TriageRow | null>(null);
+  const [validateLevel, setValidateLevel] = useState<string>("");
+  const [validateRationale, setValidateRationale] = useState("");
+  const [validateSubmitting, setValidateSubmitting] = useState(false);
+  const [referralModalOpen, setReferralModalOpen] = useState(false);
+  const [referralPatient, setReferralPatient] = useState<CreateReferralPrefilledPatient | null>(null);
 
   useEffect(() => {
     if (!user?.id || (profile?.role !== "clinician" && profile?.role !== "bhw")) {
@@ -61,13 +89,13 @@ export default function TriageMonitor() {
         }
         const { data: triageData } = await supabase
           .from("ai_triage_results")
-          .select("id, assessment_id, risk_score, triage_level, created_at")
+          .select("id, assessment_id, risk_score, triage_level, created_at, validated_triage_level, provider_rationale")
           .in("assessment_id", assessmentIds)
           .order("created_at", { ascending: false });
         const assessmentToPatient = new Map((assessments ?? []).map((a: { id: string; user_id: string }) => [a.id, a.user_id]));
         const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", patientIds);
         const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
-        const list: TriageRow[] = (triageData ?? []).map((t: { id: string; assessment_id: string; risk_score: number | null; triage_level: string; created_at: string }) => ({
+        const list: TriageRow[] = (triageData ?? []).map((t: { id: string; assessment_id: string; risk_score: number | null; triage_level: string; created_at: string; validated_triage_level: string | null; provider_rationale: string | null }) => ({
           id: t.id,
           assessment_id: t.assessment_id,
           patient_id: assessmentToPatient.get(t.assessment_id) ?? "",
@@ -75,6 +103,8 @@ export default function TriageMonitor() {
           risk_score: t.risk_score != null ? Number(t.risk_score) : null,
           triage_level: t.triage_level,
           created_at: t.created_at,
+          validated_triage_level: t.validated_triage_level ?? null,
+          provider_rationale: t.provider_rationale ?? null,
         }));
         setRows(list);
         setLoading(false);
@@ -92,7 +122,7 @@ export default function TriageMonitor() {
       }
       const { data: triageData } = await supabase
         .from("ai_triage_results")
-        .select("id, assessment_id, risk_score, triage_level, created_at")
+        .select("id, assessment_id, risk_score, triage_level, created_at, validated_triage_level, provider_rationale")
         .in("assessment_id", assessmentIds)
         .order("created_at", { ascending: false });
       const { data: assessments } = await supabase
@@ -103,7 +133,7 @@ export default function TriageMonitor() {
       const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", patientIds);
       const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
       const assessmentToPatient = new Map((assessments ?? []).map((a: { id: string; user_id: string }) => [a.id, a.user_id]));
-      const list: TriageRow[] = (triageData ?? []).map((t: { id: string; assessment_id: string; risk_score: number | null; triage_level: string; created_at: string }) => ({
+      const list: TriageRow[] = (triageData ?? []).map((t: { id: string; assessment_id: string; risk_score: number | null; triage_level: string; created_at: string; validated_triage_level: string | null; provider_rationale: string | null }) => ({
         id: t.id,
         assessment_id: t.assessment_id,
         patient_id: assessmentToPatient.get(t.assessment_id) ?? "",
@@ -111,6 +141,8 @@ export default function TriageMonitor() {
         risk_score: t.risk_score != null ? Number(t.risk_score) : null,
         triage_level: t.triage_level,
         created_at: t.created_at,
+        validated_triage_level: t.validated_triage_level ?? null,
+        provider_rationale: t.provider_rationale ?? null,
       }));
       setRows(list);
       setLoading(false);
@@ -128,6 +160,57 @@ export default function TriageMonitor() {
     if (level === "non_urgent") return "default";
     return "secondary";
   };
+
+  function openValidateDialog(r: TriageRow) {
+    setValidateRow(r);
+    setValidateLevel(r.validated_triage_level ?? r.triage_level);
+    setValidateRationale(r.provider_rationale ?? "");
+  }
+
+  async function handleValidateSubmit() {
+    if (!user?.id || !validateRow) return;
+    setValidateSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("ai_triage_results")
+        .update({
+          validated_by: user.id,
+          validated_at: new Date().toISOString(),
+          validated_triage_level: validateLevel as (typeof TRIAGE_LEVELS)[number],
+          provider_rationale: validateRationale.trim() || null,
+        })
+        .eq("id", validateRow.id);
+      if (error) throw error;
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        action: "triage_validated",
+        resource: "ai_triage_results",
+        details: {
+          triage_id: validateRow.id,
+          assessment_id: validateRow.assessment_id,
+          original_level: validateRow.triage_level,
+          validated_level: validateLevel,
+          rationale: validateRationale.trim() || null,
+        },
+      });
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === validateRow.id
+            ? {
+                ...row,
+                validated_triage_level: validateLevel,
+                provider_rationale: validateRationale.trim() || null,
+              }
+            : row
+        )
+      );
+      setValidateRow(null);
+    } catch (e) {
+      console.error("Failed to validate triage", e);
+    } finally {
+      setValidateSubmitting(false);
+    }
+  }
 
   if (profile?.role !== "clinician" && profile?.role !== "bhw") {
     return (
@@ -196,6 +279,8 @@ export default function TriageMonitor() {
                       <TableHead>Patient name</TableHead>
                       <TableHead className="text-right">Risk score</TableHead>
                       <TableHead>Triage level</TableHead>
+                      <TableHead>Validated</TableHead>
+                      <TableHead className="w-[100px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -206,7 +291,47 @@ export default function TriageMonitor() {
                           {r.risk_score != null ? `${Math.round(r.risk_score)} / 100` : "—"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={levelVariant(r.triage_level)}>{displayLevel(r.triage_level)}</Badge>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant={levelVariant(r.triage_level)}>{displayLevel(r.triage_level)}</Badge>
+                            {(r.triage_level === "emergency" || r.triage_level === "urgent") && (
+                              <Badge variant="outline" className="text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+                                <AlertCircle className="w-3 h-3 mr-0.5" />
+                                Needs referral
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {r.validated_triage_level ? (
+                            <Badge variant="outline">{displayLevel(r.validated_triage_level)}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => openValidateDialog(r)}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Validate
+                            </Button>
+                            <Button
+                              variant={r.triage_level === "emergency" || r.triage_level === "urgent" ? "default" : "ghost"}
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => {
+                                setReferralPatient({ id: r.patient_id, name: r.patient_name });
+                                setReferralModalOpen(true);
+                              }}
+                            >
+                              <ArrowRightLeft className="w-3.5 h-3.5" />
+                              Refer
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -236,6 +361,64 @@ export default function TriageMonitor() {
                 <Link to="/dashboard">Back to Dashboard</Link>
               </Button>
             </div>
+
+            <Dialog open={!!validateRow} onOpenChange={(open) => !open && setValidateRow(null)}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Validate / override triage</DialogTitle>
+                  <DialogDescription>
+                    {validateRow && (
+                      <>Confirm or change the final triage level for {validateRow.patient_name}. This is recorded for audit and research.</>
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
+                {validateRow && (
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label>Final triage level</Label>
+                      <Select value={validateLevel} onValueChange={setValidateLevel}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TRIAGE_LEVELS.map((level) => (
+                            <SelectItem key={level} value={level}>
+                              {displayLevel(level)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Reason for change (optional)</Label>
+                      <Textarea
+                        placeholder="e.g. Confirmed after review / Escalated due to..."
+                        value={validateRationale}
+                        onChange={(e) => setValidateRationale(e.target.value)}
+                        rows={3}
+                        className="resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setValidateRow(null)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleValidateSubmit} disabled={validateSubmitting} className="gap-2">
+                    {validateSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Save validation
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <CreateReferralModal
+              open={referralModalOpen}
+              onOpenChange={setReferralModalOpen}
+              prefilledPatient={referralPatient}
+              onSuccess={() => setReferralPatient(null)}
+            />
           </>
         )}
       </main>
