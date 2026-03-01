@@ -12,10 +12,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
-import { ArrowRightLeft, Loader2, ArrowLeft, FileText, Phone, UserPlus, CheckCircle2 } from "lucide-react";
+import { ArrowRightLeft, Loader2, ArrowLeft, FileText, Phone, UserPlus, CheckCircle2, Users } from "lucide-react";
 import { format } from "date-fns";
 
 type ReferralRow = {
@@ -39,6 +56,85 @@ export default function Referrals() {
   const [patientsList, setPatientsList] = useState<CreateReferralPrefilledPatient[]>([]);
   const isClinician = profile?.role === "clinician";
   const isBhw = profile?.role === "bhw";
+  const [assignBHWReferral, setAssignBHWReferral] = useState<ReferralRow | null>(null);
+  const [assignBHWList, setAssignBHWList] = useState<{ id: string; full_name: string | null }[]>([]);
+  const [assignBHWSelected, setAssignBHWSelected] = useState("");
+  const [assignBHWNotes, setAssignBHWNotes] = useState("");
+  const [assignBHWSubmitting, setAssignBHWSubmitting] = useState(false);
+  const [assignBHWLoading, setAssignBHWLoading] = useState(false);
+
+  async function openAssignBHW(r: ReferralRow) {
+    setAssignBHWReferral(r);
+    setAssignBHWSelected("");
+    setAssignBHWNotes("");
+    setAssignBHWLoading(true);
+    try {
+      const patientId = r.patient_id;
+      if (!patientId) {
+        setAssignBHWList([]);
+        setAssignBHWLoading(false);
+        return;
+      }
+      const { data: pp } = await supabase
+        .from("patient_profiles")
+        .select("barangay_id")
+        .eq("user_id", patientId)
+        .maybeSingle();
+      const barangayId = (pp as { barangay_id?: string } | null)?.barangay_id;
+      if (barangayId) {
+        const { data: bhws } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq("role", "bhw")
+          .eq("assigned_barangay_id", barangayId);
+        setAssignBHWList(bhws ?? []);
+      } else {
+        setAssignBHWList([]);
+      }
+    } catch (e) {
+      console.error("Failed to load BHWs", e);
+    } finally {
+      setAssignBHWLoading(false);
+    }
+  }
+
+  async function handleAssignBHWSubmit() {
+    if (!user?.id || !assignBHWReferral || !assignBHWSelected) return;
+    setAssignBHWSubmitting(true);
+    try {
+      const bhw = assignBHWList.find((b) => b.id === assignBHWSelected);
+      const providerName = profile?.full_name ?? "Clinician";
+      const patientName = assignBHWReferral.patient_name ?? "Patient";
+      await supabase.from("bhw_activities").insert({
+        bhw_id: assignBHWSelected,
+        patient_id: assignBHWReferral.patient_id,
+        activity_type: "FOLLOW_UP",
+        notes: assignBHWNotes.trim() || "Follow-up assigned by clinician via referral",
+      });
+      await supabase.from("notifications").insert({
+        user_id: assignBHWSelected,
+        message: `Follow-up assigned by ${providerName} for patient ${patientName}`,
+        type: "follow_up",
+      });
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        action: "bhw_followup_assigned",
+        resource: "bhw_activities",
+        details: {
+          bhw_id: assignBHWSelected,
+          bhw_name: bhw?.full_name ?? null,
+          patient_id: assignBHWReferral.patient_id,
+          patient_name: patientName,
+          referral_id: assignBHWReferral.id,
+        },
+      });
+      setAssignBHWReferral(null);
+    } catch (e) {
+      console.error("Failed to assign BHW", e);
+    } finally {
+      setAssignBHWSubmitting(false);
+    }
+  }
 
   const loadReferrals = async () => {
     if (!user?.id) return;
@@ -360,6 +456,7 @@ export default function Referrals() {
                         <TableHead>Patient name</TableHead>
                         <TableHead>Referral to</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="w-[140px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -372,25 +469,25 @@ export default function Referrals() {
                               {r.status}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            {r.patient_id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => openAssignBHW(r)}
+                              >
+                                <Users className="w-3.5 h-3.5" />
+                                Assign BHW
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
-              <div className="flex flex-wrap gap-3 mb-6">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  View details
-                </Button>
-                <Button variant="outline" size="sm">
-                  Approve / Escalate
-                </Button>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <UserPlus className="w-4 h-4" />
-                  Assign BHW follow-up
-                </Button>
-              </div>
               <Button variant="outline" asChild>
                 <Link to="/dashboard">Back to Dashboard</Link>
               </Button>
@@ -464,6 +561,71 @@ export default function Referrals() {
             patientsList={patientsList}
             onSuccess={loadReferrals}
           />
+        )}
+
+        {/* Assign BHW Modal — clinician only */}
+        {isClinician && (
+          <Dialog open={!!assignBHWReferral} onOpenChange={(open) => !open && setAssignBHWReferral(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Assign BHW Follow-Up</DialogTitle>
+                <DialogDescription>
+                  {assignBHWReferral && (
+                    <>Assign a Barangay Health Worker to follow up with {assignBHWReferral.patient_name ?? "this patient"}.</>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                {assignBHWLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading BHWs…
+                  </div>
+                ) : assignBHWList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No BHWs found for this patient's barangay.</p>
+                ) : (
+                  <div className="grid gap-2">
+                    <Label>Barangay Health Worker</Label>
+                    <Select value={assignBHWSelected} onValueChange={setAssignBHWSelected}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select BHW" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assignBHWList.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.full_name ?? "BHW"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <Label>Notes / Instructions (optional)</Label>
+                  <Textarea
+                    placeholder="e.g. Check blood pressure daily, ensure medication compliance..."
+                    value={assignBHWNotes}
+                    onChange={(e) => setAssignBHWNotes(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAssignBHWReferral(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAssignBHWSubmit}
+                  disabled={assignBHWSubmitting || !assignBHWSelected || assignBHWLoading}
+                  className="gap-2"
+                >
+                  {assignBHWSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Assign BHW
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </main>
     </div>

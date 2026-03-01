@@ -453,7 +453,7 @@ export default function Dashboard() {
 
   const menu = [
     { to: "/symptom-checker", icon: Stethoscope, label: "Report Symptoms" },
-    { to: "/symptom-checker", icon: ClipboardList, label: "My AI Triage Results" },
+    { to: "/my-triage-results", icon: ClipboardList, label: "My AI Triage Results" },
     { to: "/consultations", icon: Video, label: "Teleconsultation Appointments" },
     { to: "/referrals", icon: ArrowRightLeft, label: "Referrals / Escalations" },
     { to: "/medical-history", icon: FileText, label: "View / Update Medical History" },

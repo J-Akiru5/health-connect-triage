@@ -25,6 +25,8 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
+import EmergencyReport from "./pages/EmergencyReport";
+import MyTriageResults from "./pages/MyTriageResults";
 import { AdminRoute } from "@/components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -48,6 +50,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/symptom-checker" element={<SymptomChecker />} />
+            <Route path="/emergency-report" element={<EmergencyReport />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
@@ -98,6 +101,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Notifications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-triage-results"
+              element={
+                <ProtectedRoute>
+                  <MyTriageResults />
                 </ProtectedRoute>
               }
             />

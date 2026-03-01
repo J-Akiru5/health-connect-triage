@@ -32,7 +32,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
-import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2, Pencil, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2, Pencil, AlertCircle, Users } from "lucide-react";
 
 const TRIAGE_LEVELS = ["emergency", "urgent", "non_urgent", "home_care"] as const;
 
@@ -58,6 +58,13 @@ export default function TriageMonitor() {
   const [validateSubmitting, setValidateSubmitting] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
   const [referralPatient, setReferralPatient] = useState<CreateReferralPrefilledPatient | null>(null);
+  const [submittingFollowUp, setSubmittingFollowUp] = useState<Record<string, boolean>>({});
+  const [assignBHWRow, setAssignBHWRow] = useState<TriageRow | null>(null);
+  const [assignBHWList, setAssignBHWList] = useState<{ id: string; full_name: string | null }[]>([]);
+  const [assignBHWSelected, setAssignBHWSelected] = useState("");
+  const [assignBHWNotes, setAssignBHWNotes] = useState("");
+  const [assignBHWSubmitting, setAssignBHWSubmitting] = useState(false);
+  const [assignBHWLoading, setAssignBHWLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.id || (profile?.role !== "clinician" && profile?.role !== "bhw")) {
@@ -148,6 +155,102 @@ export default function TriageMonitor() {
       setLoading(false);
     })();
   }, [user?.id, profile?.role]);
+
+  async function handleMarkFollowUp(r: TriageRow) {
+    if (!user?.id) return;
+    setSubmittingFollowUp((prev) => ({ ...prev, [r.id]: true }));
+    try {
+      if (profile?.role === "bhw") {
+        await supabase.from("bhw_activities").insert({
+          bhw_id: user.id,
+          patient_id: r.patient_id,
+          activity_type: "FOLLOW_UP",
+          notes: "Follow-up marked complete",
+        });
+      }
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        action: "follow_up_completed",
+        resource: "ai_triage_results",
+        details: {
+          triage_id: r.id,
+          assessment_id: r.assessment_id,
+          patient_id: r.patient_id,
+        },
+      });
+    } catch (e) {
+      console.error("Failed to mark follow-up", e);
+    } finally {
+      setSubmittingFollowUp((prev) => ({ ...prev, [r.id]: false }));
+    }
+  }
+
+  async function openAssignBHW(r: TriageRow) {
+    setAssignBHWRow(r);
+    setAssignBHWSelected("");
+    setAssignBHWNotes("");
+    setAssignBHWLoading(true);
+    try {
+      const { data: pp } = await supabase
+        .from("patient_profiles")
+        .select("barangay_id")
+        .eq("user_id", r.patient_id)
+        .maybeSingle();
+      const barangayId = (pp as { barangay_id?: string } | null)?.barangay_id;
+      if (barangayId) {
+        const { data: bhws } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq("role", "bhw")
+          .eq("assigned_barangay_id", barangayId);
+        setAssignBHWList(bhws ?? []);
+      } else {
+        setAssignBHWList([]);
+      }
+    } catch (e) {
+      console.error("Failed to load BHWs", e);
+    } finally {
+      setAssignBHWLoading(false);
+    }
+  }
+
+  async function handleAssignBHWSubmit() {
+    if (!user?.id || !assignBHWRow || !assignBHWSelected) return;
+    setAssignBHWSubmitting(true);
+    try {
+      const bhw = assignBHWList.find((b) => b.id === assignBHWSelected);
+      const providerName = profile?.full_name ?? "Clinician";
+      const patientName = assignBHWRow.patient_name;
+      await supabase.from("bhw_activities").insert({
+        bhw_id: assignBHWSelected,
+        patient_id: assignBHWRow.patient_id,
+        activity_type: "FOLLOW_UP",
+        notes: assignBHWNotes.trim() || "Follow-up assigned by clinician",
+      });
+      await supabase.from("notifications").insert({
+        user_id: assignBHWSelected,
+        message: `Follow-up assigned by ${providerName} for patient ${patientName}`,
+        type: "follow_up",
+      });
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        action: "bhw_followup_assigned",
+        resource: "bhw_activities",
+        details: {
+          bhw_id: assignBHWSelected,
+          bhw_name: bhw?.full_name ?? null,
+          patient_id: assignBHWRow.patient_id,
+          patient_name: patientName,
+          triage_id: assignBHWRow.id,
+        },
+      });
+      setAssignBHWRow(null);
+    } catch (e) {
+      console.error("Failed to assign BHW", e);
+    } finally {
+      setAssignBHWSubmitting(false);
+    }
+  }
 
   const displayLevel = (level: string) => {
     if (level === "emergency" || level === "urgent") return "HIGH";
@@ -331,6 +434,31 @@ export default function TriageMonitor() {
                               <ArrowRightLeft className="w-3.5 h-3.5" />
                               Refer
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              disabled={!!submittingFollowUp[r.id]}
+                              onClick={() => handleMarkFollowUp(r)}
+                            >
+                              {submittingFollowUp[r.id] ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              )}
+                              Follow-up done
+                            </Button>
+                            {profile?.role === "clinician" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => openAssignBHW(r)}
+                              >
+                                <Users className="w-3.5 h-3.5" />
+                                Assign BHW
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -352,10 +480,6 @@ export default function TriageMonitor() {
                   <ArrowRightLeft className="w-4 h-4" />
                   Escalate referral
                 </Link>
-              </Button>
-              <Button variant="outline" className="gap-2 rounded-xl">
-                <CheckCircle2 className="w-4 h-4" />
-                Mark follow-up completed
               </Button>
               <Button variant="ghost" asChild className="rounded-xl">
                 <Link to="/dashboard">Back to Dashboard</Link>
@@ -419,6 +543,69 @@ export default function TriageMonitor() {
               prefilledPatient={referralPatient}
               onSuccess={() => setReferralPatient(null)}
             />
+
+            {/* Assign BHW Modal */}
+            <Dialog open={!!assignBHWRow} onOpenChange={(open) => !open && setAssignBHWRow(null)}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Assign BHW Follow-Up</DialogTitle>
+                  <DialogDescription>
+                    {assignBHWRow && (
+                      <>Assign a Barangay Health Worker to follow up with {assignBHWRow.patient_name}.</>
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  {assignBHWLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading BHWs…
+                    </div>
+                  ) : assignBHWList.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No BHWs found for this patient's barangay.</p>
+                  ) : (
+                    <div className="grid gap-2">
+                      <Label>Barangay Health Worker</Label>
+                      <Select value={assignBHWSelected} onValueChange={setAssignBHWSelected}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select BHW" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {assignBHWList.map((b) => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.full_name ?? "BHW"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="grid gap-2">
+                    <Label>Notes / Instructions (optional)</Label>
+                    <Textarea
+                      placeholder="e.g. Check blood pressure daily, ensure medication compliance..."
+                      value={assignBHWNotes}
+                      onChange={(e) => setAssignBHWNotes(e.target.value)}
+                      rows={3}
+                      className="resize-none"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAssignBHWRow(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAssignBHWSubmit}
+                    disabled={assignBHWSubmitting || !assignBHWSelected || assignBHWLoading}
+                    className="gap-2"
+                  >
+                    {assignBHWSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Assign BHW
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </main>
