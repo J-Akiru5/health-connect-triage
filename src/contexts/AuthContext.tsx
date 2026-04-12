@@ -78,12 +78,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       if (newSession?.user) {
-        const p = await fetchProfile(newSession.user.id);
-        setProfile(p);
+        const uid = newSession.user.id;
+        // Do not await Supabase inside this callback: it can deadlock the auth
+        // client so signInWithPassword never settles (login stuck on "Signing in…").
+        setTimeout(() => {
+          void (async () => {
+            const p = await fetchProfile(uid);
+            const {
+              data: { session: latest },
+            } = await supabase.auth.getSession();
+            if (latest?.user?.id === uid) setProfile(p);
+          })();
+        }, 0);
       } else {
         setProfile(null);
       }
