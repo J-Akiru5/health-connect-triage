@@ -1,6 +1,6 @@
 # Role-Based Access Control (RBAC) and Data Visibility
 
-This document describes how access control and data visibility work in Barangay Health Connect. It is intended for ethics compliance, JC-3 defensibility, and audit. **Row-level security (RLS)** on Supabase tables enforces server-side visibility; the app’s route and UI logic align with these rules.
+This document describes how access control and data visibility work in TeleHealth. It is intended for ethics compliance, JC-3 defensibility, and audit. **Row-level security (RLS)** on Supabase tables enforces server-side visibility; the app’s route and UI logic align with these rules.
 
 ---
 

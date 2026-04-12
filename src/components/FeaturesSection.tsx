@@ -1,23 +1,19 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Stethoscope, Video, Shield, Clock, Users, FileText } from "lucide-react";
+import { Stethoscope, Shield, Clock, Users, FileText } from "lucide-react";
+import { SITE_BARANGAY } from "@/lib/site";
 
 const features = [
   {
     icon: Stethoscope,
-    title: "AI-Assisted Triage",
-    description: "Smart symptom analysis that prioritizes cases based on urgency, helping you get the right care faster.",
+    title: "Symptom guidance",
+    description:
+      "Answer simple questions about how you feel to get clear next-step suggestions and know when to seek urgent care.",
     color: "text-primary bg-primary/10",
-  },
-  {
-    icon: Video,
-    title: "Remote Consultations",
-    description: "Connect with doctors and nurses via chat, voice, or video—optimized for low-bandwidth connections.",
-    color: "text-accent bg-accent/10",
   },
   {
     icon: Clock,
     title: "24/7 Availability",
-    description: "Access health assessments anytime. Our AI triage system is always ready to help prioritize your concerns.",
+    description: "Access health assessments anytime—start a symptom check or review resources whenever you need them.",
     color: "text-home-care bg-home-care/10",
   },
   {
@@ -29,7 +25,7 @@ const features = [
   {
     icon: Users,
     title: "BHW Support",
-    description: "Tools designed for Barangay Health Workers to conduct initial assessments and manage referrals.",
+    description: `Tools for Barangay Health Workers serving ${SITE_BARANGAY}: initial assessments and referrals.`,
     color: "text-primary bg-primary/10",
   },
   {
@@ -42,9 +38,9 @@ const features = [
 
 export function FeaturesSection() {
   return (
-    <section className="py-20 bg-background">
+    <section className="py-14 lg:py-16 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-10 lg:mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Healthcare Made Accessible
           </h2>

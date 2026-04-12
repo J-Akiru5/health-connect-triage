@@ -36,8 +36,8 @@ const Index = () => {
               <AlertTriangle className="w-5 h-5 text-destructive" />
             </div>
             <div>
-              <p className="font-semibold text-foreground">Feeling unwell? Get a quick triage — no account needed.</p>
-              <p className="text-sm text-muted-foreground">Our AI symptom checker assesses your urgency in under 2 minutes.</p>
+              <p className="font-semibold text-foreground">Feeling unwell? Check your symptoms — no account needed.</p>
+              <p className="text-sm text-muted-foreground">A short questionnaire suggests next steps in under 2 minutes.</p>
             </div>
           </div>
           <Button asChild size="lg" className="gap-2 bg-destructive hover:bg-destructive/90 shrink-0">

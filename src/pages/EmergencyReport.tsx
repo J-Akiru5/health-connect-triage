@@ -7,62 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
+import { calculateTriage, symptomCategories, resolveSymptomLabel } from "@/lib/symptomCategories";
 import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, LogIn } from "lucide-react";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
-
-interface SymptomCategory {
-  name: string;
-  symptoms: { id: string; label: string; severity: number }[];
-}
-
-const symptomCategories: SymptomCategory[] = [
-  {
-    name: "General Symptoms",
-    symptoms: [
-      { id: "fever", label: "Fever (lagnat)", severity: 2 },
-      { id: "fatigue", label: "Fatigue / Weakness (panghihina)", severity: 1 },
-      { id: "chills", label: "Chills (ginaw)", severity: 2 },
-      { id: "weight-loss", label: "Unexplained weight loss", severity: 3 },
-    ],
-  },
-  {
-    name: "Respiratory",
-    symptoms: [
-      { id: "cough", label: "Cough (ubo)", severity: 1 },
-      { id: "difficulty-breathing", label: "Difficulty breathing (hirap huminga)", severity: 5 },
-      { id: "chest-pain", label: "Chest pain (sakit ng dibdib)", severity: 5 },
-      { id: "sore-throat", label: "Sore throat (namamagang lalamunan)", severity: 1 },
-    ],
-  },
-  {
-    name: "Pain",
-    symptoms: [
-      { id: "headache", label: "Headache (sakit ng ulo)", severity: 1 },
-      { id: "severe-headache", label: "Severe / Sudden headache", severity: 4 },
-      { id: "abdominal-pain", label: "Abdominal pain (sakit ng tiyan)", severity: 2 },
-      { id: "joint-pain", label: "Joint / Muscle pain", severity: 1 },
-    ],
-  },
-  {
-    name: "Digestive",
-    symptoms: [
-      { id: "nausea", label: "Nausea / Vomiting (pagsusuka)", severity: 2 },
-      { id: "diarrhea", label: "Diarrhea (pagtatae)", severity: 2 },
-      { id: "blood-stool", label: "Blood in stool", severity: 4 },
-      { id: "loss-appetite", label: "Loss of appetite", severity: 1 },
-    ],
-  },
-  {
-    name: "Emergency Signs",
-    symptoms: [
-      { id: "unconscious", label: "Loss of consciousness (nawalan ng malay)", severity: 5 },
-      { id: "severe-bleeding", label: "Severe bleeding (matinding pagdurugo)", severity: 5 },
-      { id: "seizure", label: "Seizure / Convulsions (kombulsyon)", severity: 5 },
-      { id: "confusion", label: "Sudden confusion / Disorientation", severity: 5 },
-    ],
-  },
-];
 
 const riskFactors = [
   { id: "senior", label: "Senior citizen (60+ years old)" },
@@ -72,22 +20,6 @@ const riskFactors = [
   { id: "heart-disease", label: "Has heart disease" },
   { id: "immunocompromised", label: "Immunocompromised" },
 ];
-
-function calculateTriage(selectedSymptoms: string[], selectedRiskFactors: string[]): TriageLevel {
-  let totalSeverity = 0;
-  symptomCategories.forEach((category) => {
-    category.symptoms.forEach((symptom) => {
-      if (selectedSymptoms.includes(symptom.id)) totalSeverity += symptom.severity;
-    });
-  });
-  const emergencySymptoms = ["difficulty-breathing", "chest-pain", "unconscious", "severe-bleeding", "seizure", "confusion"];
-  if (selectedSymptoms.some((s) => emergencySymptoms.includes(s))) return "emergency";
-  totalSeverity += selectedRiskFactors.length * 1.5;
-  if (totalSeverity >= 8) return "urgent";
-  if (totalSeverity >= 4) return "non-urgent";
-  if (totalSeverity >= 1) return "home-care";
-  return null;
-}
 
 function getRiskScore(level: TriageLevel): number {
   switch (level) {
@@ -181,7 +113,7 @@ export default function EmergencyReport() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      <main className="flex-1 pt-24 pb-16">
+      <main className="flex-1 pt-20 pb-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
           {/* Alert banner */}
           <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex items-start gap-3">
@@ -263,7 +195,12 @@ export default function EmergencyReport() {
               <CardContent className="space-y-6">
                 {symptomCategories.map((category) => (
                   <div key={category.name} className="space-y-3">
-                    <h3 className="font-semibold text-foreground">{category.name}</h3>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{category.name}</h3>
+                      {category.description ? (
+                        <p className="text-sm text-muted-foreground mt-1 leading-snug">{category.description}</p>
+                      ) : null}
+                    </div>
                     <div className="grid sm:grid-cols-2 gap-3">
                       {category.symptoms.map((symptom) => (
                         <label
@@ -373,10 +310,7 @@ export default function EmergencyReport() {
                     <div>
                       <h4 className="font-semibold text-foreground mb-2">Symptom Summary</h4>
                       <p className="text-muted-foreground">
-                        {selectedSymptoms
-                          .map((id) => symptomCategories.flatMap((c) => c.symptoms).find((s) => s.id === id)?.label)
-                          .filter(Boolean)
-                          .join(", ")}
+                        {selectedSymptoms.map((id) => resolveSymptomLabel(id)).join(", ")}
                       </p>
                     </div>
                   )}

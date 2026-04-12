@@ -1,4 +1,4 @@
-# Barangay Health Connect
+# TeleHealth
 
 A modern web application for connecting communities to better healthcare through telehealth services and health management.
 

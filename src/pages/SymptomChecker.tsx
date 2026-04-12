@@ -9,9 +9,28 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { symptomCategories, EMERGENCY_SYMPTOM_IDS, resolveSymptomLabel } from "@/lib/symptomCategories";
 import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, Loader2 } from "lucide-react";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
+
+type UserSymptomSeverity = "mild" | "moderate" | "severe";
+type SymptomDurationValue = "" | "today" | "days" | "week" | "weeks";
+
+type SymptomDetailEntry = {
+  duration: SymptomDurationValue;
+  severity: UserSymptomSeverity;
+};
+
+const PENDING_ASSESSMENT_LS_KEY = "bhc_pending_symptom_assessment_id";
+
+const DURATION_OPTIONS: { value: SymptomDurationValue; label: string }[] = [
+  { value: "", label: "Select how long" },
+  { value: "today", label: "Just started today" },
+  { value: "days", label: "A few days" },
+  { value: "week", label: "About a week" },
+  { value: "weeks", label: "More than a week" },
+];
 
 const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "non_urgent" | "home_care"> = {
   emergency: "emergency",
@@ -20,58 +39,7 @@ const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "n
   "home-care": "home_care",
 };
 
-interface SymptomCategory {
-  name: string;
-  symptoms: { id: string; label: string; severity: number }[];
-}
-
-const symptomCategories: SymptomCategory[] = [
-  {
-    name: "General Symptoms",
-    symptoms: [
-      { id: "fever", label: "Fever (lagnat)", severity: 2 },
-      { id: "fatigue", label: "Fatigue / Weakness (panghihina)", severity: 1 },
-      { id: "chills", label: "Chills (ginaw)", severity: 2 },
-      { id: "weight-loss", label: "Unexplained weight loss", severity: 3 },
-    ],
-  },
-  {
-    name: "Respiratory",
-    symptoms: [
-      { id: "cough", label: "Cough (ubo)", severity: 1 },
-      { id: "difficulty-breathing", label: "Difficulty breathing (hirap huminga)", severity: 5 },
-      { id: "chest-pain", label: "Chest pain (sakit ng dibdib)", severity: 5 },
-      { id: "sore-throat", label: "Sore throat (namamagang lalamunan)", severity: 1 },
-    ],
-  },
-  {
-    name: "Pain",
-    symptoms: [
-      { id: "headache", label: "Headache (sakit ng ulo)", severity: 1 },
-      { id: "severe-headache", label: "Severe / Sudden headache", severity: 4 },
-      { id: "abdominal-pain", label: "Abdominal pain (sakit ng tiyan)", severity: 2 },
-      { id: "joint-pain", label: "Joint / Muscle pain", severity: 1 },
-    ],
-  },
-  {
-    name: "Digestive",
-    symptoms: [
-      { id: "nausea", label: "Nausea / Vomiting (pagsusuka)", severity: 2 },
-      { id: "diarrhea", label: "Diarrhea (pagtatae)", severity: 2 },
-      { id: "blood-stool", label: "Blood in stool", severity: 4 },
-      { id: "loss-appetite", label: "Loss of appetite", severity: 1 },
-    ],
-  },
-  {
-    name: "Emergency Signs",
-    symptoms: [
-      { id: "unconscious", label: "Loss of consciousness (nawalan ng malay)", severity: 5 },
-      { id: "severe-bleeding", label: "Severe bleeding (matinding pagdurugo)", severity: 5 },
-      { id: "seizure", label: "Seizure / Convulsions (kombulsyon)", severity: 5 },
-      { id: "confusion", label: "Sudden confusion / Disorientation", severity: 5 },
-    ],
-  },
-];
+const EMERGENCY_SYMPTOM_SET = new Set<string>(EMERGENCY_SYMPTOM_IDS);
 
 const riskFactors = [
   { id: "senior", label: "Senior citizen (60+ years old)" },
@@ -82,32 +50,123 @@ const riskFactors = [
   { id: "immunocompromised", label: "Immunocompromised" },
 ];
 
-function calculateTriage(selectedSymptoms: string[], selectedRiskFactors: string[]): TriageLevel {
-  let totalSeverity = 0;
-  
-  symptomCategories.forEach(category => {
-    category.symptoms.forEach(symptom => {
+function userSeverityWeight(sev: UserSymptomSeverity | undefined): number {
+  if (sev === "mild") return 0.75;
+  if (sev === "severe") return 1.35;
+  return 1;
+}
+
+function durationWeight(dur: SymptomDurationValue | undefined): number {
+  if (dur === "today") return 0.92;
+  if (dur === "days") return 1;
+  if (dur === "week") return 1.12;
+  if (dur === "weeks") return 1.28;
+  return 1;
+}
+
+type TriageComputation = {
+  level: TriageLevel;
+  /** Sum of weighted symptom scores only (before risk factors). */
+  symptomScore: number;
+  /** Points added from risk factors (1.5 each). */
+  riskPoints: number;
+  /** symptomScore + riskPoints; used for non-emergency levels. */
+  combinedScore: number;
+  emergencySymptomIds: string[];
+};
+
+function computeTriageAssessment(
+  selectedSymptoms: string[],
+  selectedRiskFactors: string[],
+  symptomDetails: Record<string, SymptomDetailEntry>
+): TriageComputation {
+  let symptomScore = 0;
+
+  symptomCategories.forEach((category) => {
+    category.symptoms.forEach((symptom) => {
       if (selectedSymptoms.includes(symptom.id)) {
-        totalSeverity += symptom.severity;
+        const d = symptomDetails[symptom.id];
+        const uw = userSeverityWeight(d?.severity);
+        const dw = durationWeight(d?.duration);
+        symptomScore += symptom.severity * uw * dw;
       }
     });
   });
 
-  // Emergency symptoms override
-  const emergencySymptoms = ["difficulty-breathing", "chest-pain", "unconscious", "severe-bleeding", "seizure", "confusion"];
-  if (selectedSymptoms.some(s => emergencySymptoms.includes(s))) {
-    return "emergency";
+  const emergencySymptomIds = selectedSymptoms.filter((s) => EMERGENCY_SYMPTOM_SET.has(s));
+  if (emergencySymptomIds.length > 0) {
+    return {
+      level: "emergency",
+      symptomScore,
+      riskPoints: 0,
+      combinedScore: symptomScore,
+      emergencySymptomIds,
+    };
   }
 
-  // Add risk factor weight
-  const riskWeight = selectedRiskFactors.length * 1.5;
-  totalSeverity += riskWeight;
+  const riskPoints = selectedRiskFactors.length * 1.5;
+  const combinedScore = symptomScore + riskPoints;
 
-  if (totalSeverity >= 8) return "urgent";
-  if (totalSeverity >= 4) return "non-urgent";
-  if (totalSeverity >= 1) return "home-care";
+  if (combinedScore >= 8) {
+    return { level: "urgent", symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
+  }
+  if (combinedScore >= 4) {
+    return { level: "non-urgent", symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
+  }
+  if (combinedScore >= 1) {
+    return { level: "home-care", symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
+  }
 
-  return null;
+  return { level: null, symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
+}
+
+function formatTriageReasonLine(
+  computation: TriageComputation,
+  selectedRiskFactors: string[],
+  riskFactorDefs: { id: string; label: string }[]
+): string {
+  const { level, symptomScore, riskPoints, combinedScore, emergencySymptomIds } = computation;
+  if (!level) {
+    return "";
+  }
+
+  if (level === "emergency" && emergencySymptomIds.length > 0) {
+    const names = emergencySymptomIds.map((id) => resolveSymptomLabel(id)).join(", ");
+    return `This tool assigned emergency priority because you reported one or more symptoms that are always treated as highest urgency in our rule set (they can indicate a serious or time‑sensitive condition), regardless of the numeric score: ${names}.`;
+  }
+
+  const riskLabels = selectedRiskFactors
+    .map((id) => riskFactorDefs.find((r) => r.id === id)?.label ?? id)
+    .filter(Boolean);
+  const riskPhrase =
+    riskLabels.length > 0
+      ? ` Risk factors you selected (${riskLabels.join("; ")}) added ${riskPoints.toFixed(1)} points to the total.`
+      : "";
+
+  const scoreRounded = Math.round(combinedScore * 10) / 10;
+  const symptomRounded = Math.round(symptomScore * 10) / 10;
+
+  if (level === "urgent") {
+    return `This result is from our built‑in rule engine: each checked symptom has a weight, adjusted by how long it has lasted and how severe it feels (${symptomRounded} points from symptoms).${riskPhrase} The combined score is ${scoreRounded}; an urgent level is triggered when that total is 8 or higher.`;
+  }
+  if (level === "non-urgent") {
+    return `This result is from our built‑in rule engine: symptom weights, duration, and severity produced ${symptomRounded} points from symptoms.${riskPhrase} The combined score is ${scoreRounded}, which falls in the non‑urgent band (4 up to but not including 8), so a routine consultation is suggested rather than immediate emergency care.`;
+  }
+  return `This result is from our built‑in rule engine: symptom weights, duration, and severity produced ${symptomRounded} points from symptoms.${riskPhrase} The combined score is ${scoreRounded}, which falls in the home‑care band (1 up to but not including 4), so self‑care and monitoring are suggested unless things change.`;
+}
+
+function aggregateAssessmentSeverity(
+  selectedSymptoms: string[],
+  symptomDetails: Record<string, SymptomDetailEntry>
+): "mild" | "moderate" | "severe" {
+  const levels = selectedSymptoms.map((id) => symptomDetails[id]?.severity ?? "moderate");
+  if (levels.includes("severe")) return "severe";
+  if (levels.includes("moderate")) return "moderate";
+  return "mild";
+}
+
+function formatDurationLabel(value: SymptomDurationValue): string {
+  return DURATION_OPTIONS.find((o) => o.value === value)?.label ?? "—";
 }
 
 function getRiskScore(level: TriageLevel): number {
@@ -130,6 +189,15 @@ function getTriageLevelLabel(level: TriageLevel): string {
     case "home-care": return "LOW";
     default: return "—";
   }
+}
+
+/** Single-line display name for vitals (keeps `patient_name` for downstream / signup matching). */
+function composePatientDisplayName(parts: { firstName: string; middleInitial: string; surname: string }): string {
+  const first = parts.firstName.trim();
+  const sur = parts.surname.trim();
+  let mi = parts.middleInitial.trim().replace(/\s+/g, "");
+  if (mi && !mi.endsWith(".")) mi = `${mi}.`;
+  return [first, mi, sur].filter(Boolean).join(" ");
 }
 
 const triageResults = {
@@ -180,14 +248,17 @@ export default function SymptomChecker() {
   const { user, profile } = useAuth();
   const [step, setStep] = useState(1);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [symptomDetails, setSymptomDetails] = useState<Record<string, SymptomDetailEntry>>({});
   const [selectedRiskFactors, setSelectedRiskFactors] = useState<string[]>([]);
   const [triageResult, setTriageResult] = useState<TriageLevel>(null);
+  const [triageReasonLine, setTriageReasonLine] = useState<string>("");
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [patientInfo, setPatientInfo] = useState({
-    name: "",
+    surname: "",
+    firstName: "",
+    middleInitial: "",
+    gender: "" as "" | "female" | "male" | "other",
     age: "",
-    duration: "",
-    durationDays: "",
-    severity: "" as "" | "mild" | "moderate" | "severe",
     notes: "",
     bpSystolic: "",
     bpDiastolic: "",
@@ -202,12 +273,49 @@ export default function SymptomChecker() {
   const progress = (step / totalSteps) * 100;
   const isPatient = profile?.role === "patient";
 
+  const ageNumber = patientInfo.age ? Number(patientInfo.age) : NaN;
+  const isStep1Valid =
+    patientInfo.surname.trim().length > 0 &&
+    patientInfo.firstName.trim().length > 0 &&
+    patientInfo.gender !== "" &&
+    Number.isFinite(ageNumber) &&
+    ageNumber > 0;
+  const isStep2Valid =
+    selectedSymptoms.length > 0 &&
+    selectedSymptoms.every((id) => {
+      const d = symptomDetails[id];
+      return Boolean(d?.duration);
+    });
+
   const toggleSymptom = (symptomId: string) => {
-    setSelectedSymptoms(prev =>
-      prev.includes(symptomId)
-        ? prev.filter(id => id !== symptomId)
-        : [...prev, symptomId]
-    );
+    if (selectedSymptoms.includes(symptomId)) {
+      setSelectedSymptoms((prev) => prev.filter((id) => id !== symptomId));
+      setSymptomDetails((det) => {
+        const next = { ...det };
+        delete next[symptomId];
+        return next;
+      });
+      return;
+    }
+    setSelectedSymptoms((prev) => [...prev, symptomId]);
+    setSymptomDetails((det) => ({
+      ...det,
+      [symptomId]: det[symptomId] ?? { duration: "", severity: "moderate" },
+    }));
+  };
+
+  const setSymptomDetailField = <K extends keyof SymptomDetailEntry>(
+    symptomId: string,
+    field: K,
+    value: SymptomDetailEntry[K]
+  ) => {
+    setSymptomDetails((prev) => ({
+      ...prev,
+      [symptomId]: {
+        ...(prev[symptomId] ?? { duration: "", severity: "moderate" }),
+        [field]: value,
+      },
+    }));
   };
 
   const toggleRiskFactor = (factorId: string) => {
@@ -220,35 +328,88 @@ export default function SymptomChecker() {
 
   const handleNext = () => {
     if (step < totalSteps) {
+      // Gate progression based on required fields
+      if (step === 1 && !isStep1Valid) {
+        setValidationMessage("Please enter surname, first name, age, and gender to continue.");
+        return;
+      }
+      if (step === 2 && !isStep2Valid) {
+        setValidationMessage(
+          selectedSymptoms.length === 0
+            ? "Please select at least one symptom to continue."
+            : "For each selected symptom, choose how long it has lasted."
+        );
+        return;
+      }
+      setValidationMessage(null);
       setStep(step + 1);
     }
   };
 
   const handleBack = () => {
     if (step > 1) {
+      setValidationMessage(null);
       setStep(step - 1);
     }
   };
 
   const handleSubmit = async () => {
-    const result = calculateTriage(selectedSymptoms, selectedRiskFactors);
+    if (!isStep2Valid) {
+      setValidationMessage(
+        selectedSymptoms.length === 0
+          ? "Please select at least one symptom to get a triage result."
+          : "For each selected symptom, choose how long it has lasted before submitting."
+      );
+      setStep(2);
+      return;
+    }
+    setValidationMessage(null);
+    const computation = computeTriageAssessment(selectedSymptoms, selectedRiskFactors, symptomDetails);
+    const result = computation.level;
     setTriageResult(result);
+    setTriageReasonLine(result ? formatTriageReasonLine(computation, selectedRiskFactors, riskFactors) : "");
     setStep(4);
-    if (user?.id && result) {
+    if (result) {
       setSaving(true);
       try {
+        const displayName = composePatientDisplayName(patientInfo);
+        const allSymptomsFlat = symptomCategories.flatMap((c) => c.symptoms);
+        const symptomDetailsPayload = selectedSymptoms.map((id) => {
+          const meta = allSymptomsFlat.find((s) => s.id === id);
+          const det = symptomDetails[id];
+          return {
+            symptom_id: id,
+            label: meta?.label ?? id,
+            duration: det?.duration ?? "",
+            duration_label: det?.duration ? formatDurationLabel(det.duration) : "",
+            severity: det?.severity ?? "moderate",
+          };
+        });
+        const durationSummary = symptomDetailsPayload
+          .map((row) => `${row.label}: ${row.duration_label || "—"}`)
+          .join("; ");
+
         const { data: assessment, error: assessErr } = await supabase
           .from("symptom_assessments")
+          // We intentionally support "guest" submissions here.
+          // Linking to a user happens after signup/login via stored assessment id.
           .insert({
-            user_id: user.id,
+            user_id: user?.id ?? null,
             symptoms: selectedSymptoms,
-            duration: patientInfo.duration || null,
-            severity: patientInfo.severity || (result === "emergency" || result === "urgent" ? "severe" : result === "non-urgent" ? "moderate" : "mild"),
+            severity: aggregateAssessmentSeverity(selectedSymptoms, symptomDetails),
+            duration: durationSummary || null,
             notes: patientInfo.notes || null,
             vitals: {
+              patient_surname: patientInfo.surname.trim(),
+              patient_first_name: patientInfo.firstName.trim(),
+              ...(patientInfo.middleInitial.trim() ? { patient_middle_initial: patientInfo.middleInitial.trim() } : {}),
+              patient_gender: patientInfo.gender,
+              ...(displayName ? { patient_name: displayName } : {}),
+              ...(patientInfo.age ? { patient_age: Number(patientInfo.age) } : {}),
               ...(patientInfo.bpSystolic && patientInfo.bpDiastolic ? { bp_systolic: Number(patientInfo.bpSystolic), bp_diastolic: Number(patientInfo.bpDiastolic) } : {}),
               ...(patientInfo.hr ? { hr: Number(patientInfo.hr) } : {}),
               ...(patientInfo.tempC ? { temp_c: Number(patientInfo.tempC) } : {}),
+              symptom_details: symptomDetailsPayload,
             },
           })
           .select("id")
@@ -262,6 +423,15 @@ export default function SymptomChecker() {
           factors: [...selectedSymptoms, ...selectedRiskFactors],
         });
         setSavedAssessmentId(assessment.id);
+
+        // If not logged in, keep a pointer we can claim after signup/login.
+        if (!user?.id) {
+          try {
+            localStorage.setItem(PENDING_ASSESSMENT_LS_KEY, assessment.id);
+          } catch {
+            // ignore storage errors (private mode, etc.)
+          }
+        }
       } catch (e) {
         console.error("Failed to save assessment", e);
       } finally {
@@ -273,9 +443,22 @@ export default function SymptomChecker() {
   const handleReset = () => {
     setStep(1);
     setSelectedSymptoms([]);
+    setSymptomDetails({});
     setSelectedRiskFactors([]);
     setTriageResult(null);
-    setPatientInfo({ name: "", age: "", duration: "", durationDays: "", severity: "", notes: "", bpSystolic: "", bpDiastolic: "", hr: "", tempC: "" });
+    setTriageReasonLine("");
+    setPatientInfo({
+      surname: "",
+      firstName: "",
+      middleInitial: "",
+      gender: "",
+      age: "",
+      notes: "",
+      bpSystolic: "",
+      bpDiastolic: "",
+      hr: "",
+      tempC: "",
+    });
     setSavedAssessmentId(null);
   };
 
@@ -314,7 +497,7 @@ export default function SymptomChecker() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
       
-      <main className="flex-1 pt-24 pb-16">
+      <main className="flex-1 pt-20 pb-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
           {/* Progress */}
           <div className="mb-8">
@@ -325,6 +508,20 @@ export default function SymptomChecker() {
             <Progress value={progress} className="h-2" />
           </div>
 
+          {savedAssessmentId && (
+            <div className="mb-6 rounded-lg border border-border bg-background p-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Reference number:</strong>{" "}
+                <span className="font-mono">{savedAssessmentId}</span>
+              </p>
+              {!user && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Create an account to link this assessment to your profile.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Step 1: Basic Info */}
           {step === 1 && (
             <Card className="animate-fade-in">
@@ -333,24 +530,71 @@ export default function SymptomChecker() {
                   <User className="w-6 h-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">Report Symptoms</CardTitle>
-                <CardDescription>
-                  Date: {new Date().toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })} — This helps us provide accurate triage.
-                </CardDescription>
+                <div className="space-y-1.5">
+                  <p className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+                    Date:{" "}
+                    {new Date().toLocaleDateString("en-CA", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    This helps us provide accurate triage.
+                  </p>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Patient Name (Pangalan)</Label>
-                  <input
-                    id="name"
-                    type="text"
-                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Juan dela Cruz"
-                    value={patientInfo.name}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, name: e.target.value })}
-                  />
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-foreground">
+                    Patient name (Pangalan) <span className="text-destructive">*</span>
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="surname">
+                        Surname (Apelyido) <span className="text-destructive">*</span>
+                      </Label>
+                      <input
+                        id="surname"
+                        type="text"
+                        autoComplete="family-name"
+                        className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={patientInfo.surname}
+                        onChange={(e) => setPatientInfo({ ...patientInfo, surname: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">
+                        First name (Pangalan) <span className="text-destructive">*</span>
+                      </Label>
+                      <input
+                        id="firstName"
+                        type="text"
+                        autoComplete="given-name"
+                        className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={patientInfo.firstName}
+                        onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="middleInitial">Middle initial (Gitnang letra)</Label>
+                      <input
+                        id="middleInitial"
+                        type="text"
+                        maxLength={4}
+                        className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary uppercase"
+                        value={patientInfo.middleInitial}
+                        onChange={(e) =>
+                          setPatientInfo({ ...patientInfo, middleInitial: e.target.value.toUpperCase() })
+                        }
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="age">Age (Edad)</Label>
+                  <Label htmlFor="age">
+                    Age (Edad) <span className="text-destructive">*</span>
+                  </Label>
                   <input
                     id="age"
                     type="number"
@@ -360,107 +604,104 @@ export default function SymptomChecker() {
                     onChange={(e) => setPatientInfo({ ...patientInfo, age: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration">How long have you had symptoms? (Gaano katagal?)</Label>
-                  <select
-                    id="duration"
-                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={patientInfo.duration}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, duration: e.target.value })}
-                  >
-                    <option value="">Select duration</option>
-                    <option value="today">Just started today</option>
-                    <option value="days">A few days</option>
-                    <option value="week">About a week</option>
-                    <option value="weeks">More than a week</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Duration (days)</Label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="e.g. 3"
-                    value={patientInfo.durationDays}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, durationDays: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Severity</Label>
-                  <div className="flex flex-wrap gap-4">
-                    {(["mild", "moderate", "severe"] as const).map((s) => (
-                      <label key={s} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="severity"
-                          checked={patientInfo.severity === s}
-                          onChange={() => setPatientInfo({ ...patientInfo, severity: s })}
-                          className="rounded-full border-input"
-                        />
-                        <span className="capitalize">{s}</span>
-                      </label>
-                    ))}
+                <div className="space-y-4 rounded-lg border border-border p-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Gender (Kasarian) <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="flex flex-wrap gap-4">
+                      {(
+                        [
+                          { value: "female" as const, label: "Female" },
+                          { value: "male" as const, label: "Male" },
+                          { value: "other" as const, label: "Other / Prefer not to say" },
+                        ] as const
+                      ).map(({ value, label }) => (
+                        <label key={value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="gender"
+                            checked={patientInfo.gender === value}
+                            onChange={() => setPatientInfo({ ...patientInfo, gender: value })}
+                            className="rounded-full border-input"
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2 rounded-lg border border-border p-4">
-                  <Label className="text-muted-foreground">Optional vitals</Label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-base font-medium text-muted-foreground">Measurements (optional)</Label>
+                    <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs">BP (mmHg)</Label>
+                      <Label className="text-sm">BP (mmHg)</Label>
                       <div className="flex items-center gap-2 mt-1">
                         <input
                           type="number"
                           placeholder="120"
-                          className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm"
+                          className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base"
                           value={patientInfo.bpSystolic}
                           onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })}
                         />
-                        <span className="text-muted-foreground">/</span>
+                        <span className="text-muted-foreground text-base">/</span>
                         <input
                           type="number"
                           placeholder="80"
-                          className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm"
+                          className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base"
                           value={patientInfo.bpDiastolic}
                           onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })}
                         />
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs">HR (bpm)</Label>
+                      <Label className="text-sm">HR (bpm)</Label>
                       <input
                         type="number"
                         placeholder="72"
-                        className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm mt-1"
+                        className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base mt-1"
                         value={patientInfo.hr}
                         onChange={(e) => setPatientInfo({ ...patientInfo, hr: e.target.value })}
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Temp (°C)</Label>
+                      <Label className="text-sm">Temp (°C)</Label>
                       <input
                         type="number"
                         step="0.1"
                         placeholder="36.5"
-                        className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground text-sm mt-1"
+                        className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base mt-1"
                         value={patientInfo.tempC}
                         onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })}
                       />
                     </div>
                   </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Additional notes</Label>
+                  <Label htmlFor="notes">
+                    Additional notes{" "}
+                    <span className="font-normal text-muted-foreground">
+                      (optional — when symptoms started, medications you take, allergies, or other helpful details)
+                    </span>
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    If you selected joint or muscle pain, you can add exact side and location here (e.g. left knee, front of thigh).
+                  </p>
                   <textarea
                     id="notes"
                     rows={2}
                     className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Any other details..."
+                    placeholder="E.g. started 2 days ago; taking paracetamol; no known drug allergies…"
                     value={patientInfo.notes}
                     onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })}
                   />
                 </div>
-                <Button onClick={handleNext} size="lg" className="w-full">
+                {validationMessage && (
+                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
+                    {validationMessage}
+                  </p>
+                )}
+                <Button onClick={handleNext} size="lg" className="w-full" disabled={!isStep1Valid}>
                   Continue
                   <ArrowRight className="w-4 h-4" />
                 </Button>
@@ -476,41 +717,97 @@ export default function SymptomChecker() {
                   <Stethoscope className="w-6 h-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">What symptoms are you experiencing?</CardTitle>
-                <CardDescription>
-                  Select all that apply. This helps our AI assess the urgency of your condition.
+                <CardDescription className="text-base md:text-lg leading-relaxed">
+                  Select all that apply. For each symptom, choose how long it has lasted and how severe it feels.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {symptomCategories.map((category) => (
                   <div key={category.name} className="space-y-3">
-                    <h3 className="font-semibold text-foreground">{category.name}</h3>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{category.name}</h3>
+                      {category.description ? (
+                        <p className="text-sm text-muted-foreground mt-1 leading-snug">{category.description}</p>
+                      ) : null}
+                    </div>
                     <div className="grid sm:grid-cols-2 gap-3">
-                      {category.symptoms.map((symptom) => (
-                        <label
-                          key={symptom.id}
-                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                            selectedSymptoms.includes(symptom.id)
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <Checkbox
-                            checked={selectedSymptoms.includes(symptom.id)}
-                            onCheckedChange={() => toggleSymptom(symptom.id)}
-                          />
-                          <span className="text-sm">{symptom.label}</span>
-                        </label>
-                      ))}
+                      {category.symptoms.map((symptom) => {
+                        const checked = selectedSymptoms.includes(symptom.id);
+                        return (
+                          <div
+                            key={symptom.id}
+                            className={`rounded-lg border p-3 transition-all ${
+                              checked ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                            }`}
+                          >
+                            <label className="flex items-center gap-3 cursor-pointer">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={() => toggleSymptom(symptom.id)}
+                              />
+                              <span className="text-sm font-medium text-foreground">{symptom.label}</span>
+                            </label>
+                            {checked && (
+                              <div className="mt-3 pt-3 border-t border-border/70 space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">
+                                    How long has this lasted? <span className="text-destructive">*</span>
+                                  </Label>
+                                  <select
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    value={symptomDetails[symptom.id]?.duration ?? ""}
+                                    onChange={(e) =>
+                                      setSymptomDetailField(
+                                        symptom.id,
+                                        "duration",
+                                        e.target.value as SymptomDurationValue
+                                      )
+                                    }
+                                  >
+                                    {DURATION_OPTIONS.map((o) => (
+                                      <option key={o.value === "" ? "_duration_ph" : o.value} value={o.value}>
+                                        {o.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">How severe is it?</Label>
+                                  <div className="flex flex-wrap gap-3">
+                                    {(["mild", "moderate", "severe"] as const).map((s) => (
+                                      <label key={s} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                                        <input
+                                          type="radio"
+                                          name={`symptom-severity-${symptom.id}`}
+                                          checked={(symptomDetails[symptom.id]?.severity ?? "moderate") === s}
+                                          onChange={() => setSymptomDetailField(symptom.id, "severity", s)}
+                                          className="rounded-full border-input"
+                                        />
+                                        <span className="capitalize">{s}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
 
+                {validationMessage && (
+                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
+                    {validationMessage}
+                  </p>
+                )}
                 <div className="flex gap-3 pt-4">
                   <Button onClick={handleBack} variant="outline" size="lg">
                     <ArrowLeft className="w-4 h-4" />
                     Back
                   </Button>
-                  <Button onClick={handleNext} size="lg" className="flex-1">
+                  <Button onClick={handleNext} size="lg" className="flex-1" disabled={!isStep2Valid}>
                     Continue
                     <ArrowRight className="w-4 h-4" />
                   </Button>
@@ -527,7 +824,7 @@ export default function SymptomChecker() {
                   <Calendar className="w-6 h-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">Do any of these apply to you?</CardTitle>
-                <CardDescription>
+                <CardDescription className="text-base md:text-lg leading-relaxed">
                   Risk factors help us better assess your condition. Select all that apply.
                 </CardDescription>
               </CardHeader>
@@ -551,12 +848,17 @@ export default function SymptomChecker() {
                   ))}
                 </div>
 
+                {validationMessage && (
+                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
+                    {validationMessage}
+                  </p>
+                )}
                 <div className="flex gap-3 pt-4">
                   <Button onClick={handleBack} variant="outline" size="lg">
                     <ArrowLeft className="w-4 h-4" />
                     Back
                   </Button>
-                  <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1">
+                  <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1" disabled={!isStep2Valid}>
                     Get Triage Result
                     <ArrowRight className="w-4 h-4" />
                   </Button>
@@ -593,16 +895,31 @@ export default function SymptomChecker() {
                     <h4 className="font-semibold text-foreground mb-2">Recommended Action</h4>
                     <p className="text-foreground">→ {triageResults[triageResult].action}</p>
                     {triageResult === "urgent" && <p className="text-foreground mt-1">→ Contact BHW for Assistance</p>}
+                    {triageReasonLine ? (
+                      <p className="text-sm text-muted-foreground mt-3 leading-relaxed border-t border-border/60 pt-3">
+                        <span className="font-medium text-foreground">Why this result: </span>
+                        {triageReasonLine}
+                      </p>
+                    ) : null}
                   </div>
                   {selectedSymptoms.length > 0 && (
                     <div>
                       <h4 className="font-semibold text-foreground mb-2">Symptom Summary</h4>
-                      <p className="text-muted-foreground">
-                        {selectedSymptoms
-                          .map((id) => symptomCategories.flatMap((c) => c.symptoms).find((s) => s.id === id)?.label)
-                          .filter(Boolean)
-                          .join(", ")}
-                      </p>
+                      <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-sm">
+                        {selectedSymptoms.map((id) => {
+                          const label = resolveSymptomLabel(id);
+                          const det = symptomDetails[id];
+                          return (
+                            <li key={id}>
+                              <span className="text-foreground font-medium">{label}</span>
+                              {" — "}
+                              {det?.duration ? formatDurationLabel(det.duration) : "—"}
+                              {", "}
+                              <span className="capitalize">{det?.severity ?? "moderate"}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
                   )}
                   <p className="text-foreground">

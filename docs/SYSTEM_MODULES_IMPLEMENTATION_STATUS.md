@@ -1,6 +1,6 @@
 # System Modules & Data Specification — Implementation Status
 
-This document checks implementation of the **SYSTEM MODULES AND DATA SPECIFICATION** doc against the Barangay Health Connect app (database + frontend).
+This document checks implementation of the **SYSTEM MODULES AND DATA SPECIFICATION** doc against the TeleHealth app (database + frontend).
 
 ---
 

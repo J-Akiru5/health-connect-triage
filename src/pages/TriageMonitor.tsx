@@ -36,6 +36,15 @@ import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2, Penc
 
 const TRIAGE_LEVELS = ["emergency", "urgent", "non_urgent", "home_care"] as const;
 
+function formatStoredPatientGender(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const v = value.trim().toLowerCase();
+  if (v === "female") return "Female";
+  if (v === "male") return "Male";
+  if (v === "other") return "Other / Prefer not to say";
+  return value.trim();
+}
+
 type TriageRow = {
   id: string;
   assessment_id: string;
@@ -627,6 +636,10 @@ export default function TriageMonitor() {
                         <div>
                           <p className="font-medium text-muted-foreground mb-1">Vitals</p>
                           <ul className="space-y-0.5">
+                            {(() => {
+                              const genderLabel = formatStoredPatientGender(symptomDetail.vitals.patient_gender);
+                              return genderLabel ? <li>Gender: {genderLabel}</li> : null;
+                            })()}
                             {symptomDetail.vitals.bp_systolic != null && (
                               <li>BP: {String(symptomDetail.vitals.bp_systolic)}/{String(symptomDetail.vitals.bp_diastolic)} mmHg</li>
                             )}

@@ -1,6 +1,6 @@
-# MVP Gaps Analysis: Barangay Health Connect
+# MVP Gaps Analysis: TeleHealth
 
-This document compares the **Minimum Viable Product (MVP)** defined in *MINIMUM VIABLE PRODUCT.docx* (Telehealth Platform for Rural Barangay with AI-Assisted Triage, MoSCoW) against the current Barangay Health Connect application. It lists what is **missing or incomplete** to meet the MVP.
+This document compares the **Minimum Viable Product (MVP)** defined in *MINIMUM VIABLE PRODUCT.docx* (Telehealth Platform for Rural Barangay with AI-Assisted Triage, MoSCoW) against the current TeleHealth application. It lists what is **missing or incomplete** to meet the MVP.
 
 ---
 

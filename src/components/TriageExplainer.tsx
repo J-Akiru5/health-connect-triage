@@ -42,14 +42,14 @@ const triageLevels = [
 
 export function TriageExplainer() {
   return (
-    <section className="py-20 bg-secondary/30">
+    <section className="py-14 lg:py-16 bg-secondary/30">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-10 lg:mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            How AI Triage Works
+            How urgency levels work
           </h2>
           <p className="text-lg text-muted-foreground">
-            Our AI analyzes your symptoms and health information to classify your case, ensuring the most urgent cases receive priority attention.
+            Your answers are grouped into care levels so you can see what kind of follow-up may fit. This is guidance only—not a medical diagnosis.
           </p>
         </div>
 

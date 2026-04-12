@@ -14,6 +14,7 @@ import {
 import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { calculateTriage, symptomCategories, resolveSymptomLabel } from "@/lib/symptomCategories";
 import {
   Stethoscope,
   User,
@@ -36,17 +37,6 @@ const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "n
   "home-care": "home_care",
 };
 
-interface SymptomCategory {
-  name: string;
-  symptoms: { id: string; label: string; severity: number }[];
-}
-const symptomCategories: SymptomCategory[] = [
-  { name: "General Symptoms", symptoms: [{ id: "fever", label: "Fever (lagnat)", severity: 2 }, { id: "fatigue", label: "Fatigue / Weakness (panghihina)", severity: 1 }, { id: "chills", label: "Chills (ginaw)", severity: 2 }, { id: "weight-loss", label: "Unexplained weight loss", severity: 3 }] },
-  { name: "Respiratory", symptoms: [{ id: "cough", label: "Cough (ubo)", severity: 1 }, { id: "difficulty-breathing", label: "Difficulty breathing (hirap huminga)", severity: 5 }, { id: "chest-pain", label: "Chest pain (sakit ng dibdib)", severity: 5 }, { id: "sore-throat", label: "Sore throat (namamagang lalamunan)", severity: 1 }] },
-  { name: "Pain", symptoms: [{ id: "headache", label: "Headache (sakit ng ulo)", severity: 1 }, { id: "severe-headache", label: "Severe / Sudden headache", severity: 4 }, { id: "abdominal-pain", label: "Abdominal pain (sakit ng tiyan)", severity: 2 }, { id: "joint-pain", label: "Joint / Muscle pain", severity: 1 }] },
-  { name: "Digestive", symptoms: [{ id: "nausea", label: "Nausea / Vomiting (pagsusuka)", severity: 2 }, { id: "diarrhea", label: "Diarrhea (pagtatae)", severity: 2 }, { id: "blood-stool", label: "Blood in stool", severity: 4 }, { id: "loss-appetite", label: "Loss of appetite", severity: 1 }] },
-  { name: "Emergency Signs", symptoms: [{ id: "unconscious", label: "Loss of consciousness (nawalan ng malay)", severity: 5 }, { id: "severe-bleeding", label: "Severe bleeding (matinding pagdurugo)", severity: 5 }, { id: "seizure", label: "Seizure / Convulsions (kombulsyon)", severity: 5 }, { id: "confusion", label: "Sudden confusion / Disorientation", severity: 5 }] },
-];
 const riskFactors = [
   { id: "senior", label: "Senior citizen (60+ years old)" },
   { id: "pregnant", label: "Pregnant" },
@@ -56,21 +46,6 @@ const riskFactors = [
   { id: "immunocompromised", label: "Immunocompromised" },
 ];
 
-function calculateTriage(selectedSymptoms: string[], selectedRiskFactors: string[]): TriageLevel {
-  let totalSeverity = 0;
-  symptomCategories.forEach((cat) => {
-    cat.symptoms.forEach((s) => {
-      if (selectedSymptoms.includes(s.id)) totalSeverity += s.severity;
-    });
-  });
-  const emergencySymptoms = ["difficulty-breathing", "chest-pain", "unconscious", "severe-bleeding", "seizure", "confusion"];
-  if (selectedSymptoms.some((s) => emergencySymptoms.includes(s))) return "emergency";
-  totalSeverity += selectedRiskFactors.length * 1.5;
-  if (totalSeverity >= 8) return "urgent";
-  if (totalSeverity >= 4) return "non-urgent";
-  if (totalSeverity >= 1) return "home-care";
-  return null;
-}
 function getRiskScore(level: TriageLevel): number {
   if (!level) return 0;
   switch (level) {
@@ -375,6 +350,9 @@ export default function BHWAssistIntake() {
               </div>
               <div className="space-y-2">
                 <Label>Notes</Label>
+                <p className="text-xs text-muted-foreground">
+                  For joint or muscle pain, record exact side and spot if known (e.g. kanang tuhod, harap ng hità).
+                </p>
                 <textarea rows={2} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground" value={patientInfo.notes} onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })} placeholder="Additional notes…" />
               </div>
               <Button onClick={() => setStep(2)} size="lg" className="w-full rounded-xl" disabled={!patientId}>
@@ -393,8 +371,13 @@ export default function BHWAssistIntake() {
             </CardHeader>
             <CardContent className="space-y-4">
               {symptomCategories.map((cat) => (
-                <div key={cat.name}>
-                  <h3 className="font-semibold text-sm mb-2">{cat.name}</h3>
+                <div key={cat.name} className="space-y-2">
+                  <div>
+                    <h3 className="font-semibold text-sm">{cat.name}</h3>
+                    {cat.description ? (
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{cat.description}</p>
+                    ) : null}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     {cat.symptoms.map((s) => (
                       <label key={s.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${selectedSymptoms.includes(s.id) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
@@ -481,7 +464,7 @@ export default function BHWAssistIntake() {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {selectedSymptoms.map((id) => {
-                        const label = symptomCategories.flatMap((c) => c.symptoms).find((s) => s.id === id)?.label ?? id;
+                        const label = resolveSymptomLabel(id);
                         return (
                           <span key={id} className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                             {label}

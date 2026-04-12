@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
+import { SITE_BARANGAY } from "@/lib/site";
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,19 +27,19 @@ export function Navigation() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
               <Heart className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">BarangayHealth</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>
+              <span className="text-xs font-medium text-muted-foreground truncate">{SITE_BARANGAY}</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Home
-            </Link>
-            <Link to="/symptom-checker" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Check Symptoms
             </Link>
             <Link to="/consultations" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Consultations
@@ -138,9 +139,6 @@ export function Navigation() {
             <div className="flex flex-col gap-4">
               <Link to="/" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
                 Home
-              </Link>
-              <Link to="/symptom-checker" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
-                Check Symptoms
               </Link>
               <Link to="/consultations" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
                 Consultations

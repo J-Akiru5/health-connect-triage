@@ -15,6 +15,7 @@ import {
   Clock
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SITE_BARANGAY } from "@/lib/site";
 
 const About = () => {
   const values = [
@@ -45,8 +46,7 @@ const About = () => {
   ];
 
   const stats = [
-    { number: "500+", label: "Patients Served", icon: Users },
-    { number: "50+", label: "Barangays Connected", icon: MapPin },
+    { number: "Abangay", label: "Our barangay", icon: MapPin },
     { number: "24/7", label: "Available Support", icon: Clock },
     { number: "<5min", label: "Average Triage Time", icon: Stethoscope },
   ];
@@ -67,7 +67,7 @@ const About = () => {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-primary/20">
               <Heart className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-secondary-foreground">
-                About BarangayHealth Connect
+                About TeleHealth — {SITE_BARANGAY}
               </span>
             </div>
             
@@ -77,7 +77,7 @@ const About = () => {
             </h1>
             
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              We're on a mission to bridge the healthcare gap in rural Filipino communities through innovative technology, AI-assisted triage, and strong partnerships with local health workers.
+              We serve {SITE_BARANGAY} with a mission to bridge the healthcare gap through innovative technology, AI-assisted triage, and strong partnerships with local health workers and the rural health unit.
             </p>
           </div>
         </div>
@@ -212,7 +212,7 @@ const About = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {stats.map((stat, index) => (
               <Card key={stat.label} className="text-center border-border hover:border-primary/30 transition-all">
                 <CardContent className="p-6">
@@ -236,7 +236,7 @@ const About = () => {
               Working Together for Better Health
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              BarangayHealth Connect is made possible through partnerships with:
+              TeleHealth for {SITE_BARANGAY} is made possible through partnerships with:
             </p>
             <div className="grid md:grid-cols-3 gap-6 text-left">
               <Card>
@@ -284,7 +284,7 @@ const About = () => {
             </h2>
 
             <p className="text-lg text-primary-foreground/80 max-w-xl mx-auto">
-              Whether you're a patient, health worker, or community leader, there's a place for you in our mission to make healthcare accessible for all.
+              Whether you are a resident, health worker, or community leader in {SITE_BARANGAY}, there is a place for you in our mission to make healthcare accessible for all.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">

@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight, Heart, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SITE_BARANGAY, SITE_HEALTH_CENTER_PHONE_TEL } from "@/lib/site";
 
 export function CTASection() {
   return (
-    <section className="py-20 relative overflow-hidden">
+    <section className="py-16 lg:py-16 relative overflow-hidden">
       <div className="absolute inset-0 gradient-hero opacity-95" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.1)_0%,transparent_50%)]" />
       
@@ -19,7 +20,7 @@ export function CTASection() {
           </h2>
 
           <p className="text-lg text-primary-foreground/80 max-w-xl mx-auto">
-            Start your health assessment now. Our AI-powered triage will guide you to the right care, whether it's self-care advice or connecting you with a healthcare provider.
+            For residents of {SITE_BARANGAY}: start your health assessment now. Our AI-powered triage will guide you to the right care, whether it is self-care advice or connecting you with a healthcare provider.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
@@ -33,11 +34,15 @@ export function CTASection() {
               </Button>
             </Link>
             <Button
+              asChild
               size="xl"
               variant="outline"
               className="w-full sm:w-auto border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
             >
-              Contact BHW
+              <a href={`tel:${SITE_HEALTH_CENTER_PHONE_TEL}`}>
+                Contact BHW
+                <Phone className="w-5 h-5" />
+              </a>
             </Button>
           </div>
         </div>

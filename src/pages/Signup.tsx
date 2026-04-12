@@ -33,7 +33,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/lib/database.types";
-import { Heart, ArrowRight, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Heart, ArrowRight, ArrowLeft } from "lucide-react";
+import { SITE_BARANGAY } from "@/lib/site";
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "patient", label: "Patient" },
@@ -73,12 +74,19 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 const CONSENT_VERSION = "1.0";
+const PENDING_ASSESSMENT_LS_KEY = "bhc_pending_symptom_assessment_id";
+
+function normalizeName(name: string) {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
 
 export default function Signup() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signUp, error, clearError } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState(1);
   const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/";
@@ -203,6 +211,49 @@ export default function Signup() {
           });
         }
       }
+
+      // Best-effort: link any guest symptom checker submission to this new account.
+      // This requires RLS to allow updating an unclaimed row to set user_id = auth.uid().
+      if (result?.userId) {
+        try {
+          const pendingId = localStorage.getItem(PENDING_ASSESSMENT_LS_KEY);
+          if (pendingId) {
+            const { error: claimErr } = await supabase
+              .from("symptom_assessments")
+              .update({ user_id: result.userId })
+              .eq("id", pendingId)
+              .is("user_id", null);
+            if (!claimErr) {
+              localStorage.removeItem(PENDING_ASSESSMENT_LS_KEY);
+            }
+          } else {
+            // Fallback: attempt to find the most recent unclaimed assessment matching name.
+            // Uses vitals JSON stored during guest symptom checker submission.
+            const normalized = normalizeName(displayName);
+            const { data: candidates, error: findErr } = await supabase
+              .from("symptom_assessments")
+              .select("id, created_at, vitals")
+              .is("user_id", null)
+              .order("created_at", { ascending: false })
+              .limit(20);
+            if (!findErr && candidates?.length) {
+              const match = candidates.find((c: any) => {
+                const name = typeof c?.vitals?.patient_name === "string" ? c.vitals.patient_name : "";
+                return normalizeName(name) === normalized;
+              });
+              if (match?.id) {
+                await supabase
+                  .from("symptom_assessments")
+                  .update({ user_id: result.userId })
+                  .eq("id", match.id)
+                  .is("user_id", null);
+              }
+            }
+          }
+        } catch {
+          // ignore claim errors (RLS, storage, etc.)
+        }
+      }
       navigate(from, { replace: true });
     } catch {
       // error set in context
@@ -222,12 +273,15 @@ export default function Signup() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-12 flex flex-col items-center">
-        <Link to="/" className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+      <main className="container mx-auto px-4 pt-20 pb-12 flex flex-col items-center">
+        <Link to="/" className="flex items-center gap-2 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
             <Heart className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold text-foreground">BarangayHealth</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>
+            <span className="text-xs font-medium text-muted-foreground">{SITE_BARANGAY}</span>
+          </div>
         </Link>
         <Card className="w-full max-w-md">
           <CardHeader>
@@ -287,7 +341,25 @@ export default function Signup() {
                         <FormItem>
                           <FormLabel>Password</FormLabel>
                           <FormControl>
-                            <Input type="password" autoComplete="new-password" placeholder="At least 8 characters, letters and numbers" {...field} />
+                            <div className="relative">
+                              <Input
+                                type={showPassword ? "text" : "password"}
+                                autoComplete="new-password"
+                                placeholder="At least 8 characters, letters and numbers"
+                                className="pr-11"
+                                {...field}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowPassword((s) => !s)}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                              >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -301,7 +373,25 @@ export default function Signup() {
                           <FormItem>
                             <FormLabel>Confirm password</FormLabel>
                             <FormControl>
-                              <Input type="password" autoComplete="new-password" placeholder="Confirm password" {...field} />
+                              <div className="relative">
+                                <Input
+                                  type={showConfirmPassword ? "text" : "password"}
+                                  autoComplete="new-password"
+                                  placeholder="Confirm password"
+                                  className="pr-11"
+                                  {...field}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setShowConfirmPassword((s) => !s)}
+                                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                                >
+                                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>

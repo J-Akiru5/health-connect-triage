@@ -15,12 +15,13 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Settings, CheckCircle2 } from "lucide-react";
+import { SITE_BARANGAY } from "@/lib/site";
 
 const KEYS = ["system_name", "max_patients_per_bhw", "default_session_timeout", "maintenance_mode"] as const;
 type SettingKey = (typeof KEYS)[number];
 
 const DEFAULTS: Record<SettingKey, string> = {
-  system_name: "BarangayHealth Connect",
+  system_name: `TeleHealth — ${SITE_BARANGAY}`,
   max_patients_per_bhw: "50",
   default_session_timeout: "30",
   maintenance_mode: "false",
@@ -119,7 +120,7 @@ export default function AdminSettings() {
                 id="system-name"
                 value={settings.system_name}
                 onChange={(e) => set("system_name", e.target.value)}
-                placeholder="BarangayHealth Connect"
+                placeholder={`TeleHealth — ${SITE_BARANGAY}`}
               />
             </div>
             <div className="grid gap-2">

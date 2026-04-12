@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Lock, FileText, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SITE_BARANGAY } from "@/lib/site";
 
 export default function Privacy() {
   return (
@@ -14,7 +15,7 @@ export default function Privacy() {
             Privacy & Data Use Notice
           </h1>
           <p className="text-muted-foreground mt-1">
-            How we collect, use, and protect your information. Last updated: 2026.
+            How we collect, use, and protect your information for residents of {SITE_BARANGAY}. Last updated: 2026.
           </p>
         </div>
 

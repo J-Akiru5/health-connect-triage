@@ -6,12 +6,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { SITE_BARANGAY } from "@/lib/site";
 
 const FAQ = () => {
   const faqs = [
     {
-      question: "What is BarangayHealth Connect?",
-      answer: "BarangayHealth Connect is a telehealth platform designed to bring quality healthcare services closer to rural Filipino communities. We use AI-assisted triage to help you assess your symptoms and connect with healthcare professionals in your barangay.",
+      question: "What is TeleHealth?",
+      answer: `TeleHealth is the telehealth platform for ${SITE_BARANGAY}. It brings quality healthcare services closer to home: we use AI-assisted triage to help you assess your symptoms and connect with healthcare professionals serving our barangay.`,
     },
     {
       question: "How does the symptom checker work?",
@@ -23,11 +24,11 @@ const FAQ = () => {
     },
     {
       question: "How do I book a consultation?",
-      answer: "You can book a consultation through our platform by selecting your preferred date and time. Our system will connect you with available healthcare workers at your local barangay health center or rural health unit. You'll receive a confirmation with the details of your appointment.",
+      answer: `You can book a consultation through our platform by selecting your preferred date and time. Our system will connect you with available healthcare workers at the barangay health center or rural health unit serving ${SITE_BARANGAY}. You will receive a confirmation with the details of your appointment.`,
     },
     {
-      question: "What services are available through BarangayHealth Connect?",
-      answer: "We offer symptom checking, teleconsultations with healthcare professionals, appointment booking, health education resources, and connections to local health centers. Our platform also supports Barangay Health Workers (BHWs) and Rural Health Units (RHUs) with tools and resources.",
+      question: "What services are available through TeleHealth?",
+      answer: `We offer symptom checking, teleconsultations with healthcare professionals, appointment booking, health education resources, and connections to local health centers for ${SITE_BARANGAY}. The platform also supports Barangay Health Workers (BHWs) and Rural Health Units (RHUs) with tools and resources.`,
     },
     {
       question: "Is my personal health information secure?",
@@ -39,10 +40,10 @@ const FAQ = () => {
     },
     {
       question: "Can I use this service if I'm not in a rural area?",
-      answer: "While BarangayHealth Connect is primarily designed for rural communities, anyone can use our symptom checker and consultation services. However, our focus is on improving healthcare access in underserved rural areas of the Philippines.",
+      answer: `This deployment is intended for residents of ${SITE_BARANGAY} and nearby areas served by the same health facilities. Others may still use the symptom checker where appropriate; coordinated care is focused on our community.`,
     },
     {
-      question: "How much does it cost to use BarangayHealth Connect?",
+      question: "How much does it cost to use TeleHealth?",
       answer: "The symptom checker and basic platform features are free to use. Consultation fees may vary depending on the type of service and your local health center's policies. Some services may be covered by PhilHealth or other health insurance programs. Please check with your local health center for specific pricing.",
     },
     {
@@ -70,7 +71,7 @@ const FAQ = () => {
               Frequently Asked Questions
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Find answers to common questions about BarangayHealth Connect and our services.
+              Find answers to common questions about TeleHealth for {SITE_BARANGAY}.
             </p>
           </div>
 

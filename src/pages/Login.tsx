@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { Heart, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Heart, ArrowLeft } from "lucide-react";
+import { SITE_BARANGAY } from "@/lib/site";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email"),
@@ -39,7 +40,8 @@ export default function Login() {
   const location = useLocation();
   const { signIn, error, clearError } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/";
+  const [showPassword, setShowPassword] = useState(false);
+  const fromLocation = (location.state as { from?: { pathname: string; search?: string; hash?: string } } | null)?.from;
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -51,8 +53,19 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       const profile = await signIn(values.email, values.password);
+      const role = profile?.role;
+      const returnTo = (() => {
+        const p = fromLocation?.pathname;
+        if (!p || p === "/" || p === "/login" || p === "/signup") return null;
+        if (p.startsWith("/admin") && role !== "admin") return null;
+        return `${p}${fromLocation.search ?? ""}${fromLocation.hash ?? ""}`;
+      })();
       const destination =
-        profile?.role === "admin" ? "/admin" : profile?.role === "bhw" || profile?.role === "patient" || profile?.role === "clinician" ? "/dashboard" : from;
+        role === "admin"
+          ? "/admin"
+          : role === "bhw" || role === "patient" || role === "clinician"
+            ? returnTo ?? "/dashboard"
+            : returnTo ?? "/";
       navigate(destination, { replace: true });
     } catch {
       // error set in context
@@ -67,10 +80,13 @@ export default function Login() {
       <main className="container mx-auto px-4 pt-20 pb-16 flex flex-col items-center justify-center min-h-[calc(100vh-5rem)]">
         <div className="w-full max-w-[420px]">
           <Link to="/" className="flex items-center justify-center gap-2 mb-10">
-            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shrink-0">
               <Heart className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">BarangayHealth</span>
+            <div className="flex flex-col items-start text-left">
+              <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>
+              <span className="text-xs font-medium text-muted-foreground">{SITE_BARANGAY}</span>
+            </div>
           </Link>
           <Card className="rounded-2xl border shadow-lg overflow-hidden">
             <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-6 py-5 border-b">
@@ -111,13 +127,25 @@ export default function Login() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          autoComplete="current-password"
-                          placeholder="••••••••"
-                          className="rounded-xl h-11"
-                          {...field}
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
+                            placeholder="••••••••"
+                            className="rounded-xl h-11 pr-11"
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setShowPassword((s) => !s)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -144,12 +172,14 @@ export default function Login() {
                   <Link to="/">Back</Link>
                 </Button>
                 <div className="flex justify-between w-full text-sm">
-                  <Link to="/signup" className="text-primary font-medium hover:underline">Sign up</Link>
+                  <Link to="/signup" state={location.state} className="text-primary font-medium hover:underline">
+                    Sign up
+                  </Link>
                   <Link to="#" className="text-muted-foreground hover:underline">Forgot password?</Link>
                 </div>
                 <p className="text-sm text-muted-foreground text-center hidden">
                   Don’t have an account?{" "}
-                  <Link to="/signup" className="text-primary font-medium hover:underline">
+                  <Link to="/signup" state={location.state} className="text-primary font-medium hover:underline">
                     Sign up
                   </Link>
                 </p>
