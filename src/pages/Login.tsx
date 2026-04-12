@@ -24,8 +24,10 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { Eye, EyeOff, Heart, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { SITE_BARANGAY } from "@/lib/site";
+import { safeInternalPath } from "@/lib/safePath";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email"),
@@ -56,7 +58,9 @@ export default function Login() {
       const role = profile?.role;
       const returnTo = (() => {
         const p = fromLocation?.pathname;
-        if (!p || p === "/" || p === "/login" || p === "/signup") return null;
+        if (typeof p !== "string" || !p.startsWith("/")) return null;
+        if (p === "/" || p === "/login" || p === "/signup") return null;
+        if (p.split("/").includes("undefined")) return null;
         if (p.startsWith("/admin") && role !== "admin") return null;
         return `${p}${fromLocation.search ?? ""}${fromLocation.hash ?? ""}`;
       })();
@@ -66,7 +70,13 @@ export default function Login() {
           : role === "bhw" || role === "patient" || role === "clinician"
             ? returnTo ?? "/dashboard"
             : returnTo ?? "/";
-      navigate(destination, { replace: true });
+      const fallback =
+        role === "admin"
+          ? "/admin"
+          : role === "bhw" || role === "patient" || role === "clinician"
+            ? "/dashboard"
+            : "/";
+      navigate(safeInternalPath(destination, fallback), { replace: true });
     } catch {
       // error set in context
     } finally {
@@ -81,7 +91,7 @@ export default function Login() {
         <div className="w-full max-w-[420px]">
           <Link to="/" className="flex items-center justify-center gap-2 mb-10">
             <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shrink-0">
-              <Heart className="w-6 h-6 text-primary-foreground" />
+              <AppLogoMark className="w-6 h-6 text-primary-foreground" />
             </div>
             <div className="flex flex-col items-start text-left">
               <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Heart, LogOut, Menu, User, X, Shield, ChevronDown, UserPlus, LogIn, AlertCircle, Info } from "lucide-react";
+import { LogOut, Menu, User, X, Shield, ChevronDown, UserPlus, LogIn, AlertCircle, Info } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { SITE_BARANGAY } from "@/lib/site";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +29,7 @@ export function Navigation() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-              <Heart className="w-5 h-5 text-primary-foreground" />
+              <AppLogoMark className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>

@@ -13,11 +13,11 @@ import {
   LogOut,
   Menu,
   X,
-  Heart,
   BarChart3,
   Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 const adminNav = [
   { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard" },
@@ -60,7 +60,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Button>
             <Link to="/admin" className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Heart className="h-4 w-4" />
+                <AppLogoMark className="h-4 w-4" />
               </div>
               <span className="font-semibold">Admin</span>
             </Link>

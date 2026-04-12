@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Heart, Phone } from "lucide-react";
+import { ArrowRight, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SITE_BARANGAY, SITE_HEALTH_CENTER_PHONE_TEL } from "@/lib/site";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 export function CTASection() {
   return (
@@ -12,7 +13,7 @@ export function CTASection() {
       <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center space-y-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-foreground/10 backdrop-blur-sm">
-            <Heart className="w-8 h-8 text-primary-foreground" />
+            <AppLogoMark className="w-8 h-8 text-primary-foreground" />
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-foreground leading-tight">

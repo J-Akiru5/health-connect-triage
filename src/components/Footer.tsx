@@ -1,4 +1,4 @@
-import { Heart } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
 import { Link } from "react-router-dom";
 import { SITE_BARANGAY, SITE_HEALTH_CENTER_PHONE_DISPLAY, SITE_HEALTH_CENTER_PHONE_TEL } from "@/lib/site";
 
@@ -11,7 +11,7 @@ export function Footer() {
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-                <Heart className="w-5 h-5 text-primary-foreground" />
+                <AppLogoMark className="w-5 h-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-xl font-bold leading-tight">TeleHealth</span>

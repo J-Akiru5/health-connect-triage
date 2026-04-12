@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SITE_BARANGAY } from "@/lib/site";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 const About = () => {
   const values = [
@@ -65,7 +66,7 @@ const About = () => {
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-primary/20">
-              <Heart className="w-4 h-4 text-primary" />
+              <AppLogoMark className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-secondary-foreground">
                 About TeleHealth — {SITE_BARANGAY}
               </span>
@@ -276,7 +277,7 @@ const About = () => {
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center space-y-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-foreground/10 backdrop-blur-sm">
-              <Heart className="w-8 h-8 text-primary-foreground" />
+              <AppLogoMark className="w-8 h-8 text-primary-foreground" />
             </div>
 
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-foreground leading-tight">

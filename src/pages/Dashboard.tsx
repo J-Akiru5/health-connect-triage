@@ -16,7 +16,6 @@ import {
   UserCog,
   LogOut,
   Loader2,
-  Heart,
   ArrowRight,
   AlertTriangle,
   Users,
@@ -24,6 +23,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 type ClinicianConsultRow = {
   id: string;
@@ -477,7 +477,7 @@ export default function Dashboard() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Heart className="w-6 h-6 text-primary" />
+                      <AppLogoMark className="w-6 h-6 text-primary" />
                     </div>
                     <div>
                       <CardTitle className="text-xl">Patient Dashboard</CardTitle>

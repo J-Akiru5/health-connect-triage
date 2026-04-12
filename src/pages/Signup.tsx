@@ -33,8 +33,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/lib/database.types";
-import { Eye, EyeOff, Heart, ArrowRight, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, ArrowLeft } from "lucide-react";
 import { SITE_BARANGAY } from "@/lib/site";
+import { safeInternalPath } from "@/lib/safePath";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "patient", label: "Patient" },
@@ -89,7 +91,8 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState(1);
   const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/";
+  const fromRaw = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  const from = safeInternalPath(fromRaw, "/");
   const bhwPrefill = (location.state as { bhwPrefill?: Partial<SignupFormValues> } | null)?.bhwPrefill;
 
   const form = useForm<SignupFormValues>({
@@ -276,7 +279,7 @@ export default function Signup() {
       <main className="container mx-auto px-4 pt-20 pb-12 flex flex-col items-center">
         <Link to="/" className="flex items-center gap-2 mb-6">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-            <Heart className="w-5 h-5 text-primary-foreground" />
+            <AppLogoMark className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>

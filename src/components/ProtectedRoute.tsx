@@ -21,7 +21,8 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (!session) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const from = { pathname: location.pathname, search: location.search, hash: location.hash };
+    return <Navigate to="/login" state={{ from }} replace />;
   }
 
   if (allowedRoles && allowedRoles.length > 0 && profile && !allowedRoles.includes(profile.role)) {

@@ -263,7 +263,11 @@ const Consultations = () => {
         .update({ status: "completed", ended_at: new Date().toISOString() })
         .eq("id", consultationId);
       await loadProviderConsults();
-      navigate(`/consultations/${consultationId}/chat`, { state: { openTab: "notes" } });
+      if (consultationId) {
+        navigate(`/consultations/${consultationId}/chat`, { state: { openTab: "notes" } });
+      } else {
+        navigate("/consultations", { replace: true });
+      }
     } catch (e) {
       console.error("Complete consultation failed", e);
     } finally {
@@ -427,7 +431,7 @@ const Consultations = () => {
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 <Button size="sm" asChild>
-                                  <Link to={`/consultations/${c.id}/chat`}>
+                                  <Link to={c.id ? `/consultations/${c.id}/chat` : "/consultations"}>
                                     <MessageSquare className="w-3.5 h-3.5 mr-1" />
                                     Open chat
                                   </Link>
@@ -706,7 +710,7 @@ const Consultations = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Button variant="outline" size="sm" asChild className="gap-1">
-                                  <Link to={`/consultations/${c.id}/chat`}>
+                                  <Link to={c.id ? `/consultations/${c.id}/chat` : "/consultations"}>
                                     <MessageSquare className="w-3.5 h-3.5" />
                                     Open chat
                                   </Link>
@@ -790,7 +794,7 @@ const Consultations = () => {
                             </div>
                             <div className="flex flex-wrap gap-2">
                               <Button variant="outline" size="sm" asChild className="gap-1">
-                                <Link to={`/consultations/${consultation.id}/chat`}>
+                                <Link to={consultation.id ? `/consultations/${consultation.id}/chat` : "/consultations"}>
                                   <MessageSquare className="w-3.5 h-3.5" />
                                   Open chat
                                 </Link>

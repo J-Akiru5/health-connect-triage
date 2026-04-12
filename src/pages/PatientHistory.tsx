@@ -428,7 +428,7 @@ export default function PatientHistory() {
                                 </div>
                               </div>
                               <Button variant="ghost" size="sm" asChild className="shrink-0 gap-1">
-                                <Link to={`/consultations/${item.id}/chat`}>
+                                <Link to={item.id ? `/consultations/${item.id}/chat` : "/consultations"}>
                                   Open chat
                                   <ChevronRight className="w-3.5 h-3.5" />
                                 </Link>
