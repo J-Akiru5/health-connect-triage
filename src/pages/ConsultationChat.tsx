@@ -28,8 +28,6 @@ type ConsultationNote = {
   notes: string | null;
 };
 
-const POLL_INTERVAL_MS = 5000;
-
 export default function ConsultationChat() {
   const { consultationId } = useParams<{ consultationId: string }>();
   const location = useLocation();
@@ -107,9 +105,43 @@ export default function ConsultationChat() {
 
   useEffect(() => {
     if (!consultationId) return;
+    // Initial history load, then keep in sync via realtime.
     loadMessages();
-    const interval = setInterval(loadMessages, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel(`consultation_messages:${consultationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "consultation_messages",
+          filter: `teleconsultation_id=eq.${consultationId}`,
+        },
+        (payload) => {
+          const row = payload.new as Partial<MessageRow> & { id?: string };
+          if (!row?.id) return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === row.id)) return prev;
+            const next = [
+              ...prev,
+              {
+                id: row.id,
+                sender_id: String(row.sender_id ?? ""),
+                body: String(row.body ?? ""),
+                created_at: String(row.created_at ?? new Date().toISOString()),
+              },
+            ];
+            next.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            return next;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [consultationId, loadMessages]);
 
   useEffect(() => {
@@ -127,7 +159,6 @@ export default function ConsultationChat() {
       });
       if (error) throw error;
       setNewBody("");
-      await loadMessages();
     } catch (e) {
       console.error("Send message failed", e);
     } finally {

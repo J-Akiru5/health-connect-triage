@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import {
   Users,
-  MapPin,
   Stethoscope,
   Calendar,
   AlertTriangle,
@@ -21,7 +20,6 @@ import { format } from "date-fns";
 type Stats = {
   usersTotal: number;
   usersByRole: Record<string, number>;
-  barangaysCount: number;
   patientsCount: number;
   pendingTeleconsults: number;
   pendingReferrals: number;
@@ -48,7 +46,6 @@ export default function AdminDashboard() {
       const [
         { count: usersTotal },
         { data: profiles },
-        { count: barangaysCount },
         { count: patientsCount },
         { count: pendingTeleconsults },
         { count: pendingReferrals },
@@ -58,7 +55,6 @@ export default function AdminDashboard() {
       ] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("profiles").select("role"),
-        supabase.from("barangays").select("id", { count: "exact", head: true }),
         supabase.from("patient_profiles").select("id", { count: "exact", head: true }),
         supabase
           .from("teleconsultations")
@@ -85,7 +81,6 @@ export default function AdminDashboard() {
       setStats({
         usersTotal: usersTotal ?? 0,
         usersByRole: roleCount,
-        barangaysCount: barangaysCount ?? 0,
         patientsCount: patientsCount ?? 0,
         pendingTeleconsults: pendingTeleconsults ?? 0,
         pendingReferrals: pendingReferrals ?? 0,
@@ -183,18 +178,6 @@ export default function AdminDashboard() {
               <p className="text-xs text-muted-foreground mt-1">
                 Patient: {stats.usersByRole.patient ?? 0} · BHW: {stats.usersByRole.bhw ?? 0} · Clinician: {stats.usersByRole.clinician ?? 0} · Admin: {stats.usersByRole.admin ?? 0}
               </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Barangays</CardTitle>
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.barangaysCount}</div>
-              <Button variant="link" className="h-auto p-0 text-xs" asChild>
-                <Link to="/admin/barangays">Manage</Link>
-              </Button>
             </CardContent>
           </Card>
           <Card>

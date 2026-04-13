@@ -134,15 +134,8 @@ export function ClinicianDashboard({ variant }: { variant: ClinicianVariant }) {
   useEffect(() => {
     if (!user?.id || profile?.role !== "clinician") return;
     (async () => {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-      if ((p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id) {
-        const { data: b } = await supabase
-          .from("barangays")
-          .select("name")
-          .eq("id", (p as { assigned_barangay_id: string }).assigned_barangay_id)
-          .single();
-        setClinicianBarangay((b as { name?: string } | null)?.name ?? null);
-      }
+      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+      setClinicianBarangay((p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null);
     })();
   }, [user?.id, profile?.role]);
 

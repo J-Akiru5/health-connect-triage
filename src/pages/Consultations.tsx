@@ -23,7 +23,6 @@ import {
   Stethoscope,
   User,
   Phone,
-  MapPin,
   Video,
   CheckCircle2,
   AlertCircle,
@@ -82,7 +81,6 @@ const Consultations = () => {
   const [loadingProvider, setLoadingProvider] = useState(true);
   const [bhwConsults, setBhwConsults] = useState<ProviderConsultRow[]>([]);
   const [loadingBhw, setLoadingBhw] = useState(true);
-  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
   const [referralPrefilled, setReferralPrefilled] = useState<CreateReferralPrefilledPatient | null>(null);
@@ -129,12 +127,7 @@ const Consultations = () => {
     setProviderConsults(rows);
   }, [user?.id, isClinician]);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("barangays").select("id, name").order("name");
-      setBarangays(data ?? []);
-    })();
-  }, []);
+  // barangays are free-text now; no table to load
 
   useEffect(() => {
     if (!user?.id) {
@@ -545,25 +538,13 @@ const Consultations = () => {
                         Barangay <span className="text-destructive">*</span>
                       </Label>
                       <div className="relative">
-                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
-                        <Select
+                        <Input
+                          id="barangay"
+                          placeholder="Type your barangay"
                           required
                           value={formData.barangay}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, barangay: value })
-                          }
-                        >
-                          <SelectTrigger className="pl-10">
-                            <SelectValue placeholder="Select your barangay" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {barangays.map((barangay) => (
-                              <SelectItem key={barangay.id} value={barangay.id}>
-                                {barangay.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
+                        />
                       </div>
                     </div>
 

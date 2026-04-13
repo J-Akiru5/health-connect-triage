@@ -58,7 +58,7 @@ export default function Dashboard() {
     (async () => {
       const { data: pp } = await supabase
         .from("patient_profiles")
-        .select("first_name, last_name, barangay_id")
+        .select("first_name, last_name, barangay_name")
         .eq("user_id", user.id)
         .maybeSingle();
       if (!pp) {
@@ -66,11 +66,7 @@ export default function Dashboard() {
         setLoading(false);
         return;
       }
-      let barangayName: string | null = null;
-      if (pp.barangay_id) {
-        const { data: b } = await supabase.from("barangays").select("name").eq("id", pp.barangay_id).maybeSingle();
-        barangayName = b?.name ?? null;
-      }
+      const barangayName: string | null = (pp as { barangay_name?: string | null } | null)?.barangay_name ?? null;
       setPatientProfile({
         first_name: pp.first_name,
         last_name: pp.last_name,
@@ -137,11 +133,8 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user?.id || profile?.role !== "clinician") return;
     (async () => {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-      if (p?.assigned_barangay_id) {
-        const { data: b } = await supabase.from("barangays").select("name").eq("id", p.assigned_barangay_id).single();
-        setClinicianBarangay((b as { name?: string })?.name ?? null);
-      }
+      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+      setClinicianBarangay((p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null);
     })();
   }, [user?.id, profile?.role]);
 
@@ -165,20 +158,19 @@ export default function Dashboard() {
       return;
     }
     (async () => {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-      const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
-      if (!barangayId) {
+      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+      const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
+      if (!barangayName) {
         setBhwPatients([]);
         setBhwBarangayName(null);
         setBhwLoading(false);
         return;
       }
-      const { data: b } = await supabase.from("barangays").select("name").eq("id", barangayId).single();
-      setBhwBarangayName((b as { name?: string } | null)?.name ?? null);
+      setBhwBarangayName(barangayName);
       const { data: ppList } = await supabase
         .from("patient_profiles")
         .select("user_id, first_name, last_name")
-        .eq("barangay_id", barangayId);
+        .ilike("barangay_name", barangayName);
       if (!ppList?.length) {
         setBhwPatients([]);
         setBhwLoading(false);

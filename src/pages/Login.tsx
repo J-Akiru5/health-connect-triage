@@ -185,7 +185,9 @@ export default function Login() {
                   <Link to="/signup" state={location.state} className="text-primary font-medium hover:underline">
                     Sign up
                   </Link>
-                  <Link to="#" className="text-muted-foreground hover:underline">Forgot password?</Link>
+                  <Link to="/forgot-password" className="text-muted-foreground hover:underline">
+                    Forgot password?
+                  </Link>
                 </div>
                 <p className="text-sm text-muted-foreground text-center hidden">
                   Don’t have an account?{" "}

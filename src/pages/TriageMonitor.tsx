@@ -91,14 +91,14 @@ export default function TriageMonitor() {
     }
     (async () => {
       if (profile?.role === "bhw") {
-        const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-        const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
-        if (!barangayId) {
+        const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+        const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
+        if (!barangayName) {
           setRows([]);
           setLoading(false);
           return;
         }
-        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").eq("barangay_id", barangayId);
+        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
         const patientIds = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
         if (patientIds.length === 0) {
           setRows([]);
@@ -235,16 +235,16 @@ export default function TriageMonitor() {
     try {
       const { data: pp } = await supabase
         .from("patient_profiles")
-        .select("barangay_id")
+        .select("barangay_name")
         .eq("user_id", r.patient_id)
         .maybeSingle();
-      const barangayId = (pp as { barangay_id?: string } | null)?.barangay_id;
-      if (barangayId) {
+      const barangayName = (pp as { barangay_name?: string | null } | null)?.barangay_name ?? null;
+      if (barangayName) {
         const { data: bhws } = await supabase
           .from("profiles")
           .select("id, full_name")
           .eq("role", "bhw")
-          .eq("assigned_barangay_id", barangayId);
+          .ilike("assigned_barangay_name", barangayName);
         setAssignBHWList(bhws ?? []);
       } else {
         setAssignBHWList([]);

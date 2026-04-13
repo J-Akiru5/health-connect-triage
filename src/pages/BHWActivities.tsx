@@ -54,13 +54,16 @@ export default function BHWActivities() {
       return;
     }
     (async () => {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-      const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
-      if (!barangayId) {
+      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+      const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
+      if (!barangayName) {
         setLoadingPatients(false);
         return;
       }
-      const { data: ppList } = await supabase.from("patient_profiles").select("user_id, first_name, last_name").eq("barangay_id", barangayId);
+      const { data: ppList } = await supabase
+        .from("patient_profiles")
+        .select("user_id, first_name, last_name")
+        .ilike("barangay_name", barangayName);
       if (!ppList?.length) {
         setLoadingPatients(false);
         return;

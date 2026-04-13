@@ -46,14 +46,14 @@ const ROLES: { value: UserRole; label: string }[] = [
 ];
 
 const signupSchema = z.object({
-  fullName: z.string().min(1, "Full name is required").max(200, "Name too long"),
+  fullName: z.string().max(200, "Name too long").optional().or(z.literal("")),
   email: z.string().min(1, "Email is required").email("Invalid email"),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Za-z]/, "Password must contain at least one letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
-  confirmPassword: z.string().optional(),
+  confirmPassword: z.string().optional().or(z.literal("")),
   role: z.enum(["patient", "bhw", "clinician", "admin"] as const),
   // Patient: broken-down name
   lastName: z.string().optional(),
@@ -62,15 +62,19 @@ const signupSchema = z.object({
   dateOfBirth: z.string().optional(),
   sex: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
   street: z.string().optional(),
-  barangayId: z.string().uuid().optional().or(z.literal("")),
+  barangayName: z.string().optional(),
   city: z.string().optional(),
   province: z.string().optional(),
   zipCode: z.string().optional(),
   contactPhone: z.string().optional(),
   careConsent: z.boolean().optional(),
   researchConsent: z.boolean().optional(),
-}).refine((d) => d.role !== "patient" || (d.password === d.confirmPassword), { message: "Passwords must match", path: ["confirmPassword"] })
+})
+  .refine((d) => d.role === "patient" || !!d.fullName?.trim(), { message: "Full name is required", path: ["fullName"] })
+  .refine((d) => d.role !== "patient" || !!d.confirmPassword?.trim(), { message: "Confirm password is required", path: ["confirmPassword"] })
+  .refine((d) => d.role !== "patient" || (d.password === d.confirmPassword), { message: "Passwords must match", path: ["confirmPassword"] })
   .refine((d) => d.role !== "patient" || (d.firstName?.trim() && d.lastName?.trim()), { message: "First and last name required", path: ["firstName"] })
+  .refine((d) => d.role !== "patient" || !!d.barangayName?.trim(), { message: "Barangay is required", path: ["barangayName"] })
   .refine((d) => d.role !== "patient" || d.careConsent === true, { message: "You must accept the care consent to register.", path: ["careConsent"] });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -90,7 +94,6 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState(1);
-  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const fromRaw = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
   const from = safeInternalPath(fromRaw, "/");
   const bhwPrefill = (location.state as { bhwPrefill?: Partial<SignupFormValues> } | null)?.bhwPrefill;
@@ -109,7 +112,7 @@ export default function Signup() {
       dateOfBirth: "",
       sex: undefined,
       street: "",
-      barangayId: "",
+      barangayName: "",
       city: "",
       province: "",
       zipCode: "",
@@ -126,11 +129,7 @@ export default function Signup() {
   const canSubmitPatient = !isPatient || careConsent === true;
 
   useEffect(() => {
-    if (!isPatient) return;
-    (async () => {
-      const { data } = await supabase.from("barangays").select("id, name").order("name");
-      setBarangays(data ?? []);
-    })();
+    // no-op: barangays are free-text now
   }, [isPatient]);
 
   useEffect(() => {
@@ -148,7 +147,7 @@ export default function Signup() {
       dateOfBirth: bhwPrefill.dateOfBirth ?? "",
       sex: bhwPrefill.sex,
       street: bhwPrefill.street ?? "",
-      barangayId: bhwPrefill.barangayId ?? "",
+      barangayName: "",
       city: bhwPrefill.city ?? "",
       province: bhwPrefill.province ?? "",
       zipCode: bhwPrefill.zipCode ?? "",
@@ -161,6 +160,7 @@ export default function Signup() {
   async function onSubmit(values: SignupFormValues) {
     if (values.role === "patient" && !values.careConsent) {
       form.setError("careConsent", { message: "You must accept care consent to register." });
+      setStep(4);
       return;
     }
     const displayName = isPatient && values.firstName != null && values.lastName != null
@@ -176,6 +176,8 @@ export default function Signup() {
         values.role as UserRole
       );
       if (result?.userId && values.role === "patient") {
+        const typedBarangay = (values.barangayName ?? "").trim().replace(/\s+/g, " ");
+        const resolvedBarangayId = null;
         await supabase.from("patient_profiles").insert({
           user_id: result.userId,
           last_name: values.lastName || null,
@@ -184,7 +186,8 @@ export default function Signup() {
           date_of_birth: values.dateOfBirth || null,
           sex: values.sex ?? null,
           street: values.street || null,
-          barangay_id: values.barangayId || null,
+          barangay_id: resolvedBarangayId,
+          barangay_name: typedBarangay || null,
           city: values.city || null,
           province: values.province || null,
           zip_code: values.zipCode || null,
@@ -265,6 +268,25 @@ export default function Signup() {
     }
   }
 
+  function onInvalidSubmit(errs: Record<string, unknown>) {
+    // Jump to the step that contains the first missing/invalid field.
+    if ((errs as any).email || (errs as any).password || (errs as any).confirmPassword || (errs as any).fullName || (errs as any).role) {
+      setStep(1);
+      return;
+    }
+    if ((errs as any).lastName || (errs as any).firstName || (errs as any).middleInitial || (errs as any).dateOfBirth || (errs as any).sex) {
+      setStep(2);
+      return;
+    }
+    if ((errs as any).street || (errs as any).barangayName || (errs as any).city || (errs as any).province || (errs as any).zipCode || (errs as any).contactPhone) {
+      setStep(3);
+      return;
+    }
+    if ((errs as any).careConsent || (errs as any).researchConsent) {
+      setStep(4);
+    }
+  }
+
   function handleNext() {
     if (step < maxStep) setStep(step + 1);
   }
@@ -298,7 +320,7 @@ export default function Signup() {
             </CardDescription>
           </CardHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalidSubmit)}>
               <CardContent className="space-y-4">
                 {error && (
                   <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
@@ -527,22 +549,13 @@ export default function Signup() {
                     />
                     <FormField
                       control={form.control}
-                      name="barangayId"
+                      name="barangayName"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Barangay</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select your barangay" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {barangays.map((b) => (
-                                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <Input placeholder="Type your barangay" {...field} />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -671,12 +684,14 @@ export default function Signup() {
                       className="flex-1"
                       onClick={() => {
                         if (step === 1) {
-                          const fields = isPatient ? ["email", "password", "confirmPassword", "role"] : ["fullName", "email", "password", "role"];
+                          const fields = isPatient
+                            ? (["email", "password", "confirmPassword", "role"] as const)
+                            : (["fullName", "email", "password", "role"] as const);
                           form.trigger(fields).then((ok) => { if (ok) handleNext(); });
                         } else if (step === 2) {
-                          form.trigger(["lastName", "firstName", "dateOfBirth", "sex"]).then((ok) => { if (ok) handleNext(); });
+                          form.trigger(["lastName", "firstName", "dateOfBirth", "sex"] as const).then((ok) => { if (ok) handleNext(); });
                         } else if (step === 3) {
-                          form.trigger(["street", "barangayId", "city", "province", "zipCode", "contactPhone"]).then((ok) => { if (ok) handleNext(); });
+                          form.trigger(["street", "barangayName", "city", "province", "zipCode", "contactPhone"] as const).then((ok) => { if (ok) handleNext(); });
                         }
                       }}
                     >
@@ -687,7 +702,7 @@ export default function Signup() {
                     <Button
                       type="submit"
                       className="flex-1"
-                      disabled={isSubmitting || !canSubmitPatient}
+                      disabled={isSubmitting}
                     >
                       {isSubmitting ? "Creating account…" : "Submit"}
                     </Button>

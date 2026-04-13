@@ -32,19 +32,17 @@ type ProfileRow = {
   full_name: string | null;
   role: UserRole;
   is_active: boolean | null;
-  assigned_barangay_id: string | null;
+  assigned_barangay_name: string | null;
   created_at: string;
-  barangay_name?: string | null;
 };
 
 export default function AdminUsers() {
   const { user: currentUser } = useAuth();
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
-  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState<UserRole | "">("");
-  const [editBarangayId, setEditBarangayId] = useState<string | "">("");
+  const [editBarangayName, setEditBarangayName] = useState("");
   const [editFullName, setEditFullName] = useState("");
   const [saving, setSaving] = useState(false);
   const [resetRow, setResetRow] = useState<ProfileRow | null>(null);
@@ -55,25 +53,14 @@ export default function AdminUsers() {
   const load = async () => {
     const { data: profData } = await supabase
       .from("profiles")
-      .select("id, full_name, role, is_active, assigned_barangay_id, created_at")
+      .select("id, full_name, role, is_active, assigned_barangay_name, created_at")
       .order("created_at", { ascending: false });
-    const { data: barData } = await supabase.from("barangays").select("id, name").order("name");
 
     const rows = (profData ?? []) as ProfileRow[];
-    const barList = (barData ?? []) as { id: string; name: string }[];
-    setBarangays(barList);
-
-    const barIds = [...new Set(rows.map((r) => r.assigned_barangay_id).filter(Boolean))] as string[];
-    let barMap: Record<string, string> = {};
-    if (barIds.length > 0) {
-      const barSub = barList.filter((b) => barIds.includes(b.id));
-      barMap = Object.fromEntries(barSub.map((b) => [b.id, b.name]));
-    }
     setProfiles(
       rows.map((r) => ({
         ...r,
         is_active: r.is_active ?? true,
-        barangay_name: r.assigned_barangay_id ? barMap[r.assigned_barangay_id] ?? null : null,
       }))
     );
     setLoading(false);
@@ -86,7 +73,7 @@ export default function AdminUsers() {
   function openEdit(p: ProfileRow) {
     setEditingId(p.id);
     setEditRole(p.role);
-    setEditBarangayId(p.assigned_barangay_id ?? "");
+    setEditBarangayName(p.assigned_barangay_name ?? "");
     setEditFullName(p.full_name ?? "");
   }
 
@@ -98,7 +85,7 @@ export default function AdminUsers() {
       .update({
         full_name: editFullName || null,
         role: editRole || undefined,
-        assigned_barangay_id: editBarangayId || null,
+        assigned_barangay_name: editBarangayName.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", editingId);
@@ -111,7 +98,7 @@ export default function AdminUsers() {
       user_id: currentUser?.id ?? null,
       action: "admin_update_profile",
       resource: "profiles",
-      details: { profile_id: editingId, role: editRole, assigned_barangay_id: editBarangayId || null },
+      details: { profile_id: editingId, role: editRole, assigned_barangay_name: editBarangayName.trim() || null },
     });
     setEditingId(null);
     setSaving(false);
@@ -123,7 +110,7 @@ export default function AdminUsers() {
     setResetSending(true);
     try {
       await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       await supabase.from("audit_logs").insert({
         user_id: currentUser?.id ?? null,
@@ -251,21 +238,14 @@ export default function AdminUsers() {
                       </td>
                       <td className="p-3">
                         {editingId === p.id ? (
-                          <Select value={editBarangayId} onValueChange={setEditBarangayId}>
-                            <SelectTrigger className="w-[160px]">
-                              <SelectValue placeholder="None" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">None</SelectItem>
-                              {barangays.map((b) => (
-                                <SelectItem key={b.id} value={b.id}>
-                                  {b.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Input
+                            value={editBarangayName}
+                            onChange={(e) => setEditBarangayName(e.target.value)}
+                            placeholder="Barangay (optional)"
+                            className="w-[200px]"
+                          />
                         ) : (
-                          p.barangay_name ?? "—"
+                          p.assigned_barangay_name ?? "—"
                         )}
                       </td>
                       <td className="p-3">

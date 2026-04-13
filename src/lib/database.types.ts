@@ -46,13 +46,13 @@ export type TriageLevel = "emergency" | "urgent" | "non_urgent" | "home_care";
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 // New tables (full types from Supabase codegen when available)
-export type Barangay = { id: string; name: string; created_at: string };
 export type PatientProfile = {
   id: string;
   user_id: string;
   date_of_birth: string | null;
   sex: string | null;
   barangay_id: string | null;
+  barangay_name?: string | null;
   contact_phone: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;

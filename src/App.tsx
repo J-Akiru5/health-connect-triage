@@ -24,6 +24,8 @@ import BHWActivities from "./pages/BHWActivities";
 import BHWRegisterPatient from "./pages/BHWRegisterPatient";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
@@ -32,7 +34,6 @@ import MyTriageResults from "./pages/MyTriageResults";
 import { AdminRoute } from "@/components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
-import AdminBarangays from "./pages/admin/AdminBarangays";
 import AdminAITriage from "./pages/admin/AdminAITriage";
 import AdminTeleconsultReferrals from "./pages/admin/AdminTeleconsultReferrals";
 import AdminNotifications from "./pages/admin/AdminNotifications";
@@ -58,6 +59,8 @@ const App = () => (
             <Route path="/faq" element={<FAQ />} />
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
@@ -176,7 +179,6 @@ const App = () => (
             {/* Admin routes — System Administrator workflow */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-            <Route path="/admin/barangays" element={<AdminRoute><AdminBarangays /></AdminRoute>} />
             <Route path="/admin/ai-triage" element={<AdminRoute><AdminAITriage /></AdminRoute>} />
             <Route path="/admin/teleconsult-referrals" element={<AdminRoute><AdminTeleconsultReferrals /></AdminRoute>} />
             <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />

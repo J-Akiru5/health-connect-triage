@@ -37,30 +37,27 @@ import { Link } from "react-router-dom";
 const clinicianProfileSchema = z.object({
   fullName: z.string().min(1, "Name is required"),
   phone: z.string().optional(),
-  assignedBarangayId: z.string().uuid().optional().or(z.literal("")),
+  assignedBarangayName: z.string().optional(),
 });
 
 type ClinicianProfileValues = z.infer<typeof clinicianProfileSchema>;
 
 function ClinicianProfileForm({ user, profile }: { user: { id: string; email?: string } | null; profile: { full_name: string | null } | null }) {
-  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const form = useForm<ClinicianProfileValues>({
     resolver: zodResolver(clinicianProfileSchema),
-    defaultValues: { fullName: "", phone: "", assignedBarangayId: "" },
+    defaultValues: { fullName: "", phone: "", assignedBarangayName: "" },
   });
 
   useEffect(() => {
     (async () => {
-      const { data: b } = await supabase.from("barangays").select("id, name").order("name");
-      setBarangays(b ?? []);
-      const { data: p } = await supabase.from("profiles").select("full_name, phone, assigned_barangay_id").eq("id", user?.id ?? "").single();
+      const { data: p } = await supabase.from("profiles").select("full_name, phone, assigned_barangay_name").eq("id", user?.id ?? "").single();
       if (p) {
         form.reset({
           fullName: (p as { full_name: string | null }).full_name ?? "",
           phone: (p as { phone?: string }).phone ?? "",
-          assignedBarangayId: (p as { assigned_barangay_id?: string }).assigned_barangay_id ?? "",
+          assignedBarangayName: (p as { assigned_barangay_name?: string | null }).assigned_barangay_name ?? "",
         });
       }
       setLoading(false);
@@ -75,7 +72,7 @@ function ClinicianProfileForm({ user, profile }: { user: { id: string; email?: s
       .update({
         full_name: values.fullName,
         phone: values.phone || null,
-        assigned_barangay_id: values.assignedBarangayId || null,
+        assigned_barangay_name: values.assignedBarangayName?.trim() || null,
       })
       .eq("id", user.id);
     setSaving(false);
@@ -146,25 +143,13 @@ function ClinicianProfileForm({ user, profile }: { user: { id: string; email?: s
                 </div>
                 <FormField
                   control={form.control}
-                  name="assignedBarangayId"
+                  name="assignedBarangayName"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assigned barangay</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select barangay (optional)" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          {barangays.map((b) => (
-                            <SelectItem key={b.id} value={b.id}>
-                              {b.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input placeholder="e.g. Barangay Poblacion (optional)" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -200,7 +185,7 @@ const profileSchema = z.object({
   dateOfBirth: z.string().optional(),
   sex: z.string().optional(),
   street: z.string().optional(),
-  barangayId: z.string().uuid().optional().or(z.literal("")),
+  barangayName: z.string().optional(),
   city: z.string().optional(),
   province: z.string().optional(),
   zipCode: z.string().optional(),
@@ -227,7 +212,7 @@ export default function Profile() {
     date_of_birth: string | null;
     sex: string | null;
     street: string | null;
-    barangay_id: string | null;
+    barangay_name: string | null;
     city: string | null;
     province: string | null;
     zip_code: string | null;
@@ -235,7 +220,6 @@ export default function Profile() {
     emergency_contact_name: string | null;
     emergency_contact_phone: string | null;
   } | null>(null);
-  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const [medicalHistory, setMedicalHistory] = useState<{
     conditions: string | null;
     medications: string | null;
@@ -253,7 +237,7 @@ export default function Profile() {
       dateOfBirth: "",
       sex: "",
       street: "",
-      barangayId: "",
+      barangayName: "",
       city: "",
       province: "",
       zipCode: "",
@@ -274,10 +258,8 @@ export default function Profile() {
       return;
     }
     (async () => {
-      const { data: barData } = await supabase.from("barangays").select("id, name").order("name");
-      setBarangays(barData ?? []);
       const [pp, mh] = await Promise.all([
-        supabase.from("patient_profiles").select("first_name, last_name, middle_initial, date_of_birth, sex, street, barangay_id, city, province, zip_code, contact_phone, emergency_contact_name, emergency_contact_phone").eq("user_id", user.id).maybeSingle(),
+        supabase.from("patient_profiles").select("first_name, last_name, middle_initial, date_of_birth, sex, street, barangay_name, city, province, zip_code, contact_phone, emergency_contact_name, emergency_contact_phone").eq("user_id", user.id).maybeSingle(),
         supabase.from("medical_histories").select("conditions, medications, allergies, pregnancy_status, notes").eq("user_id", user.id).maybeSingle(),
       ]);
       if (pp.data) {
@@ -288,7 +270,7 @@ export default function Profile() {
         form.setValue("dateOfBirth", pp.data.date_of_birth ?? "");
         form.setValue("sex", pp.data.sex ?? "");
         form.setValue("street", pp.data.street ?? "");
-        form.setValue("barangayId", pp.data.barangay_id ?? "");
+        form.setValue("barangayName", pp.data.barangay_name ?? "");
         form.setValue("city", pp.data.city ?? "");
         form.setValue("province", pp.data.province ?? "");
         form.setValue("zipCode", pp.data.zip_code ?? "");
@@ -325,7 +307,7 @@ export default function Profile() {
           date_of_birth: values.dateOfBirth || null,
           sex: values.sex || null,
           street: values.street || null,
-          barangay_id: values.barangayId || null,
+          barangay_name: values.barangayName?.trim() || null,
           city: values.city || null,
           province: values.province || null,
           zip_code: values.zipCode || null,
@@ -355,7 +337,7 @@ export default function Profile() {
         date_of_birth: values.dateOfBirth || null,
         sex: values.sex || null,
         street: values.street || null,
-        barangay_id: values.barangayId || null,
+        barangay_name: values.barangayName?.trim() || null,
         city: values.city || null,
         province: values.province || null,
         zip_code: values.zipCode || null,
@@ -531,22 +513,13 @@ export default function Profile() {
                   />
                   <FormField
                     control={form.control}
-                    name="barangayId"
+                    name="barangayName"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Barangay</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select barangay" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {barangays.map((b) => (
-                              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input placeholder="Type your barangay" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

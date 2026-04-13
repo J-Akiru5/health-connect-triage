@@ -11,13 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -28,9 +21,8 @@ type Sex = "male" | "female" | "other" | "prefer_not_to_say";
 export default function BHWRegisterPatient() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const [barangays, setBarangays] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assignedBarangayId, setAssignedBarangayId] = useState<string>("");
+  const [assignedBarangayName, setAssignedBarangayName] = useState<string>("");
 
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -38,7 +30,7 @@ export default function BHWRegisterPatient() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [sex, setSex] = useState<Sex | "">("");
   const [street, setStreet] = useState("");
-  const [barangayId, setBarangayId] = useState("");
+  const [barangayName, setBarangayName] = useState("");
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -51,13 +43,11 @@ export default function BHWRegisterPatient() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("barangays").select("id, name").order("name");
-      setBarangays(data ?? []);
       if (user?.id && isBhw) {
-        const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-        const id = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id ?? "";
-        setAssignedBarangayId(id);
-        setBarangayId(id);
+        const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+        const name = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? "";
+        setAssignedBarangayName(name);
+        setBarangayName(name);
       }
       setLoading(false);
     })();
@@ -75,7 +65,7 @@ export default function BHWRegisterPatient() {
           dateOfBirth: dateOfBirth || undefined,
           sex: sex || undefined,
           street: street.trim() || undefined,
-          barangayId: barangayId || undefined,
+          barangayName: barangayName.trim() || undefined,
           city: city.trim() || undefined,
           province: province.trim() || undefined,
           zipCode: zipCode.trim() || undefined,
@@ -186,16 +176,13 @@ export default function BHWRegisterPatient() {
               </div>
               <div className="space-y-2">
                 <Label>Barangay</Label>
-                <Select value={barangayId} onValueChange={setBarangayId} disabled={loading}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select barangay" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {barangays.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={barangayName}
+                  onChange={(e) => setBarangayName(e.target.value)}
+                  placeholder="Type barangay"
+                  className="rounded-xl"
+                  disabled={loading && !!assignedBarangayName}
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">

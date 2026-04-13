@@ -77,16 +77,16 @@ export default function Referrals() {
       }
       const { data: pp } = await supabase
         .from("patient_profiles")
-        .select("barangay_id")
+        .select("barangay_name")
         .eq("user_id", patientId)
         .maybeSingle();
-      const barangayId = (pp as { barangay_id?: string } | null)?.barangay_id;
-      if (barangayId) {
+      const barangayName = (pp as { barangay_name?: string | null } | null)?.barangay_name ?? null;
+      if (barangayName) {
         const { data: bhws } = await supabase
           .from("profiles")
           .select("id, full_name")
           .eq("role", "bhw")
-          .eq("assigned_barangay_id", barangayId);
+          .ilike("assigned_barangay_name", barangayName);
         setAssignBHWList(bhws ?? []);
       } else {
         setAssignBHWList([]);
@@ -156,13 +156,13 @@ export default function Referrals() {
         }))
       );
     } else if (isBhw) {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-      const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
-      if (!barangayId) {
+      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+      const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
+      if (!barangayName) {
         setReferrals([]);
         return;
       }
-      const { data: ppList } = await supabase.from("patient_profiles").select("user_id").eq("barangay_id", barangayId);
+      const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
       const bhwPatientIds = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
       if (bhwPatientIds.length === 0) {
         setReferrals([]);
@@ -214,14 +214,14 @@ export default function Referrals() {
         }));
         setReferrals(rows);
       } else if (isBhw) {
-        const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-        const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
-        if (!barangayId) {
+        const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+        const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
+        if (!barangayName) {
           setReferrals([]);
           setLoading(false);
           return;
         }
-        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").eq("barangay_id", barangayId);
+        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
         const patientIds = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
         if (patientIds.length === 0) {
           setReferrals([]);
@@ -276,13 +276,13 @@ export default function Referrals() {
           }))
         );
       } else {
-        const { data: p } = await supabase.from("profiles").select("assigned_barangay_id").eq("id", user.id).single();
-        const barangayId = (p as { assigned_barangay_id?: string } | null)?.assigned_barangay_id;
-        if (!barangayId) {
+        const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+        const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
+        if (!barangayName) {
           setPatientsList([]);
           return;
         }
-        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").eq("barangay_id", barangayId);
+        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
         const ids = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
         if (ids.length === 0) {
           setPatientsList([]);

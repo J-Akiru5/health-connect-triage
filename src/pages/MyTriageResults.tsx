@@ -34,6 +34,8 @@ export default function MyTriageResults() {
   const { user } = useAuth();
   const [results, setResults] = useState<TriageResultRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [explainLoading, setExplainLoading] = useState<Record<string, boolean>>({});
+  const [explanations, setExplanations] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user?.id) {
@@ -60,6 +62,46 @@ export default function MyTriageResults() {
       setLoading(false);
     })();
   }, [user?.id]);
+
+  async function handleExplain(r: TriageResultRow) {
+    setExplainLoading((prev) => ({ ...prev, [r.id]: true }));
+    try {
+      const { data: assessment } = await supabase
+        .from("symptom_assessments")
+        .select("symptoms, duration, severity, notes, vitals")
+        .eq("id", r.assessment_id)
+        .maybeSingle();
+
+      const resp = await fetch("/api/triage-explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          triageLevel: r.triage_level,
+          riskScore: r.risk_score,
+          recommendedAction: r.recommended_action,
+          assessment,
+        }),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "");
+        throw new Error(text || `Explain request failed (${resp.status})`);
+      }
+      const data = (await resp.json()) as { explanation?: string };
+      const explanation = (data.explanation ?? "").trim();
+      if (!explanation) throw new Error("No explanation returned");
+      setExplanations((prev) => ({ ...prev, [r.id]: explanation }));
+    } catch (e) {
+      console.error("Failed to explain triage", e);
+      setExplanations((prev) => ({
+        ...prev,
+        [r.id]:
+          "We couldn’t generate an explanation right now. Please try again later.",
+      }));
+    } finally {
+      setExplainLoading((prev) => ({ ...prev, [r.id]: false }));
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,13 +165,38 @@ export default function MyTriageResults() {
                     </CardDescription>
                   </div>
                 </CardHeader>
-                {r.recommended_action && (
-                  <CardContent className="pt-0">
+                <CardContent className="pt-0 space-y-3">
+                  {r.recommended_action && (
                     <p className="text-sm text-foreground">
                       <span className="font-medium">Recommended action:</span> {r.recommended_action}
                     </p>
-                  </CardContent>
-                )}
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!!explainLoading[r.id]}
+                      onClick={() => handleExplain(r)}
+                    >
+                      {explainLoading[r.id] ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Explaining…
+                        </>
+                      ) : (
+                        "Explain this result"
+                      )}
+                    </Button>
+                  </div>
+
+                  {explanations[r.id] && (
+                    <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                      {explanations[r.id]}
+                    </div>
+                  )}
+                </CardContent>
               </Card>
             ))}
             <div className="pt-2">
