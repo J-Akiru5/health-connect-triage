@@ -382,7 +382,7 @@ const Consultations = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>Facilitate teleconsultation</CardTitle>
-                    <CardDescription>To schedule a teleconsultation for a patient in your barangay: use Dashboard → Assist Symptom Reporting, complete the form for the patient, then click &quot;Schedule teleconsultation for patient&quot; on the triage result.</CardDescription>
+                    <CardDescription>To schedule a teleconsultation for a patient: use Dashboard → Assist Symptom Reporting, complete the form for the patient, then click &quot;Schedule teleconsultation for patient&quot; on the triage result.</CardDescription>
                   </CardHeader>
                 </Card>
               </TabsContent>
@@ -667,14 +667,14 @@ const Consultations = () => {
                   ) : bhwConsults.length === 0 ? (
                     <Card>
                       <CardContent className="py-12 text-center text-muted-foreground">
-                        No teleconsultations for patients in your barangay yet. Use Assist Symptom Reporting to submit an intake and schedule one.
+                        No teleconsultations yet. Use Assist Symptom Reporting to submit an intake and schedule one.
                       </CardContent>
                     </Card>
                   ) : (
                     <Card>
                       <CardHeader>
-                        <CardTitle>Barangay patient consultations</CardTitle>
-                        <CardDescription>Teleconsultations you or the system scheduled for patients in your barangay.</CardDescription>
+                        <CardTitle>Patient consultations</CardTitle>
+                        <CardDescription>Teleconsultations you or the system scheduled for patients.</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <ul className="space-y-3">

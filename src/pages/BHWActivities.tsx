@@ -54,16 +54,10 @@ export default function BHWActivities() {
       return;
     }
     (async () => {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
-      const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
-      if (!barangayName) {
-        setLoadingPatients(false);
-        return;
-      }
       const { data: ppList } = await supabase
         .from("patient_profiles")
         .select("user_id, first_name, last_name")
-        .ilike("barangay_name", barangayName);
+        .limit(500);
       if (!ppList?.length) {
         setLoadingPatients(false);
         return;
@@ -202,7 +196,7 @@ export default function BHWActivities() {
               <ClipboardList className="w-5 h-5" />
               Log activity
             </CardTitle>
-            <CardDescription>Record a home visit or follow-up for a patient in your barangay.</CardDescription>
+            <CardDescription>Record a home visit or follow-up for a patient.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loadingPatients ? (

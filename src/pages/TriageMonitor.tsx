@@ -91,34 +91,25 @@ export default function TriageMonitor() {
     }
     (async () => {
       if (profile?.role === "bhw") {
-        const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
-        const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
-        if (!barangayName) {
-          setRows([]);
-          setLoading(false);
-          return;
-        }
-        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
-        const patientIds = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
-        if (patientIds.length === 0) {
-          setRows([]);
-          setLoading(false);
-          return;
-        }
-        const { data: assessments } = await supabase.from("symptom_assessments").select("id, user_id").in("user_id", patientIds);
-        const assessmentIds = (assessments ?? []).map((a: { id: string }) => a.id);
-        if (assessmentIds.length === 0) {
-          setRows([]);
-          setLoading(false);
-          return;
-        }
         const { data: triageData } = await supabase
           .from("ai_triage_results")
           .select("id, assessment_id, risk_score, triage_level, created_at, validated_triage_level, provider_rationale")
-          .in("assessment_id", assessmentIds)
           .order("created_at", { ascending: false });
+        const triageAssessmentIds = [...new Set((triageData ?? []).map((t: { assessment_id: string }) => t.assessment_id))];
+        if (triageAssessmentIds.length === 0) {
+          setRows([]);
+          setLoading(false);
+          return;
+        }
+        const { data: assessments } = await supabase
+          .from("symptom_assessments")
+          .select("id, user_id")
+          .in("id", triageAssessmentIds);
         const assessmentToPatient = new Map((assessments ?? []).map((a: { id: string; user_id: string }) => [a.id, a.user_id]));
-        const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", patientIds);
+        const patientIds = [...new Set((assessments ?? []).map((a: { user_id: string }) => a.user_id))];
+        const { data: profData } = patientIds.length
+          ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+          : { data: [] as { id: string; full_name: string | null }[] };
         const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
         const list: TriageRow[] = (triageData ?? []).map((t: { id: string; assessment_id: string; risk_score: number | null; triage_level: string; created_at: string; validated_triage_level: string | null; provider_rationale: string | null }) => ({
           id: t.id,
@@ -388,7 +379,7 @@ export default function TriageMonitor() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">AI Triage Monitor</h1>
               <p className="text-sm text-muted-foreground">
-                {profile?.role === "bhw" ? "Monitor AI triage for patients in your barangay" : "Monitor AI-assigned triage levels for your assigned patients"}
+                {profile?.role === "bhw" ? "Monitor AI triage results for patients" : "Monitor AI-assigned triage levels for your assigned patients"}
               </p>
             </div>
           </div>

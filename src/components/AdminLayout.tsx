@@ -4,16 +4,13 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
-  MapPin,
   Cpu,
   Video,
   Bell,
   FileText,
-  Database,
   LogOut,
   Menu,
   X,
-  BarChart3,
   Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,13 +19,10 @@ import { AppLogoMark } from "@/components/AppLogoMark";
 const adminNav = [
   { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard" },
   { to: "/admin/users", icon: Users, label: "User Management" },
-  { to: "/admin/barangays", icon: MapPin, label: "Barangays" },
   { to: "/admin/ai-triage", icon: Cpu, label: "AI Triage Oversight" },
   { to: "/admin/teleconsult-referrals", icon: Video, label: "Teleconsult & Referrals" },
   { to: "/admin/notifications", icon: Bell, label: "Notifications & Alerts" },
   { to: "/admin/audit", icon: FileText, label: "Audit & Reporting" },
-  { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
-  { to: "/admin/research-exports", icon: Database, label: "Research Exports" },
   { to: "/admin/settings", icon: Settings, label: "System Settings" },
 ];
 

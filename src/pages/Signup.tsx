@@ -71,11 +71,44 @@ const signupSchema = z.object({
   researchConsent: z.boolean().optional(),
 })
   .refine((d) => d.role === "patient" || !!d.fullName?.trim(), { message: "Full name is required", path: ["fullName"] })
-  .refine((d) => d.role !== "patient" || !!d.confirmPassword?.trim(), { message: "Confirm password is required", path: ["confirmPassword"] })
-  .refine((d) => d.role !== "patient" || (d.password === d.confirmPassword), { message: "Passwords must match", path: ["confirmPassword"] })
-  .refine((d) => d.role !== "patient" || (d.firstName?.trim() && d.lastName?.trim()), { message: "First and last name required", path: ["firstName"] })
-  .refine((d) => d.role !== "patient" || !!d.barangayName?.trim(), { message: "Barangay is required", path: ["barangayName"] })
-  .refine((d) => d.role !== "patient" || d.careConsent === true, { message: "You must accept the care consent to register.", path: ["careConsent"] });
+  .superRefine((d, ctx) => {
+    if (d.role !== "patient") return;
+
+    const requireTrimmed = (key: keyof typeof d, label: string) => {
+      const v = d[key];
+      if (typeof v !== "string" || !v.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${label} is required` });
+      }
+    };
+
+    requireTrimmed("lastName", "Last name");
+    requireTrimmed("firstName", "First name");
+    requireTrimmed("middleInitial", "Middle initial");
+    requireTrimmed("dateOfBirth", "Date of birth");
+    requireTrimmed("street", "Street / Purok");
+    requireTrimmed("barangayName", "Barangay");
+    requireTrimmed("city", "City / Municipality");
+    requireTrimmed("province", "Province");
+    requireTrimmed("zipCode", "ZIP code");
+    requireTrimmed("contactPhone", "Phone number");
+    requireTrimmed("confirmPassword", "Confirm password");
+
+    if (!d.sex) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sex"], message: "Sex is required" });
+    }
+
+    if (d.password !== d.confirmPassword) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirmPassword"], message: "Passwords must match" });
+    }
+
+    if (d.careConsent !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["careConsent"],
+        message: "You must accept the care consent to register.",
+      });
+    }
+  });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 

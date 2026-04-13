@@ -158,21 +158,13 @@ export default function Dashboard() {
       return;
     }
     (async () => {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
-      const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
-      if (!barangayName) {
-        setBhwPatients([]);
-        setBhwBarangayName(null);
-        setBhwLoading(false);
-        return;
-      }
-      setBhwBarangayName(barangayName);
       const { data: ppList } = await supabase
         .from("patient_profiles")
         .select("user_id, first_name, last_name")
-        .ilike("barangay_name", barangayName);
+        .limit(500);
       if (!ppList?.length) {
         setBhwPatients([]);
+        setBhwBarangayName(null);
         setBhwLoading(false);
         return;
       }
@@ -199,6 +191,7 @@ export default function Dashboard() {
           .in("triage_level", ["emergency", "urgent"]);
         setBhwHighRiskCount(count ?? 0);
       }
+      setBhwBarangayName(null);
       setBhwLoading(false);
     })();
   }, [user?.id, isBhw]);
@@ -226,11 +219,8 @@ export default function Dashboard() {
       { num: 1, to: "/bhw/register-patient", icon: UserPlus, label: "Register New Patient / Emergency Report" },
       { num: 2, to: "/bhw/assist-intake", icon: Stethoscope, label: "Patient Symptom Reporting (Assisted)" },
       { num: 3, to: "/triage-monitor", icon: ClipboardList, label: "Monitor AI Triage Results" },
-      { num: 4, to: "/consultations", icon: Video, label: "Teleconsultation Coordination" },
-      { num: 5, to: "/referrals", icon: ArrowRightLeft, label: "Manage Referrals & Escalations" },
-      { num: 6, to: "/bhw/activities", icon: Users, label: "Patient Follow-Up" },
-      { num: 7, to: "/notifications", icon: Bell, label: "Notifications / Alerts" },
-      { num: 8, to: "/profile", icon: UserCog, label: "Update Profile" },
+      { num: 4, to: "/bhw/activities", icon: Users, label: "Patient Follow-Up" },
+      { num: 5, to: "/notifications", icon: Bell, label: "Notifications / Alerts" },
     ];
     return (
       <div className="min-h-screen bg-background">
@@ -284,7 +274,7 @@ export default function Dashboard() {
                 <Users className="w-4 h-4 text-primary" />
                 Assigned patients
               </h2>
-              <span className="text-sm text-muted-foreground">{bhwPatients.length} in barangay</span>
+              <span className="text-sm text-muted-foreground">{bhwPatients.length} total</span>
             </div>
             {bhwLoading ? (
               <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
@@ -292,7 +282,7 @@ export default function Dashboard() {
                 Loading…
               </div>
             ) : bhwPatients.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No patients in your barangay yet. Register a new patient below.</p>
+              <p className="text-sm text-muted-foreground">No patients yet. Register a new patient below.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {bhwPatients.slice(0, 8).map((p) => (
@@ -447,7 +437,6 @@ export default function Dashboard() {
     { to: "/symptom-checker", icon: Stethoscope, label: "Report Symptoms" },
     { to: "/my-triage-results", icon: ClipboardList, label: "My AI Triage Results" },
     { to: "/consultations", icon: Video, label: "Teleconsultation Appointments" },
-    { to: "/referrals", icon: ArrowRightLeft, label: "Referrals / Escalations" },
     { to: "/medical-history", icon: FileText, label: "View / Update Medical History" },
     { to: "/notifications", icon: Bell, label: "Notifications" },
     { to: "/profile", icon: UserCog, label: "Update Profile" },

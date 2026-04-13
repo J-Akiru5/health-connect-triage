@@ -104,16 +104,10 @@ export default function BHWAssistIntake() {
       return;
     }
     (async () => {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
-      const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
-      if (!barangayName) {
-        setLoadingPatients(false);
-        return;
-      }
       const { data: ppList } = await supabase
         .from("patient_profiles")
         .select("user_id, first_name, last_name")
-        .ilike("barangay_name", barangayName);
+        .limit(500);
       if (!ppList?.length) {
         setLoadingPatients(false);
         return;
@@ -295,7 +289,7 @@ export default function BHWAssistIntake() {
                 <User className="w-5 h-5 text-primary" />
                 Select patient
               </CardTitle>
-              <CardDescription>Choose the patient you are assisting. They must be in your assigned barangay.</CardDescription>
+              <CardDescription>Choose the patient you are assisting.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {loadingPatients ? (

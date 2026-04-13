@@ -50,6 +50,29 @@ const riskFactors = [
   { id: "immunocompromised", label: "Immunocompromised" },
 ];
 
+function computeAgeFromBirthday(birthday: string): number | null {
+  if (!birthday) return null;
+  const [y, m, d] = birthday.split("-").map((v) => Number(v));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+
+  const birthDate = new Date(Date.UTC(y, m - 1, d));
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (birthDate > today) return null;
+
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+  const hasHadBirthdayThisYear =
+    today.getUTCMonth() > birthDate.getUTCMonth() ||
+    (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() >= birthDate.getUTCDate());
+  if (!hasHadBirthdayThisYear) age -= 1;
+
+  if (!Number.isFinite(age) || age < 0 || age > 130) return null;
+  return age;
+}
+
 function userSeverityWeight(sev: UserSymptomSeverity | undefined): number {
   if (sev === "mild") return 0.75;
   if (sev === "severe") return 1.35;
@@ -132,27 +155,49 @@ function formatTriageReasonLine(
 
   if (level === "emergency" && emergencySymptomIds.length > 0) {
     const names = emergencySymptomIds.map((id) => resolveSymptomLabel(id)).join(", ");
-    return `This tool assigned emergency priority because you reported one or more symptoms that are always treated as highest urgency in our rule set (they can indicate a serious or time‑sensitive condition), regardless of the numeric score: ${names}.`;
+    return [
+      "This result is from our built-in rule engine (not a medical diagnosis).",
+      `We assigned emergency priority because you reported one or more symptoms that our rules always treat as highest urgency, regardless of the numeric score: ${names}.`,
+      "If you feel unsafe, symptoms are rapidly worsening, or you have severe trouble breathing, chest pain, confusion, or fainting: seek emergency care now.",
+    ].join(" ");
   }
 
   const riskLabels = selectedRiskFactors
     .map((id) => riskFactorDefs.find((r) => r.id === id)?.label ?? id)
     .filter(Boolean);
-  const riskPhrase =
+  const riskSentence =
     riskLabels.length > 0
-      ? ` Risk factors you selected (${riskLabels.join("; ")}) added ${riskPoints.toFixed(1)} points to the total.`
-      : "";
+      ? `Risk factors selected (${riskLabels.join("; ")}) added ${riskPoints.toFixed(1)} points to the total.`
+      : "No additional risk factors were selected, so no extra points were added.";
 
   const scoreRounded = Math.round(combinedScore * 10) / 10;
   const symptomRounded = Math.round(symptomScore * 10) / 10;
 
   if (level === "urgent") {
-    return `This result is from our built‑in rule engine: each checked symptom has a weight, adjusted by how long it has lasted and how severe it feels (${symptomRounded} points from symptoms).${riskPhrase} The combined score is ${scoreRounded}; an urgent level is triggered when that total is 8 or higher.`;
+    return [
+      "This result is from our built-in rule engine (not a diagnosis).",
+      `Your selected symptoms were scored using weights, then adjusted by duration and how severe they feel (${symptomRounded} points from symptoms).`,
+      riskSentence,
+      `Your combined score is ${scoreRounded}. In our rules, **Urgent** is triggered at 8 points or higher.`,
+      "Recommended next step: contact your BHW/RHU or schedule a consult today. If symptoms worsen quickly or you develop danger signs (severe breathing difficulty, chest pain, confusion, fainting), seek emergency care.",
+    ].join(" ");
   }
   if (level === "non-urgent") {
-    return `This result is from our built‑in rule engine: symptom weights, duration, and severity produced ${symptomRounded} points from symptoms.${riskPhrase} The combined score is ${scoreRounded}, which falls in the non‑urgent band (4 up to but not including 8), so a routine consultation is suggested rather than immediate emergency care.`;
+    return [
+      "This result is from our built-in rule engine (not a diagnosis).",
+      `Your selected symptoms were scored using weights, then adjusted by duration and how severe they feel (${symptomRounded} points from symptoms).`,
+      riskSentence,
+      `Your combined score is ${scoreRounded}. In our rules, **Non-Urgent** is the 4 up to (but not including) 8 range—so a routine consultation is suggested rather than immediate emergency care.`,
+      "Monitor your symptoms and book a consult if they persist, interfere with daily activities, or you feel concerned. Seek urgent/emergency care if you develop danger signs (severe breathing difficulty, chest pain, confusion, fainting, uncontrolled bleeding).",
+    ].join(" ");
   }
-  return `This result is from our built‑in rule engine: symptom weights, duration, and severity produced ${symptomRounded} points from symptoms.${riskPhrase} The combined score is ${scoreRounded}, which falls in the home‑care band (1 up to but not including 4), so self‑care and monitoring are suggested unless things change.`;
+  return [
+    "This result is from our built-in rule engine (not a diagnosis).",
+    `Your selected symptoms were scored using weights, then adjusted by duration and how severe they feel (${symptomRounded} points from symptoms).`,
+    riskSentence,
+    `Your combined score is ${scoreRounded}. In our rules, **Home Care** is the 1 up to (but not including) 4 range—so rest, hydration, and monitoring are suggested for now.`,
+    "What to watch for: worsening fever, increasing pain, trouble breathing, dehydration (very little urine, dizziness), persistent vomiting, or new severe symptoms. If any of these happen—or if you feel unsure—contact your BHW/RHU or seek urgent care.",
+  ].join(" ");
 }
 
 function aggregateAssessmentSeverity(
@@ -258,7 +303,7 @@ export default function SymptomChecker() {
     firstName: "",
     middleInitial: "",
     gender: "" as "" | "female" | "male" | "other",
-    age: "",
+    birthday: "",
     notes: "",
     bpSystolic: "",
     bpDiastolic: "",
@@ -273,13 +318,13 @@ export default function SymptomChecker() {
   const progress = (step / totalSteps) * 100;
   const isPatient = profile?.role === "patient";
 
-  const ageNumber = patientInfo.age ? Number(patientInfo.age) : NaN;
+  const ageNumber = computeAgeFromBirthday(patientInfo.birthday);
   const isStep1Valid =
     patientInfo.surname.trim().length > 0 &&
     patientInfo.firstName.trim().length > 0 &&
     patientInfo.gender !== "" &&
-    Number.isFinite(ageNumber) &&
-    ageNumber > 0;
+    typeof ageNumber === "number" &&
+    ageNumber >= 0;
   const isStep2Valid =
     selectedSymptoms.length > 0 &&
     selectedSymptoms.every((id) => {
@@ -330,7 +375,7 @@ export default function SymptomChecker() {
     if (step < totalSteps) {
       // Gate progression based on required fields
       if (step === 1 && !isStep1Valid) {
-        setValidationMessage("Please enter surname, first name, age, and gender to continue.");
+        setValidationMessage("Please enter surname, first name, birthday, and gender to continue.");
         return;
       }
       if (step === 2 && !isStep2Valid) {
@@ -405,7 +450,8 @@ export default function SymptomChecker() {
               ...(patientInfo.middleInitial.trim() ? { patient_middle_initial: patientInfo.middleInitial.trim() } : {}),
               patient_gender: patientInfo.gender,
               ...(displayName ? { patient_name: displayName } : {}),
-              ...(patientInfo.age ? { patient_age: Number(patientInfo.age) } : {}),
+              ...(typeof ageNumber === "number" ? { patient_age: ageNumber } : {}),
+              ...(patientInfo.birthday ? { patient_birthday: patientInfo.birthday } : {}),
               ...(patientInfo.bpSystolic && patientInfo.bpDiastolic ? { bp_systolic: Number(patientInfo.bpSystolic), bp_diastolic: Number(patientInfo.bpDiastolic) } : {}),
               ...(patientInfo.hr ? { hr: Number(patientInfo.hr) } : {}),
               ...(patientInfo.tempC ? { temp_c: Number(patientInfo.tempC) } : {}),
@@ -417,6 +463,7 @@ export default function SymptomChecker() {
         if (assessErr) throw assessErr;
         await supabase.from("ai_triage_results").insert({
           assessment_id: assessment.id,
+          risk_score: getRiskScore(result),
           triage_level: TRIAGE_TO_DB[result],
           recommended_action: triageResults[result].action,
           model_version: "rule-based-v1",
@@ -452,7 +499,7 @@ export default function SymptomChecker() {
       firstName: "",
       middleInitial: "",
       gender: "",
-      age: "",
+      birthday: "",
       notes: "",
       bpSystolic: "",
       bpDiastolic: "",
@@ -592,17 +639,19 @@ export default function SymptomChecker() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="age">
-                    Age (Edad) <span className="text-destructive">*</span>
+                  <Label htmlFor="birthday">
+                    Birthday (Kaarawan) <span className="text-destructive">*</span>
                   </Label>
                   <input
-                    id="age"
-                    type="number"
+                    id="birthday"
+                    type="date"
                     className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="45"
-                    value={patientInfo.age}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, age: e.target.value })}
+                    value={patientInfo.birthday}
+                    onChange={(e) => setPatientInfo({ ...patientInfo, birthday: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Age will be calculated automatically from your birthday.
+                  </p>
                 </div>
                 <div className="space-y-4 rounded-lg border border-border p-4">
                   <div className="space-y-2">
@@ -701,7 +750,7 @@ export default function SymptomChecker() {
                     {validationMessage}
                   </p>
                 )}
-                <Button onClick={handleNext} size="lg" className="w-full" disabled={!isStep1Valid}>
+                <Button onClick={handleNext} size="lg" className="w-full">
                   Continue
                   <ArrowRight className="w-4 h-4" />
                 </Button>

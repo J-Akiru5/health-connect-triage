@@ -156,24 +156,14 @@ export default function Referrals() {
         }))
       );
     } else if (isBhw) {
-      const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
-      const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
-      if (!barangayName) {
-        setReferrals([]);
-        return;
-      }
-      const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
-      const bhwPatientIds = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
-      if (bhwPatientIds.length === 0) {
-        setReferrals([]);
-        return;
-      }
       const { data } = await supabase
         .from("referrals")
         .select("id, patient_id, facility_name, urgency, status, created_at, required_documents")
-        .in("patient_id", bhwPatientIds)
         .order("created_at", { ascending: false });
-      const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", bhwPatientIds);
+      const patientIds = [...new Set((data ?? []).map((r: { patient_id: string }) => r.patient_id).filter(Boolean))];
+      const { data: profData } = patientIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+        : { data: [] as { id: string; full_name: string | null }[] };
       const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
       setReferrals(
         (data ?? []).map((r: { id: string; patient_id: string; facility_name: string; urgency: string; status: string; created_at: string; required_documents: string | null }) => ({
@@ -214,26 +204,14 @@ export default function Referrals() {
         }));
         setReferrals(rows);
       } else if (isBhw) {
-        const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
-        const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
-        if (!barangayName) {
-          setReferrals([]);
-          setLoading(false);
-          return;
-        }
-        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
-        const patientIds = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
-        if (patientIds.length === 0) {
-          setReferrals([]);
-          setLoading(false);
-          return;
-        }
         const { data } = await supabase
           .from("referrals")
           .select("id, patient_id, facility_name, urgency, status, created_at, required_documents")
-          .in("patient_id", patientIds)
           .order("created_at", { ascending: false });
-        const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", patientIds);
+        const patientIds = [...new Set((data ?? []).map((r: { patient_id: string }) => r.patient_id).filter(Boolean))];
+        const { data: profData } = patientIds.length
+          ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+          : { data: [] as { id: string; full_name: string | null }[] };
         const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
         const rows: ReferralRow[] = (data ?? []).map((r: { id: string; patient_id: string; facility_name: string; urgency: string; status: string; created_at: string; required_documents: string | null }) => ({
           ...r,
@@ -276,13 +254,7 @@ export default function Referrals() {
           }))
         );
       } else {
-        const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
-        const barangayName = (p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null;
-        if (!barangayName) {
-          setPatientsList([]);
-          return;
-        }
-        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").ilike("barangay_name", barangayName);
+        const { data: ppList } = await supabase.from("patient_profiles").select("user_id").limit(500);
         const ids = (ppList ?? []).map((r: { user_id: string }) => r.user_id);
         if (ids.length === 0) {
           setPatientsList([]);
@@ -347,7 +319,7 @@ export default function Referrals() {
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">{isClinician ? "Referrals / Escalations" : "Referrals"}</h1>
                   <p className="text-sm text-muted-foreground">
-                    {isClinician ? "Review, approve, and assign BHW follow-up" : isBhw ? "Update referral status for patients in your barangay" : "Escalations and facility referrals"}
+                    {isClinician ? "Review, approve, and assign BHW follow-up" : isBhw ? "Update referral status for patients" : "Escalations and facility referrals"}
                   </p>
                 </div>
               </div>
@@ -383,7 +355,7 @@ export default function Referrals() {
             <>
               <Card className="mb-6">
                 <CardHeader>
-                  <CardTitle>Referrals in your barangay</CardTitle>
+                  <CardTitle>Referrals</CardTitle>
                   <CardDescription>Update status (pending → confirmed → completed) and log REFERRAL_ASSIST for audit.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">

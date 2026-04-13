@@ -38,8 +38,6 @@ import AdminAITriage from "./pages/admin/AdminAITriage";
 import AdminTeleconsultReferrals from "./pages/admin/AdminTeleconsultReferrals";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminAudit from "./pages/admin/AdminAudit";
-import AdminResearchExports from "./pages/admin/AdminResearchExports";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
@@ -183,8 +181,6 @@ const App = () => (
             <Route path="/admin/teleconsult-referrals" element={<AdminRoute><AdminTeleconsultReferrals /></AdminRoute>} />
             <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
             <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
-            <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
-            <Route path="/admin/research-exports" element={<AdminRoute><AdminResearchExports /></AdminRoute>} />
             <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
