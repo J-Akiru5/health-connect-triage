@@ -14,7 +14,7 @@ export async function generateGeminiResponse(body: ChatRequestBody) {
   const messages = body.messages || [];
 
   const systemInstructions = [
-    "You are a helpful, empathetic healthcare assistant for a rural barangay telehealth app called 'Barangay Health Connect' serving Barangay Abangay. You are powered by Google's Gemini AI.",
+    "You are a helpful, empathetic healthcare assistant for a rural barangay telehealth app called 'Barangay Health Connect' serving Brgy. Tabat, Tubungan, Iloilo. You are powered by Google's Gemini AI.",
     "",
     "LANGUAGE: Respond fluently in the language the user writes in. You support English, Filipino/Tagalog, and Hiligaynon/Ilonggo. Match the user's language naturally.",
     "",

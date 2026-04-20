@@ -50,7 +50,7 @@ const About = () => {
   ];
 
   const stats = [
-    { number: "Abangay", label: "Our barangay", icon: MapPin },
+    { number: "Tabat", label: "Our barangay", icon: MapPin },
     { number: "24/7", label: "Available Support", icon: Clock },
     { number: "<5min", label: "Average Triage Time", icon: Stethoscope },
   ];

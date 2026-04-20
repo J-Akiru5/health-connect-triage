@@ -345,7 +345,7 @@ export default function Signup() {
               className="space-y-8"
             >
               <h2 className="text-4xl xl:text-5xl font-display font-bold text-primary-foreground leading-[1.1] tracking-tight">
-                {bhwPrefill ? "Completing your official health record" : "Join the healthcare revolution in Abangay"}
+                {bhwPrefill ? "Completing your official health record" : "Join the healthcare revolution in Tabat"}
               </h2>
               
               <div className="space-y-6">

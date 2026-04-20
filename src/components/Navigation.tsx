@@ -128,13 +128,13 @@ export function Navigation() {
               </motion.div>
               <div className="flex flex-col min-w-0">
                 <span className="text-lg font-bold text-foreground leading-tight tracking-tight">TeleHealth</span>
-                <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest leading-tight">Barangay Abangay</span>
+                <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest leading-tight">Brgy. Tabat, Tubungan, Iloilo</span>
               </div>
             </Link>
 
             {/* Desktop Center Navigation */}
             <div className="hidden lg:flex items-center gap-0.5 bg-muted/40 backdrop-blur-sm rounded-full px-1.5 py-1 border border-border/30">
-              <NavPill to="/" label={t("nav.home")} active={isHome && !location.hash} />
+              <NavPill label={t("nav.home")} active={isHome && !location.hash} onClick={() => { if (isHome) window.scrollTo({ top: 0, behavior: "smooth" }); else navigate("/"); }} />
               
               {/* Marketing Links (Only on Home) */}
               {isHome && (
@@ -336,7 +336,14 @@ export function Navigation() {
                   initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                  onClick={() => { navigate("/"); setIsOpen(false); }}
+                  onClick={() => { 
+                    if (isHome) {
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    } else {
+                      navigate("/"); 
+                    }
+                    setIsOpen(false); 
+                  }}
                   className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {t("nav.home")}
@@ -438,14 +445,9 @@ export function Navigation() {
 }
 
 /* ── Pill Nav Items ── */
-function NavPill({ to, label, active }: { to: string; label: string; active: boolean }) {
-  return (
-    <Link
-      to={to}
-      className={`relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-        active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-      }`}
-    >
+function NavPill({ to, label, active, onClick }: { to?: string; label: string; active: boolean; onClick?: () => void }) {
+  const content = (
+    <>
       {active && (
         <motion.div
           layoutId="nav-pill"
@@ -454,6 +456,24 @@ function NavPill({ to, label, active }: { to: string; label: string; active: boo
         />
       )}
       {label}
+    </>
+  );
+
+  const className = `relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+    active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+  }`;
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link to={to || "/"} className={className}>
+      {content}
     </Link>
   );
 }
