@@ -1,4 +1,4 @@
-import { createAzureOpenAIClient, extractAssistantText } from "./azureOpenAI";
+import { createGeminiClient } from "./gemini";
 
 type ExplainRequestBody = {
   triageLevel?: string | null;
@@ -18,7 +18,7 @@ function getStringArray(value: unknown): string[] {
   return value.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
 }
 
-export async function generateTriageExplanation(body: ExplainRequestBody, apiKey: string) {
+export async function generateTriageExplanation(body: ExplainRequestBody) {
   const triageLevel = typeof body.triageLevel === "string" ? body.triageLevel : null;
   const recommendedAction = typeof body.recommendedAction === "string" ? body.recommendedAction : null;
   const riskScore =
@@ -34,15 +34,15 @@ export async function generateTriageExplanation(body: ExplainRequestBody, apiKey
       ? assessment.vitals
       : null;
 
-  const system = [
-    "You are a clinical triage explanation assistant for a rural barangay health app.",
+  const systemInstructions = [
+    "You are a clinical triage explanation assistant for a rural barangay health app. You are powered by Google's Gemini AI.",
     "You DO NOT diagnose. You explain the triage output in plain language.",
     "Be cautious, concise, and use non-alarming wording when possible.",
     "Always include a brief safety disclaimer and what to do if symptoms worsen.",
-    "Do not mention OpenAI, prompts, or internal policies.",
+    "Respond naturally in simple English.",
   ].join(" ");
 
-  const user = [
+  const userPrompt = [
     "Explain this triage result for the patient in 4-7 sentences.",
     "Use simple English (optionally mix a little Tagalog phrases if helpful, but keep it mostly English).",
     "",
@@ -56,22 +56,13 @@ export async function generateTriageExplanation(body: ExplainRequestBody, apiKey
     `Vitals: ${vitals ? JSON.stringify(vitals) : "none"}`,
   ].join("\n");
 
-  if (apiKey) {
-    process.env.AZURE_OPENAI_API_KEY = apiKey;
-  }
+  const { model } = createGeminiClient();
 
-  const { client, deploymentName } = createAzureOpenAIClient();
-  const result = await client.getChatCompletions(
-    deploymentName,
-    [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    { temperature: 0.4, maxTokens: 650 }
-  );
+  const result = await model.generateContent(`${systemInstructions}\n\nUSER REQUEST:\n${userPrompt}`);
+  const response = await result.response;
+  const explanation = response.text().trim();
 
-  const explanation = extractAssistantText(result).trim();
-  if (!explanation) throw new Error("No explanation returned");
+  if (!explanation) throw new Error("No explanation returned from Gemini");
   return explanation;
 }
 

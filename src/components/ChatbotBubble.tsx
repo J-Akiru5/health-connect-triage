@@ -252,7 +252,7 @@ export function ChatbotBubble() {
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-bold leading-tight tracking-tight">Health Assistant</span>
                     <span className="text-[10px] font-medium opacity-75 uppercase tracking-widest leading-tight">
-                      AI-Powered • 24/7
+                      Powered by Gemini 2.5 • 24/7
                     </span>
                   </div>
                 </div>
@@ -323,8 +323,8 @@ export function ChatbotBubble() {
                     <Send className="w-4 h-4" />
                   </Button>
                 </form>
-                <p className="text-[9px] text-muted-foreground/50 text-center mt-2 tracking-wide">
-                  AI assistant • Not a substitute for medical advice
+                <p className="text-[9px] text-muted-foreground/50 text-center mt-2 tracking-wide uppercase font-medium">
+                  Powered by Gemini • Not a substitute for medical advice
                 </p>
               </div>
             </div>

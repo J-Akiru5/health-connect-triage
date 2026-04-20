@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { generateChatbotResponse } from "../src/server/chatbotHandler";
+import { generateGeminiResponse } from "../src/server/geminiHandler";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -20,8 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return json(res, 405, { error: "Method not allowed" });
   }
 
-  if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
-    return json(res, 500, { error: "Server not configured: Azure OpenAI environment variables missing" });
+  if (!process.env.GEMINI_API_KEY) {
+    return json(res, 500, { error: "Server not configured: Gemini API key missing" });
   }
 
   const body = (req.body ?? {}) as ChatRequestBody;
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const response = await generateChatbotResponse(body, process.env.AZURE_OPENAI_API_KEY ?? "");
+    const response = await generateGeminiResponse(body);
     return json(res, 200, { response });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

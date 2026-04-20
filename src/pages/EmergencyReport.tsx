@@ -59,6 +59,17 @@ const riskFactors = [
   { id: "immunocompromised", label: "Immunocompromised" },
 ];
 
+const suggestedRiskFactorOptions = [
+  "Smoker or exposed to secondhand smoke",
+  "Chronic lung disease (asthma/COPD)",
+  "Chronic kidney disease",
+  "Cancer or recent chemotherapy",
+  "Recent surgery or hospitalization",
+  "Obesity",
+  "Recent travel with known outbreak exposure",
+  "Close contact with a contagious case",
+] as const;
+
 const riskFactorById = new Map(riskFactors.map((r) => [r.id, r.label]));
 
 const symptomMetaById = new Map<string, { label: string; category: string }>();
@@ -131,7 +142,11 @@ export default function EmergencyReport() {
   const { i18n } = useTranslation();
   const [step, setStep] = useState(1);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [customSymptoms, setCustomSymptoms] = useState<string[]>([]);
+  const [customSymptomInput, setCustomSymptomInput] = useState("");
   const [selectedRiskFactors, setSelectedRiskFactors] = useState<string[]>([]);
+  const [customRiskFactors, setCustomRiskFactors] = useState<string[]>([]);
+  const [customRiskFactorInput, setCustomRiskFactorInput] = useState("");
   const [triageResult, setTriageResult] = useState<EmergencyAiResult | null>(null);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [isAssessing, setIsAssessing] = useState(false);
@@ -146,6 +161,25 @@ export default function EmergencyReport() {
     return symptomCategories.filter((category) => category.name === categoryFilter);
   }, [categoryFilter]);
 
+  const selectedSymptomChips = useMemo(
+    () => [
+      ...selectedSymptoms.map((id) => ({ id, label: resolveSymptomLabel(id), kind: "known" as const })),
+      ...customSymptoms.map((label) => ({ id: `custom:${label}`, label, kind: "custom" as const })),
+    ],
+    [selectedSymptoms, customSymptoms]
+  );
+
+  const selectedRiskFactorChips = useMemo(
+    () => [
+      ...selectedRiskFactors
+        .map((id) => riskFactorById.get(id))
+        .filter((x): x is string => Boolean(x))
+        .map((label, idx) => ({ id: `known-risk-${idx}`, label, kind: "known" as const })),
+      ...customRiskFactors.map((label, idx) => ({ id: `custom-risk-${idx}`, label, kind: "custom" as const })),
+    ],
+    [selectedRiskFactors, customRiskFactors]
+  );
+
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
 
@@ -154,6 +188,46 @@ export default function EmergencyReport() {
 
   const toggleRiskFactor = (id: string) =>
     setSelectedRiskFactors((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+
+  const addCustomRiskFactor = () => {
+    const normalized = customRiskFactorInput.trim().replace(/\s+/g, " ");
+    if (!normalized) return;
+
+    const nextKey = normalized.toLowerCase();
+    const existsInCustom = customRiskFactors.some((r) => r.toLowerCase() === nextKey);
+    const existsInKnown = selectedRiskFactors.some((id) => (riskFactorById.get(id) ?? "").toLowerCase() === nextKey);
+    if (existsInCustom || existsInKnown) {
+      setCustomRiskFactorInput("");
+      return;
+    }
+
+    setCustomRiskFactors((prev) => [...prev, normalized]);
+    setCustomRiskFactorInput("");
+  };
+
+  const removeCustomRiskFactor = (label: string) => {
+    setCustomRiskFactors((prev) => prev.filter((r) => r !== label));
+  };
+
+  const addCustomSymptom = () => {
+    const normalized = customSymptomInput.trim().replace(/\s+/g, " ");
+    if (!normalized) return;
+
+    const nextKey = normalized.toLowerCase();
+    const existsInCustom = customSymptoms.some((s) => s.toLowerCase() === nextKey);
+    const existsInKnown = selectedSymptoms.some((id) => resolveSymptomLabel(id).toLowerCase() === nextKey);
+    if (existsInCustom || existsInKnown) {
+      setCustomSymptomInput("");
+      return;
+    }
+
+    setCustomSymptoms((prev) => [...prev, normalized]);
+    setCustomSymptomInput("");
+  };
+
+  const removeCustomSymptom = (label: string) => {
+    setCustomSymptoms((prev) => prev.filter((s) => s !== label));
+  };
 
   const getPayload = () => {
     const symptomPayload = selectedSymptoms
@@ -168,6 +242,12 @@ export default function EmergencyReport() {
       })
       .filter((x): x is { id: string; label: string; category: string } => x !== null);
 
+    const customSymptomPayload = customSymptoms.map((label, idx) => ({
+      id: `custom-${idx + 1}`,
+      label,
+      category: "Other",
+    }));
+
     const riskFactorPayload = selectedRiskFactors
       .map((id) => riskFactorById.get(id))
       .filter((x): x is string => Boolean(x));
@@ -178,13 +258,13 @@ export default function EmergencyReport() {
         name: patientInfo.name.trim() || null,
         duration: patientInfo.duration || null,
       },
-      symptoms: symptomPayload,
-      riskFactors: riskFactorPayload,
+      symptoms: [...symptomPayload, ...customSymptomPayload],
+      riskFactors: [...riskFactorPayload, ...customRiskFactors],
     };
   };
 
   const handleSubmit = async () => {
-    if (selectedSymptoms.length === 0) {
+    if (selectedSymptoms.length + customSymptoms.length === 0) {
       setAssessmentError("Select at least one symptom before running AI assessment.");
       setStep(2);
       return;
@@ -225,7 +305,11 @@ export default function EmergencyReport() {
   const handleReset = () => {
     setStep(1);
     setSelectedSymptoms([]);
+    setCustomSymptoms([]);
+    setCustomSymptomInput("");
     setSelectedRiskFactors([]);
+    setCustomRiskFactors([]);
+    setCustomRiskFactorInput("");
     setTriageResult(null);
     setAssessmentError(null);
     setIsAssessing(false);
@@ -411,23 +495,48 @@ export default function EmergencyReport() {
                       </div>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Other Symptom Not Listed</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={customSymptomInput}
+                          onChange={(e) => setCustomSymptomInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addCustomSymptom();
+                            }
+                          }}
+                          placeholder="Type a symptom not listed above"
+                          className="rounded-xl h-11 bg-muted/20 border-border/50"
+                        />
+                        <Button type="button" variant="outline" onClick={addCustomSymptom} className="rounded-xl h-11">Add</Button>
+                      </div>
+                    </div>
+
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Selected Symptoms</p>
-                        <Badge variant="outline" className="font-mono">{selectedSymptoms.length}</Badge>
+                        <Badge variant="outline" className="font-mono">{selectedSymptomChips.length}</Badge>
                       </div>
                       <div className="min-h-12 rounded-2xl border border-border/60 bg-muted/20 p-3 flex flex-wrap gap-2">
-                        {selectedSymptoms.length === 0 ? (
+                        {selectedSymptomChips.length === 0 ? (
                           <p className="text-xs text-muted-foreground">No symptoms selected yet.</p>
                         ) : (
-                          selectedSymptoms.map((id) => (
-                            <Badge key={id} variant="secondary" className="rounded-full px-3 py-1.5 text-xs font-bold gap-2 items-center">
-                              {resolveSymptomLabel(id)}
+                            selectedSymptomChips.map((chip) => (
+                              <Badge key={chip.id} variant="secondary" className="rounded-full px-3 py-1.5 text-xs font-bold gap-2 items-center">
+                                {chip.kind === "custom" ? `Other: ${chip.label}` : chip.label}
                               <button
                                 type="button"
                                 className="rounded-full hover:bg-background/40 p-0.5"
-                                onClick={() => toggleSymptom(id)}
-                                aria-label={`Remove ${resolveSymptomLabel(id)}`}
+                                onClick={() => {
+                                  if (chip.kind === "custom") {
+                                    removeCustomSymptom(chip.label);
+                                  } else {
+                                    toggleSymptom(chip.id);
+                                  }
+                                }}
+                                aria-label={`Remove ${chip.label}`}
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -482,6 +591,50 @@ export default function EmergencyReport() {
                         </label>
                       ))}
                     </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Other Risk Factor</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={customRiskFactorInput}
+                          onChange={(e) => setCustomRiskFactorInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addCustomRiskFactor();
+                            }
+                          }}
+                          placeholder="Type or choose a suggested risk factor"
+                          list="risk-factor-suggestions"
+                          className="rounded-xl h-11 bg-muted/20 border-border/50"
+                        />
+                        <Button type="button" variant="outline" onClick={addCustomRiskFactor} className="rounded-xl h-11">Add</Button>
+                      </div>
+                      <datalist id="risk-factor-suggestions">
+                        {suggestedRiskFactorOptions.map((item) => (
+                          <option key={item} value={item} />
+                        ))}
+                      </datalist>
+
+                      {customRiskFactors.length > 0 && (
+                        <div className="min-h-12 rounded-2xl border border-border/60 bg-muted/20 p-3 flex flex-wrap gap-2">
+                          {customRiskFactors.map((factor) => (
+                            <Badge key={factor} variant="secondary" className="rounded-full px-3 py-1.5 text-xs font-bold gap-2 items-center">
+                              Other: {factor}
+                              <button
+                                type="button"
+                                className="rounded-full hover:bg-background/40 p-0.5"
+                                onClick={() => removeCustomRiskFactor(factor)}
+                                aria-label={`Remove ${factor}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex gap-4 pt-4">
                       <Button onClick={() => setStep(2)} variant="outline" size="lg" className="rounded-2xl h-14 px-8 border-2 font-bold focus-visible:ring-0">Back</Button>
                       <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1 h-14 rounded-2xl font-bold shadow-2xl shadow-primary/20" disabled={isAssessing}>
@@ -570,13 +723,28 @@ export default function EmergencyReport() {
                         </div>
                       )}
 
-                      {selectedSymptoms.length > 0 && (
+                      {selectedSymptomChips.length > 0 && (
                         <div className="space-y-4">
                           <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground">Reported Symptoms</h4>
                           <div className="flex flex-wrap gap-2">
-                             {selectedSymptoms.map((id) => (
-                               <Badge key={id} variant="secondary" className="px-3 py-1 text-xs font-bold border-border/50 rounded-lg">{resolveSymptomLabel(id)}</Badge>
-                             ))}
+                            {selectedSymptomChips.map((chip) => (
+                              <Badge key={chip.id} variant="secondary" className="px-3 py-1 text-xs font-bold border-border/50 rounded-lg">
+                                {chip.kind === "custom" ? `Other: ${chip.label}` : chip.label}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedRiskFactorChips.length > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground">Reported Risk Factors</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedRiskFactorChips.map((chip) => (
+                              <Badge key={chip.id} variant="secondary" className="px-3 py-1 text-xs font-bold border-border/50 rounded-lg">
+                                {chip.kind === "custom" ? `Other: ${chip.label}` : chip.label}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
                       )}

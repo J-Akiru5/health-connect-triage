@@ -28,6 +28,24 @@ type EmergencyTriageResult = {
   redFlags: string[];
 };
 
+function isTransientError(error: unknown): boolean {
+  const e = error as { status?: unknown; statusCode?: unknown; message?: unknown };
+  const status = Number(e?.statusCode ?? e?.status ?? 0);
+  if (status === 429 || status >= 500) return true;
+
+  const message = typeof e?.message === "string" ? e.message.toLowerCase() : "";
+  return message.includes("timeout") || message.includes("timed out") || message.includes("econnreset");
+}
+
+function shouldRetryFromMessage(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("invalid triage json") || normalized.includes("no triage assessment returned");
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function normalizeLocale(locale: string | null | undefined): "en" | "tl" | "hil" {
   const value = (locale ?? "").toLowerCase();
   if (value.startsWith("tl") || value.startsWith("fil")) return "tl";
@@ -151,48 +169,73 @@ export async function generateEmergencyTriageAssessment(
   ].join("\n");
 
   const { client, deploymentName } = createAzureOpenAIClient();
-  const completion = await client.getChatCompletions(
-    deploymentName,
-    [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    { temperature: 0.2, maxTokens: 650 }
-  );
+  const maxRetries = 2;
 
-  const raw = extractAssistantText(completion).trim();
-  if (!raw) throw new Error("No triage assessment returned by AI.");
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      const completion = await client.getChatCompletions(
+        deploymentName,
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        { temperature: 0.2, maxTokens: 650 }
+      );
 
-  let parsed: any;
-  try {
-    parsed = extractJsonPayload(raw);
-  } catch {
-    throw new Error("AI returned invalid triage JSON.");
+      const raw = extractAssistantText(completion).trim();
+      if (!raw) throw new Error("No triage assessment returned by AI.");
+
+      let parsed: any;
+      try {
+        parsed = extractJsonPayload(raw);
+      } catch {
+        throw new Error("AI returned invalid triage JSON.");
+      }
+
+      const priorityLevel = sanitizePriority(parsed?.priorityLevel);
+      const urgencyLabel = sanitizeUrgency(parsed?.urgencyLabel, priorityLevel);
+
+      return {
+        priorityLevel,
+        riskScore: clampScore(parsed?.riskScore),
+        urgencyLabel,
+        recommendedAction: sanitizeText(
+          parsed?.recommendedAction,
+          locale === "en"
+            ? "Seek immediate help if symptoms worsen suddenly."
+            : locale === "tl"
+              ? "Humingi agad ng tulong kung biglang lumala ang sintomas."
+              : "Pangayo dayon bulig kon kalit maglala ang sintomas."
+        ),
+        summary: sanitizeText(
+          parsed?.summary,
+          locale === "en"
+            ? "This is an AI-assisted urgency estimate and not a medical diagnosis."
+            : locale === "tl"
+              ? "AI-assisted na pagtataya ito ng urgency at hindi medikal na diagnosis."
+              : "AI-assisted ini nga pagtantiya sang urgency kag indi medikal nga diagnosis."
+        ),
+        redFlags: sanitizeRedFlags(parsed?.redFlags),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const canRetry = isTransientError(error) || shouldRetryFromMessage(message);
+      if (!canRetry || attempt >= maxRetries) {
+        const detail = typeof message === "string" ? message : "AI triage failed";
+        if (
+          detail.toLowerCase().includes("unauthorized") ||
+          detail.toLowerCase().includes("authentication") ||
+          detail.toLowerCase().includes("forbidden") ||
+          detail.toLowerCase().includes("deployment") ||
+          detail.toLowerCase().includes("resource not found")
+        ) {
+          throw new Error(`Azure OpenAI configuration/runtime issue: ${detail}`);
+        }
+        throw error;
+      }
+      await wait(250 * (attempt + 1));
+    }
   }
 
-  const priorityLevel = sanitizePriority(parsed?.priorityLevel);
-  const urgencyLabel = sanitizeUrgency(parsed?.urgencyLabel, priorityLevel);
-
-  return {
-    priorityLevel,
-    riskScore: clampScore(parsed?.riskScore),
-    urgencyLabel,
-    recommendedAction: sanitizeText(
-      parsed?.recommendedAction,
-      locale === "en"
-        ? "Seek immediate help if symptoms worsen suddenly."
-        : locale === "tl"
-          ? "Humingi agad ng tulong kung biglang lumala ang sintomas."
-          : "Pangayo dayon bulig kon kalit maglala ang sintomas."
-    ),
-    summary: sanitizeText(
-      parsed?.summary,
-      locale === "en"
-        ? "This is an AI-assisted urgency estimate and not a medical diagnosis."
-        : locale === "tl"
-          ? "AI-assisted na pagtataya ito ng urgency at hindi medikal na diagnosis."
-          : "AI-assisted ini nga pagtantiya sang urgency kag indi medikal nga diagnosis."
-    ),
-    redFlags: sanitizeRedFlags(parsed?.redFlags),
-  };
+  throw new Error("Unable to produce triage result.");
 }
