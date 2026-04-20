@@ -1,3 +1,5 @@
+import { createAzureOpenAIClient, extractAssistantText } from "./azureOpenAI";
+
 type ExplainRequestBody = {
   triageLevel?: string | null;
   riskScore?: number | null;
@@ -14,24 +16,6 @@ type ExplainRequestBody = {
 function getStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-}
-
-function extractResponsesText(data: unknown): string {
-  if (!data || typeof data !== "object") return "";
-  const anyData = data as any;
-
-  if (typeof anyData.output_text === "string") return anyData.output_text;
-
-  const output = Array.isArray(anyData.output) ? anyData.output : [];
-  const parts: string[] = [];
-  for (const item of output) {
-    const content = Array.isArray(item?.content) ? item.content : [];
-    for (const c of content) {
-      if (c?.type === "output_text" && typeof c?.text === "string") parts.push(c.text);
-      else if (c?.type === "text" && typeof c?.text === "string") parts.push(c.text);
-    }
-  }
-  return parts.join("\n");
 }
 
 export async function generateTriageExplanation(body: ExplainRequestBody, apiKey: string) {
@@ -72,32 +56,21 @@ export async function generateTriageExplanation(body: ExplainRequestBody, apiKey
     `Vitals: ${vitals ? JSON.stringify(vitals) : "none"}`,
   ].join("\n");
 
-  const resp = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      input: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.4,
-    }),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    const err = new Error("OpenAI request failed");
-    (err as Error & { status?: number; detail?: string }).status = resp.status;
-    (err as Error & { status?: number; detail?: string }).detail = text.slice(0, 1500);
-    throw err;
+  if (apiKey) {
+    process.env.AZURE_OPENAI_API_KEY = apiKey;
   }
 
-  const data = (await resp.json()) as unknown;
-  const explanation = extractResponsesText(data).trim();
+  const { client, deploymentName } = createAzureOpenAIClient();
+  const result = await client.getChatCompletions(
+    deploymentName,
+    [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    { temperature: 0.4, maxTokens: 650 }
+  );
+
+  const explanation = extractAssistantText(result).trim();
   if (!explanation) throw new Error("No explanation returned");
   return explanation;
 }

@@ -18,11 +18,10 @@ function triageExplainDevApi(): Plugin {
 
         try {
           const { generateTriageExplanation } = await import("./src/server/triageExplain");
-          const apiKey = process.env.OPENAI_API_KEY;
-          if (!apiKey) {
+          if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify({ error: "Server not configured: OPENAI_API_KEY missing" }));
+            res.end(JSON.stringify({ error: "Server not configured: Azure OpenAI environment variables missing" }));
             return;
           }
 
@@ -34,7 +33,7 @@ function triageExplainDevApi(): Plugin {
           });
           const raw = Buffer.concat(chunks).toString("utf8");
           const body = raw ? JSON.parse(raw) : {};
-          const explanation = await generateTriageExplanation(body, apiKey);
+          const explanation = await generateTriageExplanation(body, process.env.AZURE_OPENAI_API_KEY ?? "");
 
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json");
