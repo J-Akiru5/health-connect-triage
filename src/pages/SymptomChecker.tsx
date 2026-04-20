@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { symptomCategories, EMERGENCY_SYMPTOM_IDS, resolveSymptomLabel } from "@/lib/symptomCategories";
 import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, Loader2 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { parseISO, format } from "date-fns";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
 
@@ -638,18 +640,16 @@ export default function SymptomChecker() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 flex flex-col">
                   <Label htmlFor="birthday">
                     Birthday (Kaarawan) <span className="text-destructive">*</span>
                   </Label>
-                  <input
-                    id="birthday"
-                    type="date"
-                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={patientInfo.birthday}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, birthday: e.target.value })}
+                  <DatePicker
+                    date={patientInfo.birthday ? parseISO(patientInfo.birthday) : undefined}
+                    setDate={(date) => setPatientInfo({ ...patientInfo, birthday: date ? format(date, "yyyy-MM-dd") : "" })}
+                    placeholder="Select birthday"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Age will be calculated automatically from your birthday.
                   </p>
                 </div>

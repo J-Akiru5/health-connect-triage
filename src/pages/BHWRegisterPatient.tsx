@@ -22,6 +22,8 @@ import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, UserPlus } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { parseISO, format } from "date-fns";
 
 type Sex = "male" | "female" | "other" | "prefer_not_to_say";
 
@@ -150,9 +152,13 @@ export default function BHWRegisterPatient() {
               <CardTitle className="text-base">Date of birth & sex</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Date of birth (YYYY-MM-DD)</Label>
-                <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="rounded-xl" />
+              <div className="space-y-2 flex flex-col">
+                <Label>Date of birth (Kaarawan)</Label>
+                <DatePicker
+                  date={dateOfBirth ? parseISO(dateOfBirth) : undefined}
+                  setDate={(date) => setDateOfBirth(date ? format(date, "yyyy-MM-dd") : "")}
+                  placeholder="Select birthday"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Sex</Label>

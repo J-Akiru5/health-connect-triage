@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, MessageSquare, FileText, Send, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type MessageRow = {
   id: string;
@@ -380,11 +381,11 @@ export default function ConsultationChat() {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="follow_up_date">Follow-up date (optional)</Label>
-                      <Input
-                        id="follow_up_date"
-                        type="date"
-                        value={note.follow_up_date}
-                        onChange={(e) => setNote((n) => ({ ...n, follow_up_date: e.target.value }))}
+                      <DatePicker
+                        date={note.follow_up_date ? parseISO(note.follow_up_date) : undefined}
+                        setDate={(date) => setNote((n) => ({ ...n, follow_up_date: date ? format(date, "yyyy-MM-dd") : "" }))}
+                        placeholder="Select follow-up"
+                        className="rounded-xl h-11"
                       />
                     </div>
                     <div className="grid gap-2">

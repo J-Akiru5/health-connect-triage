@@ -15,14 +15,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,10 +25,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/lib/database.types";
-import { Eye, EyeOff, ArrowRight, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, ArrowLeft, Shield, UserPlus, MapPin, CheckCircle2 } from "lucide-react";
 import { SITE_BARANGAY } from "@/lib/site";
 import { safeInternalPath } from "@/lib/safePath";
 import { AppLogoMark } from "@/components/AppLogoMark";
+import { useTranslation } from "react-i18next";
+import { motion, AnimatePresence } from "framer-motion";
+import { DatePicker } from "@/components/ui/date-picker";
+import { parseISO, format } from "date-fns";
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "patient", label: "Patient" },
@@ -75,7 +71,7 @@ const signupSchema = z.object({
     if (d.role !== "patient") return;
 
     const requireTrimmed = (key: keyof typeof d, label: string) => {
-      const v = d[key];
+      const v = d[key as keyof typeof d];
       if (typeof v !== "string" || !v.trim()) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${label} is required` });
       }
@@ -126,6 +122,7 @@ export default function Signup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const fromRaw = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
   const from = safeInternalPath(fromRaw, "/");
@@ -159,11 +156,6 @@ export default function Signup() {
   const careConsent = form.watch("careConsent");
   const isPatient = role === "patient";
   const maxStep = isPatient ? 4 : 1;
-  const canSubmitPatient = !isPatient || careConsent === true;
-
-  useEffect(() => {
-    // no-op: barangays are free-text now
-  }, [isPatient]);
 
   useEffect(() => {
     if (!bhwPrefill) return;
@@ -205,7 +197,7 @@ export default function Signup() {
       const result = await signUp(
         values.email,
         values.password,
-        displayName,
+        displayName as string,
         values.role as UserRole
       );
       if (result?.userId && values.role === "patient") {
@@ -251,8 +243,6 @@ export default function Signup() {
         }
       }
 
-      // Best-effort: link any guest symptom checker submission to this new account.
-      // This requires RLS to allow updating an unclaimed row to set user_id = auth.uid().
       if (result?.userId) {
         try {
           const pendingId = localStorage.getItem(PENDING_ASSESSMENT_LS_KEY);
@@ -266,9 +256,7 @@ export default function Signup() {
               localStorage.removeItem(PENDING_ASSESSMENT_LS_KEY);
             }
           } else {
-            // Fallback: attempt to find the most recent unclaimed assessment matching name.
-            // Uses vitals JSON stored during guest symptom checker submission.
-            const normalized = normalizeName(displayName);
+            const normalized = normalizeName(displayName as string);
             const { data: candidates, error: findErr } = await supabase
               .from("symptom_assessments")
               .select("id, created_at, vitals")
@@ -290,32 +278,28 @@ export default function Signup() {
             }
           }
         } catch {
-          // ignore claim errors (RLS, storage, etc.)
+          // ignore
         }
       }
       navigate(from, { replace: true });
     } catch {
-      // error set in context
+      //
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  function onInvalidSubmit(errs: Record<string, unknown>) {
-    // Jump to the step that contains the first missing/invalid field.
-    if ((errs as any).email || (errs as any).password || (errs as any).confirmPassword || (errs as any).fullName || (errs as any).role) {
-      setStep(1);
-      return;
+  function onInvalidSubmit(errs: any) {
+    if (errs.email || errs.password || errs.confirmPassword || errs.fullName || errs.role) {
+      setStep(1); return;
     }
-    if ((errs as any).lastName || (errs as any).firstName || (errs as any).middleInitial || (errs as any).dateOfBirth || (errs as any).sex) {
-      setStep(2);
-      return;
+    if (errs.lastName || errs.firstName || errs.middleInitial || errs.dateOfBirth || errs.sex) {
+      setStep(2); return;
     }
-    if ((errs as any).street || (errs as any).barangayName || (errs as any).city || (errs as any).province || (errs as any).zipCode || (errs as any).contactPhone) {
-      setStep(3);
-      return;
+    if (errs.street || errs.barangayName || errs.city || errs.province || errs.zipCode || errs.contactPhone) {
+      setStep(3); return;
     }
-    if ((errs as any).careConsent || (errs as any).researchConsent) {
+    if (errs.careConsent || errs.researchConsent) {
       setStep(4);
     }
   }
@@ -329,435 +313,500 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background selection:bg-primary/20 selection:text-primary overflow-x-hidden">
       <Navigation />
-      <main className="container mx-auto px-4 pt-20 pb-12 flex flex-col items-center">
-        <Link to="/" className="flex items-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-            <AppLogoMark className="w-5 h-5 text-primary-foreground" />
+      
+      <main className="min-h-screen flex flex-col lg:flex-row">
+        {/* Left Panel */}
+        <div className="hidden lg:flex lg:w-[40%] xl:w-[45%] relative overflow-hidden bg-foreground">
+          <div className="absolute inset-0 gradient-hero opacity-85" />
+          <div className="absolute inset-0 noise-overlay opacity-40" />
+          
+          <motion.div
+            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.4, 0.3] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[100px] pointer-events-none"
+          />
+          
+          <div className="relative z-10 w-full flex flex-col justify-center px-12 xl:px-20 py-12">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center mb-10 shadow-2xl"
+            >
+              <AppLogoMark className="w-8 h-8 text-primary-foreground" />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-8"
+            >
+              <h2 className="text-4xl xl:text-5xl font-display font-bold text-primary-foreground leading-[1.1] tracking-tight">
+                {bhwPrefill ? "Completing your official health record" : "Join the healthcare revolution in Abangay"}
+              </h2>
+              
+              <div className="space-y-6">
+                {[
+                  { icon: CheckCircle2, text: "Official Digital Health ID" },
+                  { icon: Shield, text: "Privacy Protected by Law" },
+                  { icon: UserPlus, text: "Instant Triage & Referrals" }
+                ].map((item, i) => (
+                  <motion.div 
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 + i * 0.1 }}
+                    className="flex items-center gap-4 group"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                      <item.icon className="w-5 h-5 text-home-care" />
+                    </div>
+                    <span className="text-lg font-medium text-primary-foreground/80">{item.text}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>
-            <span className="text-xs font-medium text-muted-foreground">{SITE_BARANGAY}</span>
+          
+          <div className="absolute bottom-12 left-12 xl:left-20">
+            <div className="flex items-center gap-3 text-primary-foreground/30 text-xs font-bold uppercase tracking-[0.2em]">
+              <div className="w-2 h-2 rounded-full bg-home-care pulse-ring" />
+              <span>Verifying {SITE_BARANGAY} Health Records 2026</span>
+            </div>
           </div>
-        </Link>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Create an account</CardTitle>
-            <CardDescription>
-              {bhwPrefill && isPatient
-                ? "Completing patient registration (pre-filled by BHW). Set password below."
-                : isPatient && maxStep > 1
-                  ? `Step ${step} of ${maxStep}: ${step === 1 ? "Account" : step === 2 ? "Name & basic info" : step === 3 ? "Address & contact" : "Consent"}`
-                  : "Register as a patient, health worker, clinician, or administrator."}
-            </CardDescription>
-          </CardHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit, onInvalidSubmit)}>
-              <CardContent className="space-y-4">
-                {error && (
-                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
-                    {error}
-                  </p>
-                )}
+        </div>
 
-                {/* Step 1: Account */}
-                {step === 1 && (
-                  <>
-                    {!isPatient && (
-                      <FormField
-                        control={form.control}
-                        name="fullName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Full name</FormLabel>
-                            <FormControl>
-                              <Input autoComplete="name" placeholder="Juan Dela Cruz" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                    />
-                    )}
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                type={showPassword ? "text" : "password"}
-                                autoComplete="new-password"
-                                placeholder="At least 8 characters, letters and numbers"
-                                className="pr-11"
-                                {...field}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                onClick={() => setShowPassword((s) => !s)}
-                                aria-label={showPassword ? "Hide password" : "Show password"}
-                              >
-                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    {isPatient && (
-                      <FormField
-                        control={form.control}
-                        name="confirmPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Confirm password</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Input
-                                  type={showConfirmPassword ? "text" : "password"}
-                                  autoComplete="new-password"
-                                  placeholder="Confirm password"
-                                  className="pr-11"
-                                  {...field}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                  onClick={() => setShowConfirmPassword((s) => !s)}
-                                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                                >
-                                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>I am a</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {ROLES.map((r) => (
-                                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
+        {/* Right Panel */}
+        <div className="flex-1 flex flex-col relative bg-background">
+          <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-24 lg:py-16">
+            <div className="w-full max-w-[500px]">
+              {/* Mobile Header */}
+              <div className="lg:hidden mb-10 flex flex-col items-center text-center">
+                <Link to="/" className="inline-flex items-center gap-2.5 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
+                    <AppLogoMark className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <span className="text-xl font-display font-bold text-foreground">TeleHealth</span>
+                </Link>
+                <h1 className="text-3xl font-display font-bold text-foreground">{t("auth.createAccount")}</h1>
+              </div>
 
-                {/* Step 2: Patient name & basic info */}
-                {step === 2 && isPatient && (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Last name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Dela Cruz" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>First name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Juan" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="middleInitial"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Middle initial</FormLabel>
-                            <FormControl>
-                              <Input placeholder="M." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="dateOfBirth"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Date of birth (YYYY-MM-DD)</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="sex"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Sex</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="male">Male</SelectItem>
-                              <SelectItem value="female">Female</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                              <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
+              {/* Desktop Header Content */}
+              <div className="hidden lg:block mb-8">
+                <h1 className="text-3xl xl:text-4xl font-display font-bold text-foreground tracking-tight mb-2">
+                  {t("auth.createAccount")}
+                </h1>
+                <p className="text-muted-foreground text-lg">
+                  {bhwPrefill && isPatient ? t("auth.bhwPrefillMessage") : t("auth.signupSubtitle")}
+                </p>
+              </div>
 
-                {/* Step 3: Address & contact */}
-                {step === 3 && isPatient && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="street"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Street / Purok</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Purok 5" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+              {/* Progress Indicator */}
+              {isPatient && (
+                <div className="mb-10">
+                  <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-3 px-1">
+                    <span>STEP {step} OF {maxStep}</span>
+                    <span>{step === 1 ? "Account" : step === 2 ? "Identity" : step === 3 ? "Location" : "Legal"}</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(step / maxStep) * 100}%` }}
+                      className="h-full bg-primary"
                     />
-                    <FormField
-                      control={form.control}
-                      name="barangayName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Barangay</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Type your barangay" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City / Municipality</FormLabel>
-                            <FormControl>
-                              <Input placeholder="City" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="province"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Province</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Province" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="zipCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>ZIP code</FormLabel>
-                          <FormControl>
-                            <Input placeholder="1234" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="contactPhone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone number</FormLabel>
-                          <FormControl>
-                            <Input type="tel" placeholder="09XX XXX XXXX" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-
-                {/* Step 4: Consent (patient only) */}
-                {step === 4 && isPatient && (
-                  <>
-                    <div className="rounded-lg border border-border p-4 space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="careConsent"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start gap-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value === true}
-                                onCheckedChange={(v) => field.onChange(v === true)}
-                              />
-                            </FormControl>
-                            <div className="space-y-1">
-                              <FormLabel className="font-medium">Accept Terms & Consent (Care + Research) <span className="text-destructive">*</span></FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                I agree to use this platform for telehealth and understand that advice is for support only and does not replace in-person care.{" "}
-                                <Link to="/privacy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-                                  Read our Privacy & Data Use Notice
-                                </Link>
-                              </p>
-                              <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="researchConsent"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start gap-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value === true}
-                                onCheckedChange={(v) => field.onChange(v === true)}
-                              />
-                            </FormControl>
-                            <div className="space-y-1">
-                              <FormLabel className="font-medium">Research / data sharing (optional)</FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                I agree to allow my anonymized data to be used for health research and program improvement.
-                              </p>
-                              <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </>
-                )}
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <div className="flex gap-2 w-full">
-                  {step > 1 ? (
-                    <Button type="button" variant="outline" onClick={handleBack}>
-                      <ArrowLeft className="w-4 h-4" />
-                      Back
-                    </Button>
-                  ) : null}
-                  {step < maxStep ? (
-                    <Button
-                      type="button"
-                      className="flex-1"
-                      onClick={() => {
-                        if (step === 1) {
-                          const fields = isPatient
-                            ? (["email", "password", "confirmPassword", "role"] as const)
-                            : (["fullName", "email", "password", "role"] as const);
-                          form.trigger(fields).then((ok) => { if (ok) handleNext(); });
-                        } else if (step === 2) {
-                          form.trigger(["lastName", "firstName", "dateOfBirth", "sex"] as const).then((ok) => { if (ok) handleNext(); });
-                        } else if (step === 3) {
-                          form.trigger(["street", "barangayName", "city", "province", "zipCode", "contactPhone"] as const).then((ok) => { if (ok) handleNext(); });
-                        }
-                      }}
-                    >
-                      Continue
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  ) : maxStep > 1 ? (
-                    <Button
-                      type="submit"
-                      className="flex-1"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Creating account…" : "Submit"}
-                    </Button>
-                  ) : null}
+                  </div>
                 </div>
-                {step === 1 && maxStep === 1 && (
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? "Creating account…" : "Create account"}
-                  </Button>
-                )}
-                {step === maxStep && (
-                  <p className="text-sm text-muted-foreground text-center">
-                    Already have an account?{" "}
-                    <Link to="/login" className="text-primary font-medium hover:underline">
-                      Log in
-                    </Link>
-                  </p>
-                )}
-              </CardFooter>
-            </form>
-          </Form>
-        </Card>
+              )}
+
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mb-8 text-sm font-semibold text-destructive bg-destructive/[0.03] border border-destructive/10 rounded-2xl px-5 py-4 flex items-center gap-3"
+                >
+                  <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                  {error}
+                </motion.div>
+              )}
+
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit, onInvalidSubmit)} className="space-y-8">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={step}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                      className="space-y-6"
+                    >
+                      {step === 1 && (
+                        <div className="space-y-5">
+                          {!isPatient && (
+                            <FormField
+                              control={form.control}
+                              name="fullName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.fullName")}</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Juan Dela Cruz" className="rounded-2xl h-14 bg-muted/30 border-border/40 focus:bg-background px-5" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                          <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.email")}</FormLabel>
+                                <FormControl>
+                                  <Input type="email" placeholder="you@example.com" className="rounded-2xl h-14 bg-muted/30 border-border/40 focus:bg-background px-5" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                             <FormField
+                              control={form.control}
+                              name="password"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.password")}</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="••••••••"
+                                        className="rounded-2xl h-14 pr-12 bg-muted/30 border-border/40 focus:bg-background px-5"
+                                        {...field}
+                                      />
+                                      <Button type="button" variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                      </Button>
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            {isPatient && (
+                              <FormField
+                                control={form.control}
+                                name="confirmPassword"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.confirmPassword")}</FormLabel>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <Input
+                                          type={showConfirmPassword ? "text" : "password"}
+                                          placeholder="••••••••"
+                                          className="rounded-2xl h-14 pr-12 bg-muted/30 border-border/40 focus:bg-background px-5"
+                                          {...field}
+                                        />
+                                        <Button type="button" variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-transparent" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </Button>
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name="role"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.iAmA")}</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="rounded-2xl h-14 bg-muted/30 border-border/40 px-5">
+                                      <SelectValue placeholder={t("auth.selectRole")} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="rounded-xl">
+                                    {ROLES.map((r) => (
+                                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
+
+                      {step === 2 && isPatient && (
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <FormField
+                              control={form.control}
+                              name="firstName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.firstName")}</FormLabel>
+                                  <FormControl><Input placeholder="Juan" className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="lastName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.lastName")}</FormLabel>
+                                  <FormControl><Input placeholder="Dela Cruz" className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name="middleInitial"
+                            render={({ field }) => (
+                              <FormItem className="max-w-[120px]">
+                                <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.middleInitial")}</FormLabel>
+                                <FormControl><Input placeholder="M." className="rounded-2xl h-14 px-5 text-center" {...field} maxLength={5} /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <FormField
+                              control={form.control}
+                              name="dateOfBirth"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">{t("auth.dateOfBirth")}</FormLabel>
+                                  <FormControl>
+                                    <DatePicker
+                                      date={field.value ? parseISO(field.value) : undefined}
+                                      setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                                      placeholder="Select birthday"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="sex"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.sex")}</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                                    <FormControl>
+                                      <SelectTrigger className="rounded-2xl h-14 px-5">
+                                        <SelectValue placeholder="Select sex" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent className="rounded-xl">
+                                      <SelectItem value="male">{t("auth.male")}</SelectItem>
+                                      <SelectItem value="female">{t("auth.female")}</SelectItem>
+                                      <SelectItem value="other">{t("auth.other")}</SelectItem>
+                                      <SelectItem value="prefer_not_to_say">{t("auth.preferNotToSay")}</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {step === 3 && isPatient && (
+                        <div className="space-y-6">
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <FormField
+                              control={form.control}
+                              name="street"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.streetPurok")}</FormLabel>
+                                  <FormControl><Input placeholder="Purok 5" className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                             <FormField
+                              control={form.control}
+                              name="barangayName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.barangay")}</FormLabel>
+                                  <FormControl><Input placeholder={t("auth.typeBarangay")} className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <FormField
+                              control={form.control}
+                              name="city"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.cityMunicipality")}</FormLabel>
+                                  <FormControl><Input placeholder="City/Municipality" className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="province"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.province")}</FormLabel>
+                                  <FormControl><Input placeholder="Province" className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <FormField
+                              control={form.control}
+                              name="zipCode"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.zipCode")}</FormLabel>
+                                  <FormControl><Input placeholder="1234" className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                              />
+                            </div>
+                            <FormField
+                              control={form.control}
+                              name="contactPhone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("auth.phoneNumber")}</FormLabel>
+                                  <FormControl><Input type="tel" placeholder="09XX XXX XXXX" className="rounded-2xl h-14 px-5" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        )}
+
+                      {step === 4 && isPatient && (
+                        <div className="space-y-6">
+                          <div className="rounded-3xl border border-border/40 p-6 space-y-6 bg-muted/20">
+                            <FormField
+                              control={form.control}
+                              name="careConsent"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start gap-4">
+                                  <FormControl>
+                                    <Checkbox checked={field.value === true} onCheckedChange={(v) => field.onChange(v === true)} className="mt-1 h-5 w-5 rounded-lg" />
+                                  </FormControl>
+                                  <div className="space-y-1">
+                                    <FormLabel className="font-bold text-[15px] leading-tight">Accept Terms & Care Consent <span className="text-destructive">*</span></FormLabel>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                      I agree to use this platform for telehealth and understand that advice is for support only.{" "}
+                                      <Link to="/privacy" className="text-primary font-bold hover:underline" target="_blank">Privacy Notice</Link>
+                                    </p>
+                                    <FormMessage />
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="researchConsent"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start gap-4">
+                                  <FormControl>
+                                    <Checkbox checked={field.value === true} onCheckedChange={(v) => field.onChange(v === true)} className="mt-1 h-5 w-5 rounded-lg" />
+                                  </FormControl>
+                                  <div className="space-y-1">
+                                    <FormLabel className="font-bold text-[15px] leading-tight">Research (Optional)</FormLabel>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                      I allow my anonymized data to be used for health research and program improvement.
+                                    </p>
+                                    <FormMessage />
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+
+                  <div className="pt-2">
+                    <div className="flex gap-4">
+                      {step > 1 && (
+                        <Button type="button" variant="outline" size="xl" onClick={handleBack} className="rounded-2xl border-2 h-16 w-20">
+                          <ArrowLeft className="w-6 h-6" />
+                        </Button>
+                      )}
+                      {step < maxStep ? (
+                        <Button
+                          type="button"
+                          size="xl"
+                          className="flex-1 rounded-2xl h-16 font-bold text-lg shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex items-center justify-center"
+                          onClick={() => {
+                            const fieldsMap: any = {
+                              1: isPatient ? ["email", "password", "confirmPassword", "role"] : ["fullName", "email", "password", "role"],
+                              2: ["lastName", "firstName", "middleInitial", "dateOfBirth", "sex"],
+                              3: ["street", "barangayName", "city", "province", "zipCode", "contactPhone"]
+                            };
+                            form.trigger(fieldsMap[step]).then(ok => ok && handleNext());
+                          }}
+                        >
+                          <span className="mr-2">{t("auth.continue")}</span>
+                          <ArrowRight className="w-6 h-6" />
+                        </Button>
+                      ) : (
+                        <Button
+                          type="submit"
+                          size="xl"
+                          className="flex-1 rounded-2xl h-16 font-bold text-lg shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex items-center justify-center"
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                              <span>{t("auth.creatingAccount")}</span>
+                            </div>
+                          ) : (
+                            <span>{t("auth.createAccount")}</span>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </form>
+              </Form>
+
+              <div className="mt-12 text-center text-[15px]">
+                <p className="text-muted-foreground">
+                  {t("auth.alreadyHaveAccount")} <Link to="/login" className="text-primary font-bold hover:underline underline-offset-4">{t("auth.logIn")}</Link>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -122,7 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Email confirmation required");
       }
       if (data.user) {
-        const p = await fetchProfile(data.user.id);
+        let p = await fetchProfile(data.user.id);
+        if (!p) {
+          const { error: insertError } = await supabase.from("profiles").insert({
+            id: data.user.id,
+            full_name: fullName,
+            role: role,
+          });
+          if (!insertError) p = await fetchProfile(data.user.id);
+        }
         setProfile(p);
         return { userId: data.user.id };
       }
