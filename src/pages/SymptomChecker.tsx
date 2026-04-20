@@ -547,7 +547,7 @@ export default function SymptomChecker() {
       <Navigation />
       
       <main className="flex-1 pt-20 pb-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           {/* Progress */}
           <div className="mb-8">
             <div className="flex justify-between text-sm text-muted-foreground mb-2">

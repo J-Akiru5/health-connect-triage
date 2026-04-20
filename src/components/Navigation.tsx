@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, User, X, Shield, ChevronDown } from "lucide-react";
+import { LogOut, Menu, User, X, Shield, ChevronDown, Bell, CheckCheck } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLogoMark } from "@/components/AppLogoMark";
@@ -16,6 +17,8 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/lib/supabase";
+import { format } from "date-fns";
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,6 +27,29 @@ export function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [latestNotifs, setLatestNotifs] = useState<any[]>([]);
+
+  // Fetch notifications
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const fetchNotifs = async () => {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (data) {
+        setLatestNotifs(data);
+        setUnreadCount(data.filter((n) => !n.read_at).length); // local count of recent
+      }
+    };
+    fetchNotifs();
+    // Simplified polling instead of realtime for now
+    const intv = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(intv);
+  }, [session?.user?.id]);
 
   // Scroll progress bar
   const { scrollYProgress } = useScroll();
@@ -76,7 +102,7 @@ export function Navigation() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group relative z-10">
+            <Link to={session ? "/dashboard" : "/"} className="flex items-center gap-2.5 group relative z-10">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -93,9 +119,22 @@ export function Navigation() {
             {/* Desktop Center Navigation */}
             <div className="hidden lg:flex items-center gap-0.5 bg-muted/40 backdrop-blur-sm rounded-full px-1.5 py-1 border border-border/30">
               <NavPill to="/" label={t("nav.home")} active={isHome && !location.hash} />
-              <NavPillScroll label={t("nav.about")} onClick={() => scrollToSection("about")} />
-              <NavPillScroll label={t("nav.faq")} onClick={() => scrollToSection("faq")} />
-              {session && <NavPill to="/consultations" label={t("nav.consultations")} active={location.pathname === "/consultations"} />}
+              
+              {/* Marketing Links (Only on Home) */}
+              {isHome && (
+                <>
+                  <NavPillScroll label={t("nav.about")} onClick={() => scrollToSection("about")} />
+                  <NavPillScroll label={t("nav.faq")} onClick={() => scrollToSection("faq")} />
+                </>
+              )}
+
+              {/* App Links (Always if logged in) */}
+              {session && (
+                <>
+                  <NavPill to="/dashboard" label={t("nav.dashboard")} active={location.pathname === "/dashboard"} />
+                  <NavPill to="/consultations" label={t("nav.consultations")} active={location.pathname === "/consultations"} />
+                </>
+              )}
             </div>
 
             {/* Desktop Right Actions */}
@@ -108,7 +147,51 @@ export function Navigation() {
                   <Skeleton className="w-9 h-9 rounded-full" />
                 </div>
               ) : session ? (
-                <DropdownMenu>
+                <div className="flex items-center gap-1">
+                  {/* Notification Bell Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="relative rounded-xl text-muted-foreground hover:text-foreground">
+                        <Bell className="w-5 h-5" />
+                        {unreadCount > 0 && (
+                          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-destructive border-2 border-background rounded-full" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80 rounded-2xl p-2 bg-background/95 backdrop-blur-xl border-border/40 shadow-xl mt-2">
+                      <div className="flex items-center justify-between px-3 py-2 mb-1">
+                        <span className="font-bold text-sm">Notifications</span>
+                        <Link to="/notifications" className="text-xs text-primary hover:underline" onClick={() => setIsOpen(false)}>
+                          View all
+                        </Link>
+                      </div>
+                      <DropdownMenuSeparator className="bg-border/40 mb-2" />
+                      {latestNotifs.length === 0 ? (
+                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                          No recent notifications
+                        </div>
+                      ) : (
+                        latestNotifs.map((n) => (
+                          <div key={n.id} className="px-3 py-2.5 mb-1 rounded-xl hover:bg-muted/50 transition-colors flex gap-3">
+                            <div className="mt-0.5 shrink-0">
+                              {!n.read_at ? (
+                                <span className="w-2 h-2 rounded-full bg-primary block" />
+                              ) : (
+                                <CheckCheck className="w-3.5 h-3.5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-sm tracking-tight truncate ${!n.read_at ? 'font-semibold text-foreground' : 'text-foreground/80'}`}>{n.title}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(n.created_at), "MMM d, h:mm a")}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Avatar Dropdown */}
+                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="group relative focus:outline-none ml-1">
                       <motion.div 
@@ -116,15 +199,17 @@ export function Navigation() {
                         whileTap={{ scale: 0.95 }}
                         className="relative"
                       >
-                      <div className="flex items-center gap-1.5 px-1 py-1 rounded-full bg-muted/30 border border-border/20 group-hover:border-primary/20 transition-colors">
-                        <Avatar className="w-8 h-8 p-0.5 border-primary/20 shadow-sm">
-                          <AvatarImage src={session.user.user_metadata?.avatar_url} />
-                          <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px] uppercase">
-                            {profile?.full_name?.substring(0, 2) || session.user.email?.substring(0, 2) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors pr-0.5" />
-                        <span className="absolute bottom-0 right-[15px] w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full pulse-ring" />
+                      <div className="flex items-center gap-1.5 px-1.5 py-1 rounded-full bg-muted/30 border border-border/20 group-hover:border-primary/20 transition-colors">
+                        <div className="relative">
+                          <Avatar className="w-10 h-10 p-1 border-primary/20 shadow-md overflow-visible">
+                            <AvatarImage src={profile?.avatar_url || session.user.user_metadata?.avatar_url} className="object-cover rounded-full" />
+                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs uppercase">
+                              {profile?.full_name?.substring(0, 2) || session.user.email?.substring(0, 2) || "U"}
+                            </AvatarFallback>
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-background rounded-full pulse-ring shadow-sm z-10" />
+                          </Avatar>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors pr-0.5" />
                       </div>
                       </motion.div>
                     </button>
@@ -161,6 +246,7 @@ export function Navigation() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </div>
               ) : (
                 <div className="flex items-center gap-2 ml-1">
                   <Link to="/login">
@@ -213,23 +299,64 @@ export function Navigation() {
               className="flex flex-col pt-24 px-6 pb-8 h-full overflow-y-auto"
             >
               <div className="flex flex-col gap-1 mb-8">
-                {[
-                  { label: t("nav.home"), action: () => { navigate("/"); setIsOpen(false); } },
-                  { label: t("nav.about"), action: () => scrollToSection("about") },
-                  { label: t("nav.faq"), action: () => scrollToSection("faq") },
-                  ...(session ? [{ label: t("nav.consultations"), action: () => { navigate("/consultations"); setIsOpen(false); } }] : []),
-                ].map((item, index) => (
-                  <motion.button
-                    key={item.label}
-                    initial={{ opacity: 0, x: -30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-                    onClick={item.action}
-                    className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
-                  >
-                    {item.label}
-                  </motion.button>
-                ))}
+                {/* Home link always visible in mobile */}
+                <motion.button
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                  onClick={() => { navigate("/"); setIsOpen(false); }}
+                  className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  {t("nav.home")}
+                </motion.button>
+
+                {/* About/FAQ only if on Home */}
+                {isHome && (
+                  <>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => scrollToSection("about")}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.about")}
+                    </motion.button>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => scrollToSection("faq")}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.faq")}
+                    </motion.button>
+                  </>
+                )}
+
+                {/* Dashboard/Consultations if session exists */}
+                {session && (
+                  <>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => { navigate("/dashboard"); setIsOpen(false); }}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.dashboard")}
+                    </motion.button>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => { navigate("/consultations"); setIsOpen(false); }}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.consultations")}
+                    </motion.button>
+                  </>
+                )}
               </div>
 
               <motion.div

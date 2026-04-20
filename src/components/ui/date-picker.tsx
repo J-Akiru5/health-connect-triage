@@ -26,18 +26,18 @@ export function DatePicker({ date, setDate, placeholder = "Select date", classNa
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant={"outline"}
+          variant="ghost"
           className={cn(
-            "w-full justify-start text-left font-normal rounded-2xl h-14 bg-muted/30 border-border/40 px-5 hover:bg-muted/50 hover:border-primary/20 transition-all focus:ring-primary/20",
-            !date ? "text-foreground/40" : "text-foreground font-medium",
+            "w-full justify-start text-left font-normal rounded-2xl h-14 bg-muted/30 border border-border/40 px-5 hover:bg-muted/50 hover:border-primary/20 transition-all focus:ring-primary/20 group",
+            !date ? "text-foreground/60" : "text-foreground font-medium",
             className
           )}
         >
-          <CalendarIcon className="mr-3 h-5 w-5 text-primary/70" />
+          <CalendarIcon className="mr-3 h-5 w-5 text-primary/70 group-hover:text-primary transition-colors" />
           {date ? (
             <span className="text-foreground font-medium">{format(date, "PPP")}</span>
           ) : (
-            <span>{placeholder}</span>
+            <span className="group-hover:text-foreground transition-colors">{placeholder}</span>
           )}
         </Button>
       </PopoverTrigger>

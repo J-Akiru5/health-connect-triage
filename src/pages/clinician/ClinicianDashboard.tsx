@@ -161,9 +161,9 @@ export function ClinicianDashboard({ variant }: { variant: ClinicianVariant }) {
   }, [variant]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20 max-w-2xl">
+      <main className="container mx-auto px-4 pt-24 pb-20 flex-1 max-w-5xl">
         <Card className="mb-8 border-primary/20 bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-3">
@@ -248,6 +248,7 @@ export function ClinicianDashboard({ variant }: { variant: ClinicianVariant }) {
           </Card>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -20,12 +20,6 @@ const Index = () => {
   const { session, profile } = useAuth();
   const { t } = useTranslation();
 
-  useEffect(() => {
-    if (session && (profile?.role === "patient" || profile?.role === "clinician" || profile?.role === "bhw")) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [session, profile?.role, navigate]);
-
   // Scroll to hash on load (for /about or /faq redirects)
   useEffect(() => {
     if (location.hash) {
@@ -35,10 +29,6 @@ const Index = () => {
       }, 300);
     }
   }, [location.hash]);
-
-  if (session && (profile?.role === "patient" || profile?.role === "clinician" || profile?.role === "bhw")) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-background">

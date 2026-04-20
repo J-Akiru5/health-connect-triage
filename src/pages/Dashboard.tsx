@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,7 @@ type ClinicianConsultRow = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isLoading: authLoading } = useAuth();
   const { t } = useTranslation();
   const [patientProfile, setPatientProfile] = useState<{
     first_name: string | null;
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const [clinicianBarangay, setClinicianBarangay] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user?.id || profile?.role !== "patient") {
       setLoading(false);
       return;
@@ -77,9 +79,10 @@ export default function Dashboard() {
       });
       setLoading(false);
     })();
-  }, [user?.id, profile?.role]);
+  }, [user?.id, profile?.role, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user?.id || profile?.role !== "clinician") {
       setClinicianLoading(false);
       return;
@@ -119,9 +122,10 @@ export default function Dashboard() {
       setClinicianConsults(rows);
       setClinicianLoading(false);
     })();
-  }, [user?.id, profile?.role]);
+  }, [user?.id, profile?.role, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user?.id || (profile?.role !== "clinician" && profile?.role !== "bhw")) return;
     (async () => {
       const { count } = await supabase
@@ -131,15 +135,16 @@ export default function Dashboard() {
         .is("read_at", null);
       setUnreadNotifications(count ?? 0);
     })();
-  }, [user?.id, profile?.role]);
+  }, [user?.id, profile?.role, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user?.id || profile?.role !== "clinician") return;
     (async () => {
       const { data: p } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
       setClinicianBarangay((p as { assigned_barangay_name?: string | null } | null)?.assigned_barangay_name ?? null);
     })();
-  }, [user?.id, profile?.role]);
+  }, [user?.id, profile?.role, authLoading]);
 
   async function handleLogout() {
     await signOut();
@@ -156,6 +161,7 @@ export default function Dashboard() {
   const [bhwHighRiskCount, setBhwHighRiskCount] = useState(0);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user?.id || !isBhw) {
       setBhwLoading(false);
       return;
@@ -197,7 +203,19 @@ export default function Dashboard() {
       setBhwBarangayName(null);
       setBhwLoading(false);
     })();
-  }, [user?.id, isBhw]);
+  }, [user?.id, isBhw, authLoading]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 pt-24 pb-12 flex items-center justify-center flex-1 min-h-[60vh] max-w-6xl">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!user || (!isPatient && !isClinician && !isBhw && profile?.role !== "admin")) {
     if (profile?.role === "admin") {
@@ -207,12 +225,13 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <main className="container mx-auto px-4 pt-24 pb-12 text-center">
+        <main className="container mx-auto px-4 pt-24 pb-12 text-center flex-1 max-w-6xl">
           <p className="text-muted-foreground">Dashboard is available for patients, Barangay Health Workers, clinicians, and admins. Please log in with an appropriate account.</p>
           <Button asChild className="mt-4">
             <Link to="/login">{t("auth.logIn")}</Link>
           </Button>
         </main>
+        <Footer />
       </div>
     );
   }
@@ -467,20 +486,11 @@ export default function Dashboard() {
   const welcomeName = [firstName, lastName].filter(Boolean).join(" ");
   const barangayName = patientProfile?.barangay?.name ?? "—";
 
-  const menu = [
-    { to: "/symptom-checker", icon: Stethoscope, label: t("dashboard.reportSymptoms") },
-    { to: "/my-triage-results", icon: ClipboardList, label: t("dashboard.myTriageResults") },
-    { to: "/consultations", icon: Video, label: t("dashboard.teleconsultation") },
-    { to: "/medical-history", icon: FileText, label: t("dashboard.viewMedicalHistory") },
-    { to: "/notifications", icon: Bell, label: t("dashboard.notifications") },
-    { to: "/profile", icon: UserCog, label: t("dashboard.updateProfile") },
-  ];
-
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="container mx-auto px-4 pt-24 pb-20">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -494,33 +504,80 @@ export default function Dashboard() {
                 subtitle={`${t("dashboard.barangay")}: ${barangayName}`}
               />
 
-              <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-2">
-                {menu.map(({ to, icon, label }) => (
-                  <motion.div key={to} variants={staggerItem}>
-                    <MenuItemCard to={to} icon={icon} label={label} />
-                  </motion.div>
-                ))}
-                <motion.div variants={staggerItem}>
-                  <Card className="border-border/60">
-                    <CardContent className="py-4">
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-4 text-muted-foreground hover:text-destructive"
-                        onClick={handleLogout}
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                          <LogOut className="w-5 h-5" />
+              <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* Hero Card: Symptom Checker */}
+                <motion.div variants={staggerItem} className="md:col-span-2 lg:col-span-3">
+                  <Link to="/symptom-checker" className="block relative overflow-hidden rounded-[2rem] bg-primary shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15)_0%,transparent_50%)]" />
+                    <div className="relative p-8 md:p-10 flex items-center justify-between z-10">
+                      <div>
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mb-6 backdrop-blur-md shadow-inner group-hover:scale-110 transition-transform duration-300">
+                          <Stethoscope className="w-7 h-7 text-white" />
                         </div>
-                        {t("dashboard.logout")}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                        <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-2">
+                          {t("dashboard.reportSymptoms")}
+                        </h2>
+                        <p className="text-primary-foreground/90 max-w-md text-sm md:text-base">
+                          Feeling unwell? Use our AI triage system to check your symptoms and get guidance instantly before visiting the health center.
+                        </p>
+                      </div>
+                      <ArrowRight className="w-10 h-10 text-white/40 group-hover:text-white group-hover:translate-x-2 transition-all duration-300 hidden sm:block" />
+                    </div>
+                  </Link>
                 </motion.div>
+
+                {/* Bento Tile 1: Triage Results */}
+                <motion.div variants={staggerItem}>
+                  <Link to="/my-triage-results" className="block h-full">
+                    <Card className="h-full rounded-[2rem] border border-border/50 hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group bg-card/40 backdrop-blur-sm">
+                      <CardContent className="p-8">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                          <ClipboardList className="w-6 h-6 text-primary" />
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground mb-2">{t("dashboard.myTriageResults")}</h3>
+                        <p className="text-sm text-muted-foreground">View your past symptom logs and AI-recommended next steps.</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+
+                {/* Bento Tile 2: Teleconsultations */}
+                <motion.div variants={staggerItem}>
+                  <Link to="/consultations" className="block h-full">
+                    <Card className="h-full rounded-[2rem] border border-border/50 hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group bg-card/40 backdrop-blur-sm">
+                      <CardContent className="p-8">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                          <Video className="w-6 h-6 text-primary" />
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground mb-2">{t("dashboard.teleconsultation")}</h3>
+                        <p className="text-sm text-muted-foreground">Join scheduled secure video appointments with your clinician.</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+
+                {/* Bento Tile 3: Medical History */}
+                <motion.div variants={staggerItem}>
+                  <Link to="/medical-history" className="block h-full">
+                    <Card className="h-full rounded-[2rem] border border-border/50 hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group bg-card/40 backdrop-blur-sm">
+                      <CardContent className="p-8">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                          <FileText className="w-6 h-6 text-primary" />
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground mb-2">{t("dashboard.viewMedicalHistory")}</h3>
+                        <p className="text-sm text-muted-foreground">Review your private health records, allergies, and conditions.</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+
               </motion.div>
             </>
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
