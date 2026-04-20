@@ -69,7 +69,12 @@ export function Chatbot() {
         }),
       });
 
-      const data = (await response.json()) as { reply?: string; error?: string; detail?: string };
+      const data = (await response.json()) as {
+        reply?: string;
+        response?: string;
+        error?: string;
+        detail?: string;
+      };
       if (!response.ok) {
         throw new Error(data.detail || data.error || "Unable to get a response");
       }
@@ -79,7 +84,8 @@ export function Chatbot() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: data.reply || "I’m having trouble replying right now. Please try again.",
+          content:
+            data.reply || data.response || "I’m having trouble replying right now. Please try again.",
         },
       ]);
     } catch (error) {
@@ -111,7 +117,7 @@ export function Chatbot() {
               <div className="min-w-0">
                 <CardTitle className="text-2xl sm:text-3xl">Barangay Health Chatbot</CardTitle>
                 <CardDescription className="mt-1 text-sm sm:text-base">
-                  Ask about symptoms, next steps, and when to seek urgent care. Powered by your OpenAI API key.
+                  Ask about symptoms, next steps, and when to seek urgent care. Powered by Gemini.
                 </CardDescription>
               </div>
             </div>

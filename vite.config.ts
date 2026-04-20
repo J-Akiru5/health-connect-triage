@@ -65,11 +65,11 @@ function chatbotDevApi(): Plugin {
         }
 
         try {
-          const { getChatbotReply } = await import("./src/server/chatbot");
-          if (!process.env.OPENAI_API_KEY) {
+          const { generateChatbotResponse } = await import("./src/server/chatbotHandler");
+          if (!process.env.GEMINI_API_KEY) {
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify({ error: "Server not configured: OPENAI_API_KEY missing" }));
+            res.end(JSON.stringify({ error: "Server not configured: GEMINI_API_KEY missing" }));
             return;
           }
 
@@ -81,11 +81,11 @@ function chatbotDevApi(): Plugin {
           });
           const raw = Buffer.concat(chunks).toString("utf8");
           const body = raw ? JSON.parse(raw) : {};
-          const reply = await getChatbotReply(body);
+          const reply = await generateChatbotResponse(body);
 
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(reply));
+          res.end(JSON.stringify({ reply }));
         } catch (e) {
           const status = typeof (e as { status?: unknown }).status === "number" ? (e as any).status : 500;
           const msg = e instanceof Error ? e.message : String(e);

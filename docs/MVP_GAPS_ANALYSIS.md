@@ -1,5 +1,7 @@
 # MVP Gaps Analysis: TeleHealth
 
+> Status note (2026-04-21): Teleconsultation has been decommissioned from active scope. Teleconsultation-related items below are historical planning context and should not be treated as current implementation targets.
+
 This document compares the **Minimum Viable Product (MVP)** defined in *MINIMUM VIABLE PRODUCT.docx* (Telehealth Platform for Rural Barangay with AI-Assisted Triage, MoSCoW) against the current TeleHealth application. It lists what is **missing or incomplete** to meet the MVP.
 
 ---

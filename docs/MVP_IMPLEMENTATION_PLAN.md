@@ -1,5 +1,7 @@
 # MVP Missing Features — Implementation Plan
 
+> Status note (2026-04-21): Teleconsultation has been decommissioned from active scope. Teleconsultation-related phases in this plan are preserved only as historical context and are superseded by the referral-only workflow.
+
 This plan outlines how to implement the gaps identified in [MVP_GAPS_ANALYSIS.md](./MVP_GAPS_ANALYSIS.md). Tasks are ordered by dependency and priority (P0 → P3). **Existing DB columns** that are already present but unused are noted so you can wire UI first where possible.
 
 ---

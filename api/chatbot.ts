@@ -31,8 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const response = await generateGeminiResponse(body);
-    return json(res, 200, { response });
+    const reply = await generateGeminiResponse(body);
+    return json(res, 200, { reply });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const status = typeof (e as { status?: unknown }).status === "number" ? (e as any).status : 500;

@@ -183,10 +183,11 @@ export function ChatbotBubble() {
         }
 
         const data = await res.json();
+        const reply = data.reply || data.response;
         const assistantMsg: Message = {
           id: uid(),
           role: "assistant",
-          content: data.response || "I'm sorry, I couldn't generate a response.",
+          content: reply || "I'm sorry, I couldn't generate a response.",
           timestamp: Date.now(),
         };
         setMessages([...next, assistantMsg]);
