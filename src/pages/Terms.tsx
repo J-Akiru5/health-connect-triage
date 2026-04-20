@@ -7,10 +7,10 @@ import { SITE_BARANGAY } from "@/lib/site";
 
 export default function Terms() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-20 pb-14 max-w-3xl">
-        <div className="mb-6">
+      <main className="container mx-auto px-4 pt-20 pb-14 flex-1 max-w-5xl">
+        <div className="mb-6 mx-auto">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
             Terms of Service
           </h1>

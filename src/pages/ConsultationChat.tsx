@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useParams, useLocation } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, MessageSquare, FileText, Send, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type MessageRow = {
   id: string;
@@ -254,9 +256,9 @@ export default function ConsultationChat() {
   const otherPartyName = isPatient ? consultation.provider_name : consultation.patient_name;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20 max-w-3xl">
+      <main className="container mx-auto px-4 pt-24 pb-20 flex-1 max-w-6xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/consultations">
@@ -380,11 +382,11 @@ export default function ConsultationChat() {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="follow_up_date">Follow-up date (optional)</Label>
-                      <Input
-                        id="follow_up_date"
-                        type="date"
-                        value={note.follow_up_date}
-                        onChange={(e) => setNote((n) => ({ ...n, follow_up_date: e.target.value }))}
+                      <DatePicker
+                        date={note.follow_up_date ? parseISO(note.follow_up_date) : undefined}
+                        setDate={(date) => setNote((n) => ({ ...n, follow_up_date: date ? format(date, "yyyy-MM-dd") : "" }))}
+                        placeholder="Select follow-up"
+                        className="rounded-xl h-11"
                       />
                     </div>
                     <div className="grid gap-2">
@@ -445,6 +447,7 @@ export default function ConsultationChat() {
           </TabsContent>
         </Tabs>
       </main>
+      <Footer />
     </div>
   );
 }

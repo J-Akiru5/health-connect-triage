@@ -22,6 +22,9 @@ import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, UserPlus } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { parseISO, format } from "date-fns";
+import { Footer } from "@/components/Footer";
 
 type Sex = "male" | "female" | "other" | "prefer_not_to_say";
 
@@ -87,22 +90,23 @@ export default function BHWRegisterPatient() {
 
   if (!user || !isBhw) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen flex flex-col bg-background">
         <Navigation />
-        <main className="container mx-auto px-4 pt-24 pb-20 text-center">
+        <main className="container mx-auto px-4 pt-24 pb-20 text-center flex-1 max-w-5xl">
           <p className="text-muted-foreground">Access limited to Barangay Health Workers.</p>
           <Button asChild className="mt-4">
             <Link to="/dashboard">Back to Dashboard</Link>
           </Button>
         </main>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-20 pb-24 max-w-2xl">
+      <main className="container mx-auto px-4 pt-20 pb-24 flex-1 max-w-5xl">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/dashboard">
@@ -150,9 +154,13 @@ export default function BHWRegisterPatient() {
               <CardTitle className="text-base">Date of birth & sex</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Date of birth (YYYY-MM-DD)</Label>
-                <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="rounded-xl" />
+              <div className="space-y-2 flex flex-col">
+                <Label>Date of birth (Kaarawan)</Label>
+                <DatePicker
+                  date={dateOfBirth ? parseISO(dateOfBirth) : undefined}
+                  setDate={(date) => setDateOfBirth(date ? format(date, "yyyy-MM-dd") : "")}
+                  placeholder="Select birthday"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Sex</Label>
@@ -258,6 +266,7 @@ export default function BHWRegisterPatient() {
           You will be taken to the signup page with these details. Set the patient&apos;s password there to finish. After signup, log out and log back in as BHW to return to the dashboard.
         </p>
       </main>
+      <Footer />
     </div>
   );
 }

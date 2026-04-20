@@ -4,6 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -11,6 +20,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { symptomCategories, EMERGENCY_SYMPTOM_IDS, resolveSymptomLabel } from "@/lib/symptomCategories";
 import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, Loader2 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { parseISO, format } from "date-fns";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
 
@@ -545,7 +556,7 @@ export default function SymptomChecker() {
       <Navigation />
       
       <main className="flex-1 pt-20 pb-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           {/* Progress */}
           <div className="mb-8">
             <div className="flex justify-between text-sm text-muted-foreground mb-2">
@@ -601,11 +612,11 @@ export default function SymptomChecker() {
                       <Label htmlFor="surname">
                         Surname (Apelyido) <span className="text-destructive">*</span>
                       </Label>
-                      <input
+                      <Input
                         id="surname"
                         type="text"
                         autoComplete="family-name"
-                        className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="rounded-xl h-12"
                         value={patientInfo.surname}
                         onChange={(e) => setPatientInfo({ ...patientInfo, surname: e.target.value })}
                       />
@@ -614,22 +625,22 @@ export default function SymptomChecker() {
                       <Label htmlFor="firstName">
                         First name (Pangalan) <span className="text-destructive">*</span>
                       </Label>
-                      <input
+                      <Input
                         id="firstName"
                         type="text"
                         autoComplete="given-name"
-                        className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="rounded-xl h-12"
                         value={patientInfo.firstName}
                         onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="middleInitial">Middle initial (Gitnang letra)</Label>
-                      <input
+                      <Input
                         id="middleInitial"
                         type="text"
                         maxLength={4}
-                        className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary uppercase"
+                        className="rounded-xl h-12 uppercase"
                         value={patientInfo.middleInitial}
                         onChange={(e) =>
                           setPatientInfo({ ...patientInfo, middleInitial: e.target.value.toUpperCase() })
@@ -638,18 +649,16 @@ export default function SymptomChecker() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 flex flex-col">
                   <Label htmlFor="birthday">
                     Birthday (Kaarawan) <span className="text-destructive">*</span>
                   </Label>
-                  <input
-                    id="birthday"
-                    type="date"
-                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={patientInfo.birthday}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, birthday: e.target.value })}
+                  <DatePicker
+                    date={patientInfo.birthday ? parseISO(patientInfo.birthday) : undefined}
+                    setDate={(date) => setPatientInfo({ ...patientInfo, birthday: date ? format(date, "yyyy-MM-dd") : "" })}
+                    placeholder="Select birthday"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Age will be calculated automatically from your birthday.
                   </p>
                 </div>
@@ -658,24 +667,26 @@ export default function SymptomChecker() {
                     <Label>
                       Gender (Kasarian) <span className="text-destructive">*</span>
                     </Label>
-                    <div className="flex flex-wrap gap-4">
+                    <div className="grid grid-cols-3 gap-2">
                       {(
                         [
                           { value: "female" as const, label: "Female" },
                           { value: "male" as const, label: "Male" },
-                          { value: "other" as const, label: "Other / Prefer not to say" },
+                          { value: "other" as const, label: "Other" },
                         ] as const
                       ).map(({ value, label }) => (
-                        <label key={value} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="gender"
-                            checked={patientInfo.gender === value}
-                            onChange={() => setPatientInfo({ ...patientInfo, gender: value })}
-                            className="rounded-full border-input"
-                          />
-                          <span>{label}</span>
-                        </label>
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setPatientInfo({ ...patientInfo, gender: value })}
+                          className={`h-10 rounded-xl border text-sm font-medium transition-all ${
+                            patientInfo.gender === value
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : "border-border hover:border-primary/50 text-foreground bg-background"
+                          }`}
+                        >
+                          {label}
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -685,18 +696,18 @@ export default function SymptomChecker() {
                     <div>
                       <Label className="text-sm">BP (mmHg)</Label>
                       <div className="flex items-center gap-2 mt-1">
-                        <input
+                        <Input
                           type="number"
                           placeholder="120"
-                          className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base"
+                          className="rounded-xl h-12"
                           value={patientInfo.bpSystolic}
                           onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })}
                         />
                         <span className="text-muted-foreground text-base">/</span>
-                        <input
+                        <Input
                           type="number"
                           placeholder="80"
-                          className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base"
+                          className="rounded-xl h-12"
                           value={patientInfo.bpDiastolic}
                           onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })}
                         />
@@ -704,21 +715,21 @@ export default function SymptomChecker() {
                     </div>
                     <div>
                       <Label className="text-sm">HR (bpm)</Label>
-                      <input
+                      <Input
                         type="number"
                         placeholder="72"
-                        className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base mt-1"
+                        className="rounded-xl h-12 mt-1"
                         value={patientInfo.hr}
                         onChange={(e) => setPatientInfo({ ...patientInfo, hr: e.target.value })}
                       />
                     </div>
                     <div>
                       <Label className="text-sm">Temp (°C)</Label>
-                      <input
+                      <Input
                         type="number"
                         step="0.1"
                         placeholder="36.5"
-                        className="w-full h-12 px-3 rounded-lg border border-input bg-background text-foreground text-base mt-1"
+                        className="rounded-xl h-12 mt-1"
                         value={patientInfo.tempC}
                         onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })}
                       />
@@ -736,10 +747,10 @@ export default function SymptomChecker() {
                   <p className="text-xs text-muted-foreground">
                     If you selected joint or muscle pain, you can add exact side and location here (e.g. left knee, front of thigh).
                   </p>
-                  <textarea
+                  <Textarea
                     id="notes"
                     rows={2}
-                    className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="rounded-xl resize-none"
                     placeholder="E.g. started 2 days ago; taking paracetamol; no known drug allergies…"
                     value={patientInfo.notes}
                     onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })}
@@ -802,38 +813,42 @@ export default function SymptomChecker() {
                                   <Label className="text-xs text-muted-foreground">
                                     How long has this lasted? <span className="text-destructive">*</span>
                                   </Label>
-                                  <select
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                  <Select
                                     value={symptomDetails[symptom.id]?.duration ?? ""}
-                                    onChange={(e) =>
+                                    onValueChange={(val) =>
                                       setSymptomDetailField(
                                         symptom.id,
                                         "duration",
-                                        e.target.value as SymptomDurationValue
+                                        val as SymptomDurationValue
                                       )
                                     }
                                   >
-                                    {DURATION_OPTIONS.map((o) => (
-                                      <option key={o.value === "" ? "_duration_ph" : o.value} value={o.value}>
-                                        {o.label}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    <SelectTrigger className="rounded-xl h-10">
+                                      <SelectValue placeholder="Select duration" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {DURATION_OPTIONS.filter(o => o.value !== "").map((o) => (
+                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                                 <div className="space-y-1.5">
                                   <Label className="text-xs text-muted-foreground">How severe is it?</Label>
-                                  <div className="flex flex-wrap gap-3">
+                                  <div className="grid grid-cols-3 gap-2">
                                     {(["mild", "moderate", "severe"] as const).map((s) => (
-                                      <label key={s} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                                        <input
-                                          type="radio"
-                                          name={`symptom-severity-${symptom.id}`}
-                                          checked={(symptomDetails[symptom.id]?.severity ?? "moderate") === s}
-                                          onChange={() => setSymptomDetailField(symptom.id, "severity", s)}
-                                          className="rounded-full border-input"
-                                        />
-                                        <span className="capitalize">{s}</span>
-                                      </label>
+                                      <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => setSymptomDetailField(symptom.id, "severity", s)}
+                                        className={`h-9 rounded-xl border text-xs font-medium capitalize transition-all ${
+                                          (symptomDetails[symptom.id]?.severity ?? "moderate") === s
+                                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                            : "border-border hover:border-primary/50 text-foreground bg-background"
+                                        }`}
+                                      >
+                                        {s}
+                                      </button>
                                     ))}
                                   </div>
                                 </div>

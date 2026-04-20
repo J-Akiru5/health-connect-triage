@@ -1,85 +1,134 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, AlertCircle, Clock, Home } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 
 const triageLevels = [
   {
-    level: "Emergency",
+    levelKey: "emergency",
     icon: AlertTriangle,
-    description: "Immediate medical attention required. Life-threatening conditions.",
-    examples: "Chest pain, difficulty breathing, severe bleeding, loss of consciousness",
-    color: "bg-emergency text-emergency-foreground",
-    borderColor: "border-emergency",
-    iconBg: "bg-emergency/20 text-emergency",
+    color: "from-emergency/40 to-emergency/5",
+    iconColor: "text-emergency",
+    dotColor: "bg-emergency",
+    borderColor: "group-hover:border-emergency/30",
   },
   {
-    level: "Urgent",
+    levelKey: "urgent",
     icon: AlertCircle,
-    description: "Needs attention within hours. Significant symptoms requiring prompt care.",
-    examples: "High fever, moderate pain, persistent vomiting, suspected fractures",
-    color: "bg-urgent text-urgent-foreground",
-    borderColor: "border-urgent",
-    iconBg: "bg-urgent/20 text-urgent",
+    color: "from-urgent/40 to-urgent/5",
+    iconColor: "text-urgent",
+    dotColor: "bg-urgent",
+    borderColor: "group-hover:border-urgent/30",
   },
   {
-    level: "Non-Urgent",
+    levelKey: "nonUrgent",
     icon: Clock,
-    description: "Can wait for scheduled consultation. Mild symptoms without immediate risk.",
-    examples: "Minor cold, skin rashes, mild headaches, follow-up consultations",
-    color: "bg-non-urgent text-non-urgent-foreground",
-    borderColor: "border-non-urgent",
-    iconBg: "bg-non-urgent/20 text-non-urgent",
+    color: "from-non-urgent/40 to-non-urgent/5",
+    iconColor: "text-non-urgent",
+    dotColor: "bg-non-urgent",
+    borderColor: "group-hover:border-non-urgent/30",
   },
   {
-    level: "Home Care",
+    levelKey: "homeCare",
     icon: Home,
-    description: "Self-care with guidance. Conditions manageable at home with proper advice.",
-    examples: "Common cold, minor cuts, rest and hydration cases",
-    color: "bg-home-care text-home-care-foreground",
-    borderColor: "border-home-care",
-    iconBg: "bg-home-care/20 text-home-care",
+    color: "from-home-care/40 to-home-care/5",
+    iconColor: "text-home-care",
+    dotColor: "bg-home-care",
+    borderColor: "group-hover:border-home-care/30",
   },
-];
+] as const;
 
 export function TriageExplainer() {
+  const { t } = useTranslation();
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.1 });
+
   return (
-    <section className="py-14 lg:py-16 bg-secondary/30">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-10 lg:mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            How urgency levels work
+    <section className="py-20 lg:py-32 relative noise-overlay" ref={ref}>
+      {/* Background decoration */}
+      <div className="absolute inset-0 dot-grid opacity-30 z-0" />
+      <motion.div
+        animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.4, 0.3] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] pointer-events-none z-0"
+      />
+
+      <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center max-w-3xl mx-auto mb-16 lg:mb-24"
+        >
+          <motion.div
+            initial={{ width: 0 }}
+            animate={isInView ? { width: 60 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="h-1 bg-primary rounded-full mb-6 mx-auto"
+          />
+          <h2 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-6 tracking-tight">
+            {t("triage.sectionTitle")}
           </h2>
-          <p className="text-lg text-muted-foreground">
-            Your answers are grouped into care levels so you can see what kind of follow-up may fit. This is guidance only—not a medical diagnosis.
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            {t("triage.sectionDescription")}
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {triageLevels.map((triage, index) => (
-            <Card
-              key={triage.level}
-              className={`border-2 ${triage.borderColor} overflow-hidden animate-fade-in`}
-              style={{ animationDelay: `${index * 0.15}s` }}
+            <motion.div
+              key={triage.levelKey}
+              initial={{ opacity: 0, y: 40, rotateX: -15 }}
+              animate={isInView ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+              transition={{
+                duration: 0.7,
+                delay: 0.1 + index * 0.08,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              style={{ perspective: "1000px" }}
             >
-              <CardHeader className={`${triage.color} py-4`}>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <triage.icon className="w-5 h-5" />
-                  {triage.level}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-5 space-y-3">
-                <p className="text-sm text-foreground font-medium">
-                  {triage.description}
-                </p>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                    Examples
+              <div className={`group relative h-full rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm p-7 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 ${triage.borderColor}`}>
+                {/* Background glow trail */}
+                <div className={`absolute top-0 left-0 w-1.5 h-full rounded-l-2xl bg-gradient-to-b ${triage.color}`} />
+
+                <div className="flex flex-col h-full relative z-10">
+                  <div className="flex items-center gap-4 mb-6">
+                    <motion.div
+                      whileHover={{ scale: 1.15, rotate: 8 }}
+                      className={`w-12 h-12 rounded-xl bg-muted/60 flex items-center justify-center shrink-0 shadow-sm group-hover:shadow-md transition-all`}
+                    >
+                      <triage.icon className={`w-6 h-6 ${triage.iconColor}`} />
+                    </motion.div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2.5 h-2.5 rounded-full ${triage.dotColor} pulse-ring shadow-lg`} />
+                      <h3 className="font-display font-bold text-lg text-foreground tracking-tight">
+                        {t(`triage.${triage.levelKey}`)}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <p className="text-[15px] text-foreground font-semibold mb-4 leading-relaxed line-clamp-2">
+                    {t(`triage.${triage.levelKey}Desc`)}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {triage.examples}
-                  </p>
+
+                  <div className="mt-auto space-y-2 pt-6 border-t border-border/40">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">
+                      {t("triage.examples")}
+                    </p>
+                    <p className="text-sm text-muted-foreground leading-relaxed italic">
+                      {t(`triage.${triage.levelKey}Examples`)}
+                    </p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+
+                {/* Hover decorative element */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  whileHover={{ opacity: 1, scale: 1 }}
+                  className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-gradient-to-tr from-white/10 to-white/30 blur-sm pointer-events-none"
+                />
+              </div>
+            </motion.div>
           ))}
         </div>
       </div>

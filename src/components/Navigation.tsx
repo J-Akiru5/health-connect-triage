@@ -1,192 +1,436 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, User, X, Shield, ChevronDown, UserPlus, LogIn, AlertCircle, Info } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { LogOut, Menu, User, X, Shield, ChevronDown, Bell, CheckCheck } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { SITE_BARANGAY } from "@/lib/site";
 import { AppLogoMark } from "@/components/AppLogoMark";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
+import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/lib/supabase";
+import { format } from "date-fns";
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
-  const { session, profile, signOut } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+  const { session, profile, signOut, isLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useTranslation();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [latestNotifs, setLatestNotifs] = useState<any[]>([]);
+
+  // Fetch notifications
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const fetchNotifs = async () => {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (data) {
+        setLatestNotifs(data);
+        setUnreadCount(data.filter((n) => !n.read_at).length); // local count of recent
+      }
+    };
+    fetchNotifs();
+    // Simplified polling instead of realtime for now
+    const intv = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(intv);
+  }, [session?.user?.id]);
+
+  // Scroll progress bar
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
 
   async function handleSignOut() {
     await signOut();
     navigate("/", { replace: true });
   }
 
+  function scrollToSection(id: string) {
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    }
+    setIsOpen(false);
+  }
+
+  const isHome = location.pathname === "/";
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-              <AppLogoMark className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xl font-bold text-foreground leading-tight">TeleHealth</span>
-              <span className="text-xs font-medium text-muted-foreground truncate">{SITE_BARANGAY}</span>
-            </div>
-          </Link>
+    <>
+      {/* Scroll progress bar */}
+      <motion.div
+        style={{ scaleX }}
+        className="fixed top-0 left-0 right-0 h-[2px] scroll-progress z-[60] origin-left"
+      />
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Home
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "glass-nav shadow-lg py-2"
+            : "bg-transparent py-3"
+        }`}
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            {/* Logo */}
+            <Link to={session ? "/dashboard" : "/"} className="flex items-center gap-2.5 group relative z-10">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md"
+              >
+                <AppLogoMark className="w-[18px] h-[18px] text-primary-foreground" />
+              </motion.div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-lg font-bold text-foreground leading-tight tracking-tight">TeleHealth</span>
+                <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest leading-tight">Barangay Abangay</span>
+              </div>
             </Link>
-            <Link to="/consultations" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Consultations
-            </Link>
-            <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              About
-            </Link>
-            <Link to="/faq" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              FAQ
-            </Link>
-          </div>
 
-          {/* Desktop CTA / User menu */}
-          <div className="hidden md:flex items-center gap-3">
-            {session && profile ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <User className="w-4 h-4" />
-                    <span className="max-w-[120px] truncate">{profile.full_name ?? profile.role}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {profile?.role === "admin" && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin" className="gap-2">
-                        <Shield className="w-4 h-4" />
-                        Admin
+            {/* Desktop Center Navigation */}
+            <div className="hidden lg:flex items-center gap-0.5 bg-muted/40 backdrop-blur-sm rounded-full px-1.5 py-1 border border-border/30">
+              <NavPill to="/" label={t("nav.home")} active={isHome && !location.hash} />
+              
+              {/* Marketing Links (Only on Home) */}
+              {isHome && (
+                <>
+                  <NavPillScroll label={t("nav.about")} onClick={() => scrollToSection("about")} />
+                  <NavPillScroll label={t("nav.faq")} onClick={() => scrollToSection("faq")} />
+                </>
+              )}
+
+              {/* App Links (Always if logged in) */}
+              {session && (
+                <>
+                  <NavPill to="/dashboard" label={t("nav.dashboard")} active={location.pathname === "/dashboard"} />
+                  <NavPill to="/consultations" label={t("nav.consultations")} active={location.pathname === "/consultations"} />
+                </>
+              )}
+            </div>
+
+            {/* Desktop Right Actions */}
+            <div className="hidden lg:flex items-center gap-2">
+              <LanguageSwitcher variant="compact" />
+              <ThemeToggle />
+
+              {isLoading ? (
+                <div className="flex items-center gap-2 ml-1">
+                  <Skeleton className="w-9 h-9 rounded-full" />
+                </div>
+              ) : session ? (
+                <div className="flex items-center gap-1">
+                  {/* Notification Bell Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="relative rounded-xl text-muted-foreground hover:text-foreground">
+                        <Bell className="w-5 h-5" />
+                        {unreadCount > 0 && (
+                          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-destructive border-2 border-background rounded-full" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80 rounded-2xl p-2 bg-background/95 backdrop-blur-xl border-border/40 shadow-xl mt-2">
+                      <div className="flex items-center justify-between px-3 py-2 mb-1">
+                        <span className="font-bold text-sm">Notifications</span>
+                        <Link to="/notifications" className="text-xs text-primary hover:underline" onClick={() => setIsOpen(false)}>
+                          View all
+                        </Link>
+                      </div>
+                      <DropdownMenuSeparator className="bg-border/40 mb-2" />
+                      {latestNotifs.length === 0 ? (
+                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                          No recent notifications
+                        </div>
+                      ) : (
+                        latestNotifs.map((n) => (
+                          <div key={n.id} className="px-3 py-2.5 mb-1 rounded-xl hover:bg-muted/50 transition-colors flex gap-3">
+                            <div className="mt-0.5 shrink-0">
+                              {!n.read_at ? (
+                                <span className="w-2 h-2 rounded-full bg-primary block" />
+                              ) : (
+                                <CheckCheck className="w-3.5 h-3.5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-sm tracking-tight truncate ${!n.read_at ? 'font-semibold text-foreground' : 'text-foreground/80'}`}>{n.title}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(n.created_at), "MMM d, h:mm a")}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Avatar Dropdown */}
+                  <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="group relative focus:outline-none ml-1">
+                      <motion.div 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="relative"
+                      >
+                      <div className="flex items-center gap-1.5 px-1.5 py-1 rounded-full bg-muted/30 border border-border/20 group-hover:border-primary/20 transition-colors">
+                        <div className="relative">
+                          <Avatar className="w-10 h-10 p-1 border-primary/20 shadow-md overflow-visible">
+                            <AvatarImage src={profile?.avatar_url || session.user.user_metadata?.avatar_url} className="object-cover rounded-full" />
+                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs uppercase">
+                              {profile?.full_name?.substring(0, 2) || session.user.email?.substring(0, 2) || "U"}
+                            </AvatarFallback>
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-background rounded-full pulse-ring shadow-sm z-10" />
+                          </Avatar>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors pr-0.5" />
+                      </div>
+                      </motion.div>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2 bg-background/95 backdrop-blur-xl border-border/40 shadow-xl mt-2">
+                    <div className="px-3 py-3 mb-2 rounded-xl bg-muted/30">
+                      <p className="text-sm font-bold text-foreground truncate">{profile?.full_name || session.user.email?.split("@")[0] || "Authorized User"}</p>
+                      <p className="text-[10px] text-muted-foreground truncate uppercase tracking-widest mt-0.5 font-medium">{profile?.role || "Patient Account"}</p>
+                    </div>
+                    {profile?.role === "admin" && (
+                      <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
+                        <Link to="/admin" className="w-full flex items-center">
+                          <Shield className="w-4 h-4 text-primary" />
+                          <span className="font-medium text-sm">{t("nav.admin")}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
+                      <Link to="/dashboard" className="w-full flex items-center">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium text-sm">{t("nav.dashboard")}</span>
                       </Link>
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard">Dashboard</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/consultations">Consultations</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile">Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    Get started
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <Link to="/signup" className="gap-2 cursor-pointer">
-                      <UserPlus className="w-4 h-4" />
-                      Register
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/login" className="gap-2 cursor-pointer">
-                      <LogIn className="w-4 h-4" />
-                      Login
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/symptom-checker" className="gap-2 cursor-pointer">
-                      <AlertCircle className="w-4 h-4" />
-                      Emergency Quick Report (No Login)
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/about" className="gap-2 cursor-pointer">
-                      <Info className="w-4 h-4" />
-                      Info / About
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {isOpen && (
-          <div className="md:hidden py-4 border-t border-border animate-slide-up">
-            <div className="flex flex-col gap-4">
-              <Link to="/" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
-                Home
-              </Link>
-              <Link to="/consultations" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
-                Consultations
-              </Link>
-              <Link to="/about" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
-                About
-              </Link>
-              <Link to="/faq" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg">
-                FAQ
-              </Link>
-              <div className="flex flex-col gap-2 pt-2 border-t border-border">
-                {session && profile ? (
-                  <>
-                    {profile.role === "admin" && (
-                      <Button variant="outline" className="justify-start gap-2" asChild>
-                        <Link to="/admin"><Shield className="w-4 h-4" /> Admin</Link>
+                    <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
+                      <Link to="/profile" className="w-full flex items-center">
+                        <Menu className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium text-sm">{t("nav.profile")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <div className="h-px bg-border/40 my-2" />
+                    <DropdownMenuItem onClick={handleSignOut} className="rounded-lg h-10 gap-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
+                      <LogOut className="w-4 h-4" />
+                      <span className="font-medium text-sm">{t("nav.signOut")}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 ml-1">
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm" className="rounded-full text-sm font-medium hover:bg-muted/60 px-4">
+                      {t("nav.login")}
+                    </Button>
+                  </Link>
+                  <Link to="/signup">
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button size="sm" className="rounded-full text-sm font-semibold shadow-md hover:shadow-lg px-5 bg-primary text-primary-foreground">
+                        {t("nav.register")}
                       </Button>
-                    )}
-                    <Button variant="outline" className="justify-start" asChild>
-                      <Link to="/profile">Profile</Link>
-                    </Button>
-                    <Button variant="outline" className="justify-start" onClick={handleSignOut}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign out
-                    </Button>
-                  </>
-                ) : (
+                    </motion.div>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile actions */}
+            <div className="flex lg:hidden items-center gap-1.5">
+              <ThemeToggle />
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsOpen(!isOpen)}
+                className="p-2 rounded-xl hover:bg-muted/60 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </motion.button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile Full-Screen Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-background/98 backdrop-blur-2xl lg:hidden"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 30 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col pt-24 px-6 pb-8 h-full overflow-y-auto"
+            >
+              <div className="flex flex-col gap-1 mb-8">
+                {/* Home link always visible in mobile */}
+                <motion.button
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                  onClick={() => { navigate("/"); setIsOpen(false); }}
+                  className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  {t("nav.home")}
+                </motion.button>
+
+                {/* About/FAQ only if on Home */}
+                {isHome && (
                   <>
-                    <Link to="/signup" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
-                      <UserPlus className="w-4 h-4" /> Register
-                    </Link>
-                    <Link to="/login" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
-                      <LogIn className="w-4 h-4" /> Login
-                    </Link>
-                    <Link to="/symptom-checker" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" /> Emergency Quick Report (No Login)
-                    </Link>
-                    <Link to="/about" className="text-base font-medium text-foreground px-2 py-2 hover:bg-muted rounded-lg flex items-center gap-2">
-                      <Info className="w-4 h-4" /> Info / About
-                    </Link>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => scrollToSection("about")}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.about")}
+                    </motion.button>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => scrollToSection("faq")}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.faq")}
+                    </motion.button>
+                  </>
+                )}
+
+                {/* Dashboard/Consultations if session exists */}
+                {session && (
+                  <>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => { navigate("/dashboard"); setIsOpen(false); }}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.dashboard")}
+                    </motion.button>
+                    <motion.button
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={() => { navigate("/consultations"); setIsOpen(false); }}
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      {t("nav.consultations")}
+                    </motion.button>
                   </>
                 )}
               </div>
-            </div>
-          </div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.35 }}
+                className="mt-auto space-y-3"
+              >
+                <div className="px-4 pb-4">
+                  <LanguageSwitcher variant="full" />
+                </div>
+
+                {session && profile ? (
+                  <div className="space-y-2">
+                    {profile.role === "admin" && (
+                      <Button variant="outline" className="w-full justify-start gap-2 rounded-xl h-12" asChild>
+                        <Link to="/admin"><Shield className="w-4 h-4" /> {t("nav.admin")}</Link>
+                      </Button>
+                    )}
+                    <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
+                      <Link to="/profile">{t("nav.profile")}</Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start rounded-xl h-12 text-destructive" onClick={handleSignOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      {t("nav.signOut")}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 px-1">
+                    <Button className="w-full rounded-xl h-13 text-base font-semibold shadow-lg" asChild>
+                      <Link to="/signup">{t("nav.register")}</Link>
+                    </Button>
+                    <Button variant="outline" className="w-full rounded-xl h-13 text-base" asChild>
+                      <Link to="/login">{t("nav.login")}</Link>
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
-    </nav>
+      </AnimatePresence>
+    </>
+  );
+}
+
+/* ── Pill Nav Items ── */
+function NavPill({ to, label, active }: { to: string; label: string; active: boolean }) {
+  return (
+    <Link
+      to={to}
+      className={`relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 ${
+        active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {active && (
+        <motion.div
+          layoutId="nav-pill"
+          className="absolute inset-0 bg-primary rounded-full -z-10 shadow-md"
+          transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+        />
+      )}
+      {label}
+    </Link>
+  );
+}
+
+function NavPillScroll({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="relative px-4 py-1.5 text-sm font-medium rounded-full text-muted-foreground hover:text-foreground transition-colors duration-200"
+    >
+      {label}
+    </button>
   );
 }
