@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { HeroSection } from "@/components/HeroSection";
 import { FeaturesSection } from "@/components/FeaturesSection";
 import { TriageExplainer } from "@/components/TriageExplainer";
+import { Chatbot } from "@/components/Chatbot";
 import { CTASection } from "@/components/CTASection";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const Index = () => {
       </section>
       <FeaturesSection />
       <TriageExplainer />
+      <Chatbot />
       <CTASection />
       <Footer />
     </div>
