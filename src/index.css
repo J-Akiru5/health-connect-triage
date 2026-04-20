@@ -1,0 +1,354 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Premium Healthcare Light Palette ── */
+    --background: 160 15% 97%;
+    --foreground: 200 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 30% 10%;
+
+    /* Primary — Surgical Teal */
+    --primary: 172 58% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary — Sage Mist */
+    --secondary: 165 25% 93%;
+    --secondary-foreground: 172 58% 25%;
+
+    --muted: 160 12% 93%;
+    --muted-foreground: 200 12% 44%;
+
+    /* Accent — Warm Coral */
+    --accent: 14 82% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Triage urgency colors */
+    --emergency: 0 72% 51%;
+    --emergency-foreground: 0 0% 100%;
+    --urgent: 38 92% 50%;
+    --urgent-foreground: 0 0% 100%;
+    --non-urgent: 172 58% 32%;
+    --non-urgent-foreground: 0 0% 100%;
+    --home-care: 142 70% 40%;
+    --home-care-foreground: 0 0% 100%;
+
+    --border: 160 14% 89%;
+    --input: 160 14% 89%;
+    --ring: 172 58% 32%;
+
+    --radius: 0.75rem;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(172 58% 32%) 0%, hsl(165 48% 40%) 50%, hsl(178 42% 46%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(160 15% 97%) 100%);
+    --gradient-mesh: radial-gradient(at 20% 30%, hsl(172 58% 32% / 0.12) 0%, transparent 60%),
+                     radial-gradient(at 80% 70%, hsl(165 48% 40% / 0.08) 0%, transparent 60%),
+                     radial-gradient(at 60% 20%, hsl(14 82% 58% / 0.04) 0%, transparent 50%);
+
+    /* Shadows — Layered for depth */
+    --shadow-sm: 0 1px 2px 0 hsl(200 30% 10% / 0.04);
+    --shadow-md: 0 4px 6px -1px hsl(200 30% 10% / 0.06), 0 2px 4px -2px hsl(200 30% 10% / 0.04);
+    --shadow-lg: 0 10px 15px -3px hsl(200 30% 10% / 0.07), 0 4px 6px -4px hsl(200 30% 10% / 0.04);
+    --shadow-xl: 0 20px 25px -5px hsl(200 30% 10% / 0.08), 0 8px 10px -6px hsl(200 30% 10% / 0.06);
+    --shadow-glow: 0 0 40px -10px hsl(172 58% 32% / 0.25);
+    --shadow-glass: 0 8px 32px -4px hsl(200 30% 10% / 0.08), inset 0 0 0 1px hsl(0 0% 100% / 0.08);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 200 25% 7%;
+    --foreground: 160 15% 95%;
+
+    --card: 200 22% 11%;
+    --card-foreground: 160 15% 95%;
+
+    --popover: 200 22% 11%;
+    --popover-foreground: 160 15% 95%;
+
+    --primary: 172 50% 45%;
+    --primary-foreground: 200 25% 7%;
+
+    --secondary: 200 18% 16%;
+    --secondary-foreground: 172 50% 55%;
+
+    --muted: 200 18% 16%;
+    --muted-foreground: 160 12% 55%;
+
+    --accent: 14 75% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --emergency: 0 62% 45%;
+    --urgent: 38 85% 45%;
+    --non-urgent: 172 50% 40%;
+    --home-care: 142 60% 38%;
+
+    --border: 200 18% 18%;
+    --input: 200 18% 18%;
+    --ring: 172 50% 45%;
+
+    --gradient-hero: linear-gradient(135deg, hsl(172 50% 20%) 0%, hsl(200 25% 12%) 50%, hsl(200 25% 7%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(200 22% 13%) 0%, hsl(200 22% 11%) 100%);
+    --gradient-mesh: radial-gradient(at 20% 30%, hsl(172 50% 45% / 0.08) 0%, transparent 60%),
+                     radial-gradient(at 80% 70%, hsl(165 48% 40% / 0.05) 0%, transparent 60%),
+                     radial-gradient(at 60% 20%, hsl(14 75% 52% / 0.03) 0%, transparent 50%);
+
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -2px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -4px hsl(0 0% 0% / 0.2);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 40px -10px hsl(172 50% 45% / 0.2);
+    --shadow-glass: 0 8px 32px -4px hsl(0 0% 0% / 0.3), inset 0 0 0 1px hsl(0 0% 100% / 0.04);
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    transition: background-color 0.3s ease, color 0.2s ease;
+  }
+
+  /* Custom selection */
+  ::selection {
+    background: hsl(172 58% 32% / 0.2);
+    color: hsl(200 30% 10%);
+  }
+  .dark ::selection {
+    background: hsl(172 50% 45% / 0.3);
+    color: hsl(160 15% 95%);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(200 12% 44% / 0.3);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(200 12% 44% / 0.5);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gradient mesh background */
+  .gradient-mesh {
+    background: var(--gradient-mesh);
+  }
+
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .gradient-card {
+    background: var(--gradient-card);
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(172 50% 50%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Noise grain texture overlay ── */
+  .noise-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    z-index: 1;
+    mix-blend-mode: overlay;
+  }
+  .dark .noise-overlay::after {
+    opacity: 0.06;
+  }
+
+  /* Dot grid pattern */
+  .dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--foreground) / 0.08) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .dark .dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
+  }
+
+  /* Glassmorphism card */
+  .glass-card {
+    background: hsl(var(--card) / 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .dark .glass-card {
+    background: hsl(var(--card) / 0.4);
+    border: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  /* Glass nav */
+  .glass-nav {
+    background: hsl(var(--background) / 0.7);
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    border-bottom: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  .dark .glass-nav {
+    background: hsl(var(--background) / 0.6);
+    border-bottom: 1px solid hsl(var(--border) / 0.15);
+  }
+
+  /* Shadow glow */
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Animated gradient mesh for hero */
+  .gradient-mesh-animated {
+    background-size: 200% 200%;
+    animation: gradient-shift 12s ease-in-out infinite;
+  }
+
+  /* Pulse ring for status indicators */
+  .pulse-ring {
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  /* Floating orbs */
+  .floating-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+
+  /* Section divider line */
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
+  }
+
+  /* Hero video overlay */
+  .hero-video-overlay {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.3) 0%,
+      hsl(var(--background) / 0.7) 40%,
+      hsl(var(--background) / 0.95) 100%
+    );
+  }
+  .dark .hero-video-overlay {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.5) 0%,
+      hsl(var(--background) / 0.85) 40%,
+      hsl(var(--background)) 100%
+    );
+  }
+
+  /* Scroll progress bar */
+  .scroll-progress {
+    transform-origin: left;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+}
+
+/* ── Keyframes ── */
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ken-burns {
+  0% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.08) translate(-1%, -1%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+@keyframes orbit {
+  0% { transform: rotate(0deg) translateX(20px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(20px) rotate(-360deg); }
+}

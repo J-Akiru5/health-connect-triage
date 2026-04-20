@@ -1,0 +1,199 @@
+import { useEffect, useState } from "react";
+import { AdminLayout } from "@/components/AdminLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { Loader2, Cpu, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
+
+type TriageLevel = "emergency" | "urgent" | "non_urgent" | "home_care";
+
+type ModelStats = {
+  model_version: string | null;
+  count: number;
+  by_level: Record<TriageLevel, number>;
+};
+
+type RecentRow = {
+  id: string;
+  assessment_id: string;
+  risk_score: number | null;
+  triage_level: TriageLevel;
+  model_version: string | null;
+  created_at: string;
+};
+
+export default function AdminAITriage() {
+  const [modelStats, setModelStats] = useState<ModelStats[]>([]);
+  const [recent, setRecent] = useState<RecentRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: results } = await supabase
+        .from("ai_triage_results")
+        .select("id, assessment_id, risk_score, triage_level, model_version, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      const rows = (results ?? []) as (RecentRow & { id: string })[];
+      const versionCount: Record<string, { count: number; by_level: Record<TriageLevel, number> }> = {};
+      const levels: TriageLevel[] = ["emergency", "urgent", "non_urgent", "home_care"];
+      rows.forEach((r) => {
+        const v = r.model_version ?? "unknown";
+        if (!versionCount[v]) {
+          versionCount[v] = { count: 0, by_level: { emergency: 0, urgent: 0, non_urgent: 0, home_care: 0 } };
+        }
+        versionCount[v].count += 1;
+        if (levels.includes(r.triage_level)) {
+          versionCount[v].by_level[r.triage_level] += 1;
+        }
+      });
+      setModelStats(
+        Object.entries(versionCount).map(([model_version, d]) => ({
+          model_version: model_version === "unknown" ? null : model_version,
+          count: d.count,
+          by_level: d.by_level,
+        }))
+      );
+      setRecent(rows);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Loading AI triage data…
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const highRisk = recent.filter((r) => r.triage_level === "emergency" || r.triage_level === "urgent");
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">AI Triage System Oversight</h1>
+          <p className="text-muted-foreground mt-1">
+            Monitor model version, performance, and logs for audit and reproducibility.
+          </p>
+        </div>
+
+        {highRisk.length > 0 && (
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                High-risk triage (last 100)
+              </CardTitle>
+              <CardDescription>{highRisk.length} emergency or urgent cases</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {highRisk.slice(0, 10).map((r) => (
+                  <Badge key={r.id} variant="destructive">
+                    {r.triage_level} · {format(new Date(r.created_at), "MMM d")}
+                  </Badge>
+                ))}
+                {highRisk.length > 10 && (
+                  <Badge variant="secondary">+{highRisk.length - 10} more</Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cpu className="h-5 w-5" />
+              Model version usage
+            </CardTitle>
+            <CardDescription>
+              Ensure ai_triage_results.model_version consistency; archive previous outputs for reproducibility.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {modelStats.length === 0 ? (
+              <p className="text-muted-foreground">No triage results yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {modelStats.map((s) => (
+                  <div
+                    key={s.model_version ?? "null"}
+                    className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <span className="font-medium">{s.model_version ?? "Unversioned"}</span>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary">{s.count} results</Badge>
+                      {s.by_level.emergency > 0 && (
+                        <Badge variant="destructive">emergency: {s.by_level.emergency}</Badge>
+                      )}
+                      {s.by_level.urgent > 0 && (
+                        <Badge variant="secondary">urgent: {s.by_level.urgent}</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent triage results (last 100)</CardTitle>
+            <CardDescription>Logs stored for audit and research.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Date</th>
+                    <th className="text-left p-3 font-medium">Level</th>
+                    <th className="text-left p-3 font-medium">Risk score</th>
+                    <th className="text-left p-3 font-medium">Model</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-4 text-center text-muted-foreground">
+                        No results yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    recent.slice(0, 20).map((r) => (
+                      <tr key={r.id} className="border-t">
+                        <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "MMM d, HH:mm")}</td>
+                        <td className="p-3">
+                          <Badge
+                            variant={
+                              r.triage_level === "emergency" || r.triage_level === "urgent"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                          >
+                            {r.triage_level}
+                          </Badge>
+                        </td>
+                        <td className="p-3">{r.risk_score ?? "—"}</td>
+                        <td className="p-3 text-muted-foreground">{r.model_version ?? "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </AdminLayout>
+  );
+}
