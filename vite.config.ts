@@ -99,6 +99,54 @@ function chatbotDevApi(): Plugin {
   };
 }
 
+function emergencyTriageDevApi(): Plugin {
+  return {
+    name: "dev-api-emergency-triage",
+    configureServer(server) {
+      server.middlewares.use("/api/emergency-triage", async (req, res, next) => {
+        if (req.method !== "POST") {
+          res.statusCode = 405;
+          res.setHeader("Allow", "POST");
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: "Method not allowed" }));
+          return;
+        }
+
+        try {
+          const { generateEmergencyTriageAssessment } = await import("./src/server/emergencyTriage");
+          if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: "Server not configured: Azure OpenAI environment variables missing" }));
+            return;
+          }
+
+          const chunks: Buffer[] = [];
+          await new Promise<void>((resolve, reject) => {
+            req.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+            req.on("end", () => resolve());
+            req.on("error", (e) => reject(e));
+          });
+          const raw = Buffer.concat(chunks).toString("utf8");
+          const body = raw ? JSON.parse(raw) : {};
+          const result = await generateEmergencyTriageAssessment(body, process.env.AZURE_OPENAI_API_KEY ?? "");
+
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(result));
+        } catch (e) {
+          const status = typeof (e as { status?: unknown }).status === "number" ? (e as any).status : 500;
+          const msg = e instanceof Error ? e.message : String(e);
+          const detail = typeof (e as { detail?: unknown }).detail === "string" ? (e as any).detail : msg;
+          res.statusCode = status;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: status >= 500 ? "Server error" : "Request failed", detail }));
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   process.env = { ...process.env, ...env };
@@ -111,7 +159,7 @@ export default defineConfig(({ mode }) => {
         overlay: false,
       },
     },
-    plugins: [react(), triageExplainDevApi(), chatbotDevApi()],
+    plugins: [react(), triageExplainDevApi(), chatbotDevApi(), emergencyTriageDevApi()],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

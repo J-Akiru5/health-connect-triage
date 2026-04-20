@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,13 +14,41 @@ import {
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
-import { calculateTriage, symptomCategories, resolveSymptomLabel } from "@/lib/symptomCategories";
-import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, LogIn } from "lucide-react";
+import { symptomCategories, resolveSymptomLabel } from "@/lib/symptomCategories";
+import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Check,
+  ChevronsUpDown,
+  Clock,
+  Home,
+  Loader2,
+  LogIn,
+  Stethoscope,
+  User,
+  X,
+} from "lucide-react";
 
-type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
+type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care";
+
+type EmergencyAiResult = {
+  priorityLevel: TriageLevel;
+  riskScore: number;
+  urgencyLabel: "high" | "medium" | "low";
+  recommendedAction: string;
+  summary: string;
+  redFlags: string[];
+};
 
 const riskFactors = [
   { id: "senior", label: "Senior citizen (60+ years old)" },
@@ -31,23 +59,31 @@ const riskFactors = [
   { id: "immunocompromised", label: "Immunocompromised" },
 ];
 
-function getRiskScore(level: TriageLevel): number {
-  switch (level) {
-    case "emergency": return 95;
-    case "urgent": return 75;
-    case "non-urgent": return 50;
-    case "home-care": return 25;
-    default: return 0;
-  }
+const riskFactorById = new Map(riskFactors.map((r) => [r.id, r.label]));
+
+const symptomMetaById = new Map<string, { label: string; category: string }>();
+symptomCategories.forEach((category) => {
+  category.symptoms.forEach((symptom) => {
+    symptomMetaById.set(symptom.id, { label: symptom.label, category: category.name });
+  });
+});
+
+function getUrgencyBadgeLabel(level: "high" | "medium" | "low"): string {
+  if (level === "high") return "HIGH";
+  if (level === "medium") return "MEDIUM";
+  return "LOW";
 }
 
 function getTriageLevelLabel(level: TriageLevel): string {
   switch (level) {
-    case "emergency": return "HIGH";
-    case "urgent": return "HIGH";
-    case "non-urgent": return "MEDIUM";
-    case "home-care": return "LOW";
-    default: return "—";
+    case "emergency":
+      return "Emergency";
+    case "urgent":
+      return "Urgent";
+    case "non-urgent":
+      return "Non-Urgent";
+    case "home-care":
+      return "Home Care";
   }
 }
 
@@ -92,11 +128,23 @@ const triageResults = {
 
 export default function EmergencyReport() {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
   const [step, setStep] = useState(1);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedRiskFactors, setSelectedRiskFactors] = useState<string[]>([]);
-  const [triageResult, setTriageResult] = useState<TriageLevel>(null);
+  const [triageResult, setTriageResult] = useState<EmergencyAiResult | null>(null);
+  const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  const [isAssessing, setIsAssessing] = useState(false);
   const [patientInfo, setPatientInfo] = useState({ name: "", duration: "" });
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const categoryOptions = useMemo(() => symptomCategories.map((c) => c.name), []);
+
+  const filteredCategories = useMemo(() => {
+    if (categoryFilter === "all") return symptomCategories;
+    return symptomCategories.filter((category) => category.name === categoryFilter);
+  }, [categoryFilter]);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
@@ -107,10 +155,71 @@ export default function EmergencyReport() {
   const toggleRiskFactor = (id: string) =>
     setSelectedRiskFactors((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
 
-  const handleSubmit = () => {
-    const result = calculateTriage(selectedSymptoms, selectedRiskFactors);
-    setTriageResult(result);
+  const getPayload = () => {
+    const symptomPayload = selectedSymptoms
+      .map((id) => {
+        const meta = symptomMetaById.get(id);
+        if (!meta) return null;
+        return {
+          id,
+          label: meta.label,
+          category: meta.category,
+        };
+      })
+      .filter((x): x is { id: string; label: string; category: string } => x !== null);
+
+    const riskFactorPayload = selectedRiskFactors
+      .map((id) => riskFactorById.get(id))
+      .filter((x): x is string => Boolean(x));
+
+    return {
+      locale: i18n.language,
+      patient: {
+        name: patientInfo.name.trim() || null,
+        duration: patientInfo.duration || null,
+      },
+      symptoms: symptomPayload,
+      riskFactors: riskFactorPayload,
+    };
+  };
+
+  const handleSubmit = async () => {
+    if (selectedSymptoms.length === 0) {
+      setAssessmentError("Select at least one symptom before running AI assessment.");
+      setStep(2);
+      return;
+    }
+
+    setAssessmentError(null);
+    setTriageResult(null);
+    setIsAssessing(true);
     setStep(4);
+
+    try {
+      const response = await fetch("/api/emergency-triage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(getPayload()),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.detail || body?.error || `Assessment failed (${response.status})`);
+      }
+
+      setTriageResult({
+        priorityLevel: body.priorityLevel,
+        riskScore: Number(body.riskScore) || 0,
+        urgencyLabel: body.urgencyLabel,
+        recommendedAction: body.recommendedAction,
+        summary: body.summary,
+        redFlags: Array.isArray(body.redFlags) ? body.redFlags : [],
+      });
+    } catch (error) {
+      setAssessmentError(error instanceof Error ? error.message : "Unable to complete AI triage right now.");
+    } finally {
+      setIsAssessing(false);
+    }
   };
 
   const handleReset = () => {
@@ -118,8 +227,13 @@ export default function EmergencyReport() {
     setSelectedSymptoms([]);
     setSelectedRiskFactors([]);
     setTriageResult(null);
+    setAssessmentError(null);
+    setIsAssessing(false);
     setPatientInfo({ name: "", duration: "" });
+    setCategoryFilter("all");
   };
+
+  const visual = triageResult ? triageResults[triageResult.priorityLevel] : null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -230,10 +344,100 @@ export default function EmergencyReport() {
                        <Stethoscope className="w-6 h-6 text-primary" />
                     </div>
                     <CardTitle className="text-2xl font-black">Active Symptoms</CardTitle>
-                    <CardDescription>Select all categories that apply to the patient.</CardDescription>
+                    <CardDescription>
+                      Search symptoms quickly, filter by body system, and still use checkbox cards for easy review.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-10">
-                    {symptomCategories.map((category) => (
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Body System Filter</Label>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                          <SelectTrigger className="rounded-xl h-11 bg-muted/20 border-border/50">
+                            <SelectValue placeholder="Filter categories" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {categoryOptions.map((category) => (
+                              <SelectItem key={category} value={category}>{category}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Search and Add Symptom</Label>
+                        <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={searchOpen}
+                              className="w-full justify-between rounded-xl h-11 bg-muted/20 border-border/50"
+                            >
+                              Find symptom by keyword...
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[420px] max-w-[90vw] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Type fever, chest pain, seizure..." />
+                              <CommandList>
+                                <CommandEmpty>No symptom found for this keyword.</CommandEmpty>
+                                {filteredCategories.map((category) => (
+                                  <CommandGroup key={category.name} heading={category.name}>
+                                    {category.symptoms.map((symptom) => {
+                                      const isSelected = selectedSymptoms.includes(symptom.id);
+                                      return (
+                                        <CommandItem
+                                          key={symptom.id}
+                                          value={`${symptom.label} ${category.name}`}
+                                          onSelect={() => {
+                                            toggleSymptom(symptom.id);
+                                            setSearchOpen(false);
+                                          }}
+                                        >
+                                          <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                          <span className="text-xs font-semibold">{symptom.label}</span>
+                                        </CommandItem>
+                                      );
+                                    })}
+                                  </CommandGroup>
+                                ))}
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Selected Symptoms</p>
+                        <Badge variant="outline" className="font-mono">{selectedSymptoms.length}</Badge>
+                      </div>
+                      <div className="min-h-12 rounded-2xl border border-border/60 bg-muted/20 p-3 flex flex-wrap gap-2">
+                        {selectedSymptoms.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No symptoms selected yet.</p>
+                        ) : (
+                          selectedSymptoms.map((id) => (
+                            <Badge key={id} variant="secondary" className="rounded-full px-3 py-1.5 text-xs font-bold gap-2 items-center">
+                              {resolveSymptomLabel(id)}
+                              <button
+                                type="button"
+                                className="rounded-full hover:bg-background/40 p-0.5"
+                                onClick={() => toggleSymptom(id)}
+                                aria-label={`Remove ${resolveSymptomLabel(id)}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {filteredCategories.map((category) => (
                       <div key={category.name} className="space-y-4">
                         <div className="flex items-center gap-2">
                           <div className="h-4 w-1 bg-primary rounded-full" />
@@ -265,7 +469,9 @@ export default function EmergencyReport() {
                        <Calendar className="w-6 h-6 text-primary" />
                     </div>
                     <CardTitle className="text-2xl font-black">Risk Parameters</CardTitle>
-                    <CardDescription>Certain factors change how we evaluate urgeny.</CardDescription>
+                    <CardDescription>
+                      Risk factors refine AI prioritization. Keep this accurate to improve urgency scoring quality.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -278,22 +484,61 @@ export default function EmergencyReport() {
                     </div>
                     <div className="flex gap-4 pt-4">
                       <Button onClick={() => setStep(2)} variant="outline" size="lg" className="rounded-2xl h-14 px-8 border-2 font-bold focus-visible:ring-0">Back</Button>
-                      <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1 h-14 rounded-2xl font-bold shadow-2xl shadow-primary/20">Get Quick Result <ArrowRight className="w-5 h-5 ml-2" /></Button>
+                      <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1 h-14 rounded-2xl font-bold shadow-2xl shadow-primary/20" disabled={isAssessing}>
+                        {isAssessing ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Running AI Triage...
+                          </>
+                        ) : (
+                          <>
+                            Get AI Priority Result <ArrowRight className="w-5 h-5 ml-2" />
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
               {/* Step 4: Results */}
-              {step === 4 && triageResult && (
+              {step === 4 && isAssessing && (
+                <Card className="animate-fade-in border-border/50 shadow-md">
+                  <CardContent className="p-10 text-center space-y-4">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+                    <h3 className="text-2xl font-black">AI is assessing urgency</h3>
+                    <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+                      We are evaluating symptom severity and risk profile to generate a priority level and safe next action guidance.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {step === 4 && !isAssessing && assessmentError && (
+                <Card className="animate-fade-in border-destructive/30 shadow-md">
+                  <CardHeader>
+                    <CardTitle className="text-xl font-black text-destructive">AI assessment unavailable</CardTitle>
+                    <CardDescription>{assessmentError}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex gap-3">
+                    <Button onClick={handleSubmit} className="rounded-xl">Retry AI Assessment</Button>
+                    <Button variant="outline" onClick={() => setStep(3)} className="rounded-xl">Back to Risk Factors</Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {step === 4 && !isAssessing && triageResult && visual && (
                 <div className="animate-fade-in space-y-6">
-                  <Card className={`border-4 overflow-hidden rounded-3xl shadow-2xl ${triageResults[triageResult].borderColor}`}>
-                    <CardHeader className={`${triageResults[triageResult].bgColor} text-primary-foreground p-8`}>
+                  <Card className={`border-4 overflow-hidden rounded-3xl shadow-2xl ${visual.borderColor}`}>
+                    <CardHeader className={`${visual.bgColor} text-primary-foreground p-8`}>
                       <div className="flex items-center gap-5">
-                        {(() => { const Icon = triageResults[triageResult].icon; return <Icon className="w-12 h-12" />; })()}
+                        {(() => {
+                          const Icon = visual.icon;
+                          return <Icon className="w-12 h-12" />;
+                        })()}
                         <div>
-                          <CardTitle className="text-3xl font-black uppercase tracking-tight">Priority Result: {triageResult}</CardTitle>
-                          <p className="opacity-90 font-bold tracking-wide">Automated System Assessment</p>
+                          <CardTitle className="text-3xl font-black uppercase tracking-tight">AI Priority Result: {getTriageLevelLabel(triageResult.priorityLevel)}</CardTitle>
+                          <p className="opacity-90 font-bold tracking-wide">Locale-aware AI triage assessment</p>
                         </div>
                       </div>
                     </CardHeader>
@@ -301,18 +546,29 @@ export default function EmergencyReport() {
                       <div className="grid grid-cols-2 gap-6">
                          <div className="p-5 rounded-2xl bg-muted/40 border border-border/50 text-center">
                             <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-1">Severity Score</p>
-                            <p className="text-4xl font-black text-foreground">{getRiskScore(triageResult)}</p>
+                            <p className="text-4xl font-black text-foreground">{triageResult.riskScore}</p>
                          </div>
                          <div className="p-5 rounded-2xl bg-muted/40 border border-border/50 text-center flex flex-col justify-center">
                             <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-2">Urgency Level</p>
-                            <Badge className="mx-auto h-7 px-4 rounded-full font-bold uppercase">{getTriageLevelLabel(triageResult)}</Badge>
+                            <Badge className="mx-auto h-7 px-4 rounded-full font-bold uppercase">{getUrgencyBadgeLabel(triageResult.urgencyLabel)}</Badge>
                          </div>
                       </div>
 
                       <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10">
                         <h4 className="font-black uppercase text-xs tracking-widest text-primary mb-3">Next Action Steps</h4>
-                        <p className="text-xl font-bold text-foreground leading-tight">{triageResults[triageResult].action}</p>
+                        <p className="text-xl font-bold text-foreground leading-tight">{triageResult.recommendedAction}</p>
                       </div>
+
+                      {triageResult.redFlags.length > 0 && (
+                        <div className="p-6 rounded-2xl bg-destructive/5 border border-destructive/20">
+                          <h4 className="font-black uppercase text-xs tracking-widest text-destructive mb-3">AI-Detected Red Flags</h4>
+                          <ul className="space-y-2">
+                            {triageResult.redFlags.map((flag) => (
+                              <li key={flag} className="text-sm font-semibold text-foreground">• {flag}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       {selectedSymptoms.length > 0 && (
                         <div className="space-y-4">
@@ -327,11 +583,11 @@ export default function EmergencyReport() {
 
                       <div className="p-4 rounded-2xl border-2 border-dashed border-border/60">
                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mb-1">Contact Reference</p>
-                        <p className="text-xl font-black text-primary">{triageResults[triageResult].contact}</p>
+                        <p className="text-xl font-black text-primary">{visual.contact}</p>
                       </div>
 
                       <div className="bg-muted/30 rounded-2xl p-6 border border-border/50 italic text-sm text-muted-foreground leading-relaxed">
-                        &quot;{triageResults[triageResult].description}&quot;
+                        &quot;{triageResult.summary}&quot;
                       </div>
 
                       <div className="bg-destructive/5 rounded-2xl p-4 border border-destructive/10">
@@ -370,19 +626,19 @@ export default function EmergencyReport() {
                 </div>
               )}
 
-          {step === 4 && !triageResult && (
+          {step === 4 && !isAssessing && !assessmentError && !triageResult && (
             <Card className="animate-fade-in">
               <CardContent className="p-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                   <Stethoscope className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">No Symptoms Selected</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">No AI Result Available</h3>
                 <p className="text-muted-foreground mb-6">
-                  Please go back and select at least one symptom to receive a triage assessment.
+                  Return to previous steps and run AI triage again.
                 </p>
-                <Button onClick={() => setStep(2)} size="lg">
+                <Button onClick={() => setStep(3)} size="lg">
                   <ArrowLeft className="w-4 h-4" />
-                  Go Back to Symptoms
+                  Go Back
                 </Button>
               </CardContent>
             </Card>
