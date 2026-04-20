@@ -1,4 +1,4 @@
-import { createGeminiClient } from "./gemini";
+import { createGeminiClient } from "./gemini.js";
 
 type ExplainRequestBody = {
   triageLevel?: string | null;

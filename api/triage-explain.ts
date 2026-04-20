@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { generateTriageExplanation } from "../src/server/triageExplain";
+import { generateTriageExplanation } from "../src/server/triageExplain.js";
 
 type ExplainRequestBody = {
   triageLevel?: string | null;

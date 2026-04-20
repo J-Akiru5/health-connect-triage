@@ -1,4 +1,4 @@
-import { generateGeminiResponse } from "./geminiHandler";
+import { generateGeminiResponse } from "./geminiHandler.js";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";

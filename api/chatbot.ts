@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { generateGeminiResponse } from "../src/server/geminiHandler";
+import { generateGeminiResponse } from "../src/server/geminiHandler.js";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";

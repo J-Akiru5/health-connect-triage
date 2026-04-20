@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { generateEmergencyTriageAssessment } from "../src/server/emergencyTriage";
+import { generateEmergencyTriageAssessment } from "../src/server/emergencyTriage.js";
 
 type EmergencyTriageBody = {
   locale?: string | null;

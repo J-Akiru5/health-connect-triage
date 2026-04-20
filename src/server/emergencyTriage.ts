@@ -1,4 +1,4 @@
-import { createAzureOpenAIClient, extractAssistantText } from "./azureOpenAI";
+import { createAzureOpenAIClient, extractAssistantText } from "./azureOpenAI.js";
 
 export type EmergencyPriorityLevel = "emergency" | "urgent" | "non-urgent" | "home-care";
 export type EmergencyUrgencyLabel = "high" | "medium" | "low";

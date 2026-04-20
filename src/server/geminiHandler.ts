@@ -1,4 +1,4 @@
-import { createGeminiClient, mapToGeminiRole } from "./gemini";
+import { createGeminiClient, mapToGeminiRole } from "./gemini.js";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";

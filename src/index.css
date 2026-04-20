@@ -303,14 +303,14 @@
 
   .hero-cinematic-overlay {
     background:
-      linear-gradient(112deg, hsl(var(--background) / 0.92) 6%, hsl(var(--background) / 0.58) 46%, hsl(var(--background) / 0.9) 100%),
+      linear-gradient(180deg, hsl(var(--background) / 0.1) 0%, hsl(var(--background) / 0.7) 40%, hsl(var(--background) / 0.95) 100%),
       radial-gradient(circle at 82% 18%, hsl(var(--primary) / 0.2) 0%, transparent 48%),
       radial-gradient(circle at 14% 82%, hsl(var(--destructive) / 0.14) 0%, transparent 46%);
   }
 
   .dark .hero-cinematic-overlay {
     background:
-      linear-gradient(112deg, hsl(var(--background) / 0.96) 6%, hsl(var(--background) / 0.72) 46%, hsl(var(--background) / 0.95) 100%),
+      linear-gradient(180deg, hsl(var(--background) / 0.1) 0%, hsl(var(--background) / 0.75) 40%, hsl(var(--background) / 0.95) 100%),
       radial-gradient(circle at 82% 18%, hsl(var(--primary) / 0.18) 0%, transparent 48%),
       radial-gradient(circle at 14% 82%, hsl(var(--destructive) / 0.1) 0%, transparent 46%);
   }
