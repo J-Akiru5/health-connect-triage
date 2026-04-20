@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
+import Swal from 'sweetalert2';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
@@ -61,6 +62,7 @@ interface ProviderConsultRow {
   scheduled_at: string | null;
   created_at: string;
   triage_level: string | null;
+  assessment_id?: string | null;
 }
 
 const Consultations = () => {
@@ -93,6 +95,8 @@ const Consultations = () => {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [existingFeedbackIds, setExistingFeedbackIds] = useState<Set<string>>(new Set());
+
+  const [activeTab, setActiveTab] = useState<string>(isClinician ? "provider" : isBhw ? "bhw-info" : "my-appointments");
 
   const loadProviderConsults = useCallback(async () => {
     if (!user?.id || !isClinician) return;
@@ -282,7 +286,12 @@ const Consultations = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
-      alert("Please log in to book a consultation.");
+      Swal.fire({
+        title: "Authentication Required",
+        text: "Please log in to book a consultation.",
+        icon: "warning",
+        confirmButtonColor: "#0f766e"
+      });
       return;
     }
     setSubmitting(true);
@@ -290,13 +299,22 @@ const Consultations = () => {
       const { data: clinicians } = await supabase.from("profiles").select("id").eq("role", "clinician").limit(1);
       const providerId = clinicians?.[0]?.id;
       if (!providerId) {
-        alert("No provider is available at the moment. Please try again later.");
+        Swal.fire({
+          title: "Setup Needed",
+          text: "No provider is available at the moment. Please try again later.",
+          icon: "info",
+          confirmButtonColor: "#0f766e"
+        });
         setSubmitting(false);
         return;
       }
-      const scheduledAt = selectedDate && selectedTime
-        ? new Date(`${selectedDate.toISOString().slice(0, 10)} ${selectedTime}`).toISOString()
-        : null;
+      let scheduledAt = null;
+      if (selectedDate && selectedTime) {
+        // parse the time strictly on top of selectedDate to avoid browser 'Invalid Date' quirks
+        const parsedTime = parse(selectedTime, "h:mm a", selectedDate);
+        scheduledAt = parsedTime.toISOString();
+      }
+
       await supabase.from("teleconsultations").insert({
         patient_id: user.id,
         provider_id: providerId,
@@ -322,10 +340,20 @@ const Consultations = () => {
       setFormData({ fullName: "", phoneNumber: "", barangay: "", consultationType: "", reason: "" });
       setSelectedTime("");
       setSelectedDate(new Date());
-      alert("Consultation request submitted! You will receive a confirmation shortly.");
+      Swal.fire({
+        title: "Request Submitted!",
+        text: "You will receive a confirmation shortly.",
+        icon: "success",
+        confirmButtonColor: "#0f766e"
+      });
     } catch (err) {
       console.error(err);
-      alert("Failed to submit. Please try again.");
+      Swal.fire({
+        title: "Error",
+        text: "Failed to submit. Please try again.",
+        icon: "error",
+        confirmButtonColor: "#dc2626"
+      });
     } finally {
       setSubmitting(false);
     }
@@ -349,7 +377,7 @@ const Consultations = () => {
       <Navigation />
       
       <div className="pt-24 pb-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+        <div className="container mx-auto px-4 lg:px-8 max-w-5xl">
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">
             <Button variant="ghost" size="icon" asChild>
@@ -367,7 +395,7 @@ const Consultations = () => {
             </div>
           </div>
 
-          <Tabs defaultValue={isClinician ? "provider" : isBhw ? "bhw-info" : "my-appointments"} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full max-w-2xl mx-auto mb-8 ${isClinician ? "grid-cols-2" : isBhw ? "grid-cols-1" : "grid-cols-2"}`}>
               {isClinician && (
                 <TabsTrigger value="provider">My Schedule</TabsTrigger>
@@ -404,12 +432,12 @@ const Consultations = () => {
                     ) : providerConsults.length === 0 ? (
                       <p className="py-8 text-center text-muted-foreground">No upcoming appointments.</p>
                     ) : (
-                      <ul className="space-y-3">
+                      <div className="grid md:grid-cols-2 gap-4">
                         {providerConsults.map((c) => (
-                          <li key={c.id} className="rounded-lg border p-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
+                          <Card key={c.id} className="overflow-hidden border-border/50">
+                            <CardHeader className="bg-muted/30 pb-3 flex flex-row items-start justify-between">
                               <div>
-                                <p className="font-medium">{c.patient_name}</p>
+                                <CardTitle className="text-base">{c.patient_name}</CardTitle>
                                 <p className="text-sm text-muted-foreground">
                                   {c.scheduled_at
                                     ? format(new Date(c.scheduled_at), "MMM d, yyyy · h:mm a")
@@ -463,14 +491,13 @@ const Consultations = () => {
                                   Refer to facility
                                 </Button>
                                 <Button variant="outline" size="sm">Reschedule / Notify BHW</Button>
-                                <Badge variant="outline">{c.status}</Badge>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </CardContent>
+                                </div>
+                              </CardHeader>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
                 </Card>
                 <div className="mt-4">
                   <Button variant="outline" asChild>
@@ -489,11 +516,51 @@ const Consultations = () => {
                     Fill in your details and select your preferred date and time
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Personal Information */}
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
+                <CardContent className="p-6">
+                  <form onSubmit={handleSubmit}>
+                    <div className="grid lg:grid-cols-12 gap-8">
+                      {/* Left: Scheduling Config */}
+                      <div className="lg:col-span-5 space-y-6">
+                        <div className="space-y-3">
+                          <Label className="text-base">
+                            Select Date <span className="text-destructive">*</span>
+                          </Label>
+                          <Card className="p-3 border-border/50 bg-background flex justify-center">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={setSelectedDate}
+                              disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                              className="rounded-md border-0"
+                            />
+                          </Card>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <Label className="text-base">
+                            Select Time <span className="text-destructive">*</span>
+                          </Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {availableTimeSlots.map((time) => (
+                              <Button
+                                key={time}
+                                type="button"
+                                variant={selectedTime === time ? "default" : "outline"}
+                                onClick={() => setSelectedTime(time)}
+                                className={`flex items-center gap-2 h-11 rounded-xl ${selectedTime === time ? "shadow-md" : "hover:border-primary/50"}`}
+                              >
+                                <Clock className="w-4 h-4" />
+                                {time}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Personal Information */}
+                      <div className="lg:col-span-7 space-y-6">
+                        <div className="grid sm:grid-cols-2 gap-6">
+                          <div className="space-y-2">
                         <Label htmlFor="fullName">
                           Full Name <span className="text-destructive">*</span>
                         </Label>
@@ -501,8 +568,8 @@ const Consultations = () => {
                           <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                           <Input
                             id="fullName"
-                            placeholder="Enter your full name"
-                            className="pl-10"
+                            placeholder="Juan dela Cruz"
+                            className="pl-10 h-11 rounded-xl bg-background"
                             required
                             value={formData.fullName}
                             onChange={(e) =>
@@ -522,7 +589,7 @@ const Consultations = () => {
                             id="phoneNumber"
                             type="tel"
                             placeholder="0917-123-4567"
-                            className="pl-10"
+                            className="pl-10 h-11 rounded-xl bg-background"
                             required
                             value={formData.phoneNumber}
                             onChange={(e) =>
@@ -541,6 +608,7 @@ const Consultations = () => {
                         <Input
                           id="barangay"
                           placeholder="Type your barangay"
+                          className="h-11 rounded-xl bg-background"
                           required
                           value={formData.barangay}
                           onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
@@ -559,10 +627,10 @@ const Consultations = () => {
                           setFormData({ ...formData, consultationType: value })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-11 rounded-xl bg-background">
                           <SelectValue placeholder="Select consultation type" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="rounded-xl">
                           <SelectItem value="teleconsultation">
                             <div className="flex items-center gap-2">
                               <Video className="w-4 h-4" />
@@ -579,44 +647,6 @@ const Consultations = () => {
                       </Select>
                     </div>
 
-                    {/* Date and Time Selection */}
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label>
-                          Select Date <span className="text-destructive">*</span>
-                        </Label>
-                        <Card className="p-3">
-                          <Calendar
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={setSelectedDate}
-                            disabled={(date) => date < new Date()}
-                            className="rounded-md border-0"
-                          />
-                        </Card>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          Select Time <span className="text-destructive">*</span>
-                        </Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {availableTimeSlots.map((time) => (
-                            <Button
-                              key={time}
-                              type="button"
-                              variant={selectedTime === time ? "default" : "outline"}
-                              onClick={() => setSelectedTime(time)}
-                              className="flex items-center gap-2"
-                            >
-                              <Clock className="w-4 h-4" />
-                              {time}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="reason">
                         Reason for Consultation <span className="text-destructive">*</span>
@@ -625,6 +655,7 @@ const Consultations = () => {
                         id="reason"
                         placeholder="Briefly describe your symptoms or reason for consultation..."
                         rows={4}
+                        className="rounded-xl resize-none bg-background"
                         required
                         value={formData.reason}
                         onChange={(e) =>
@@ -632,21 +663,23 @@ const Consultations = () => {
                         }
                       />
                     </div>
-
-                    <div className="flex gap-4 pt-4">
-                      <Button type="submit" size="lg" className="flex-1" disabled={submitting}>
+                    
+                    <div className="pt-6">
+                      <Button type="submit" size="lg" className="w-full rounded-xl h-14 text-base" disabled={submitting}>
                         {submitting ? (
                           <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Submitting…
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Submitting Request…
                           </>
                         ) : (
                           <>
-                            <CalendarIcon className="w-4 h-4 mr-2" />
-                            Book Consultation
+                            <CalendarIcon className="w-5 h-5 mr-2" />
+                            Book Consultation Now
                           </>
                         )}
                       </Button>
+                    </div>
+                    </div>
                     </div>
                   </form>
                 </CardContent>
@@ -676,12 +709,13 @@ const Consultations = () => {
                         <CardTitle>Patient consultations</CardTitle>
                         <CardDescription>Teleconsultations you or the system scheduled for patients.</CardDescription>
                       </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-3">
+                      <CardContent className="p-6">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {bhwConsults.map((c) => (
-                            <li key={c.id} className="rounded-lg border p-4 flex flex-wrap items-center justify-between gap-3">
-                              <div>
-                                <p className="font-medium">{c.patient_name}</p>
+                            <Card key={c.id} className="overflow-hidden border-border/50">
+                              <CardHeader className="bg-muted/30 pb-3 flex flex-row items-start justify-between">
+                                <div>
+                                  <CardTitle className="text-base">{c.patient_name}</CardTitle>
                                 <p className="text-sm text-muted-foreground">
                                   {c.scheduled_at ? format(new Date(c.scheduled_at), "MMM d, yyyy · h:mm a") : `Requested ${format(new Date(c.created_at), "MMM d")}`}
                                   {c.triage_level && (
@@ -711,11 +745,12 @@ const Consultations = () => {
                                 </Button>
                                 <Badge variant="outline">{c.status}</Badge>
                               </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
+                            </CardHeader>
+                          </Card>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                   )}
                 </>
               ) : loadingConsultations ? (
@@ -735,7 +770,7 @@ const Consultations = () => {
                     <p className="text-muted-foreground mb-6">
                       You haven't booked any consultations yet. Book your first appointment above or use the Symptom Checker to request one after triage.
                     </p>
-                    <Button onClick={() => document.querySelector('[value="book"]')?.click()}>
+                    <Button onClick={() => setActiveTab('book')}>
                       Book Now
                     </Button>
                   </CardContent>

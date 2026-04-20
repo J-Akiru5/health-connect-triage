@@ -133,7 +133,7 @@ export default function BHWActivities() {
         {
           id: "",
           patient_name: patients.find((p) => p.user_id === selectedPatientId)?.full_name ?? "Patient",
-          activity_type,
+          activity_type: activityType,
           notes: notes || null,
           created_at: new Date().toISOString(),
         },

@@ -18,6 +18,7 @@ import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
+import { handleMissingNotificationsTable } from "@/lib/notifications";
 import { format } from "date-fns";
 
 export function Navigation() {
@@ -33,13 +34,27 @@ export function Navigation() {
   // Fetch notifications
   useEffect(() => {
     if (!session?.user?.id) return;
+    let notificationsUnavailable = false;
+
     const fetchNotifs = async () => {
-      const { data } = await supabase
+      if (notificationsUnavailable) return;
+
+      const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false })
         .limit(3);
+
+      if (error) {
+        if (handleMissingNotificationsTable(error)) {
+          notificationsUnavailable = true;
+          setLatestNotifs([]);
+          setUnreadCount(0);
+        }
+        return;
+      }
+
       if (data) {
         setLatestNotifs(data);
         setUnreadCount(data.filter((n) => !n.read_at).length); // local count of recent

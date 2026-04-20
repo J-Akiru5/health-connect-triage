@@ -7,7 +7,7 @@ import { useRef, useState } from "react";
 const stagger = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
-};
+} as const;
 
 const cardVariant = {
   hidden: { opacity: 0, y: 50, scale: 0.95 },
@@ -15,7 +15,7 @@ const cardVariant = {
     opacity: 1, y: 0, scale: 1,
     transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
   },
-};
+} as const;
 
 /* 3D tilt effect */
 function TiltCard({ children, className }: { children: React.ReactNode; className?: string }) {

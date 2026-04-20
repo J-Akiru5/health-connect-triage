@@ -223,7 +223,7 @@ export default function Login() {
                             <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                               {t("auth.password")}
                             </FormLabel>
-                            <Link to="/forgot-password" size="sm" className="text-xs font-bold text-primary/70 hover:text-primary transition-colors uppercase tracking-widest">
+                            <Link to="/forgot-password" className="text-xs font-bold text-primary/70 hover:text-primary transition-colors uppercase tracking-widest">
                               {t("auth.forgotPassword")}
                             </Link>
                           </div>

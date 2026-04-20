@@ -14,11 +14,14 @@ import {
   MapPin,
   Clock
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SITE_BARANGAY } from "@/lib/site";
 import { AppLogoMark } from "@/components/AppLogoMark";
+import { ArrowLeft } from "lucide-react";
 
 const About = () => {
+  const navigate = useNavigate();
+
   const values = [
     {
       icon: Heart,
@@ -64,7 +67,17 @@ const About = () => {
         </div>
         
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center space-y-8">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="absolute left-4 top-0 md:left-8 gap-2 bg-background/50 hover:bg-background/80 backdrop-blur-sm z-10" 
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+
+          <div className="max-w-4xl mx-auto text-center space-y-8 mt-12 md:mt-0">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-primary/20">
               <AppLogoMark className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-secondary-foreground">

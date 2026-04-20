@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { handleMissingNotificationsTable } from "@/lib/notifications";
 import {
   Stethoscope,
   ClipboardList,
@@ -153,8 +154,8 @@ export default function Dashboard() {
         .from("symptom_assessments").select("id").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
       if (assessments?.[0]) {
         const { data: tr } = await supabase
-          .from("ai_triage_results").select("triage_level, created_at").eq("assessment_id", assessments[0].id).single();
-        setLatestTriage(tr);
+          .from("ai_triage_results").select("triage_level, created_at").eq("assessment_id", assessments[0].id).maybeSingle();
+        if (tr) setLatestTriage(tr as { triage_level: string | null; created_at: string });
       }
 
       const { data: consult } = await supabase
@@ -163,8 +164,12 @@ export default function Dashboard() {
         .order("scheduled_at", { ascending: true }).limit(1);
       setNextConsult(consult?.[0] ?? null);
 
-      const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
-      setPatientUnread(count ?? 0);
+      const { count, error } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
+      if (error && handleMissingNotificationsTable(error)) {
+        setPatientUnread(0);
+      } else {
+        setPatientUnread(count ?? 0);
+      }
       setPatientLoading(false);
     })();
   }, [user?.id, isPatient, authLoading]);
@@ -197,12 +202,18 @@ export default function Dashboard() {
         })));
       }
 
-      const [{ count: unread }, { count: referrals }, { data: pData }] = await Promise.all([
+      const [{ count: unread, error: nError }, { count: referrals }, { data: pData }] = await Promise.all([
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
         supabase.from("referrals").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single(),
       ]);
-      setUnreadNotifications(unread ?? 0);
+
+      if (nError && handleMissingNotificationsTable(nError)) {
+        setUnreadNotifications(0);
+      } else {
+        setUnreadNotifications(unread ?? 0);
+      }
+      
       setClinicianReferrals(referrals ?? 0);
       setClinicianBarangay((pData as any)?.assigned_barangay_name ?? null);
       setClinicianLoading(false);
@@ -231,8 +242,12 @@ export default function Dashboard() {
           setBhwHighRiskCount(count ?? 0);
         }
       }
-      const { count: unread } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
-      setUnreadNotifications(unread ?? 0);
+      const { count: unread, error: nError } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
+      if (nError && handleMissingNotificationsTable(nError)) {
+        setUnreadNotifications(0);
+      } else {
+        setUnreadNotifications(unread ?? 0);
+      }
       setBhwLoading(false);
     })();
   }, [user?.id, isBhw, authLoading]);
@@ -337,7 +352,7 @@ export default function Dashboard() {
 
               {/* Patient Queue */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="col-span-12 lg:col-span-8">
-                <Card className="border-border/60 h-full">
+                < Card className="border-border/60 h-full">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div>

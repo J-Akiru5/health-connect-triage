@@ -1,16 +1,23 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ShieldAlert, UserCheck, Mail } from "lucide-react";
-import { Link } from "react-router-dom";
+import { FileText, ShieldAlert, UserCheck, Mail, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { SITE_BARANGAY } from "@/lib/site";
+import { Button } from "@/components/ui/button";
 
 export default function Terms() {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
       <main className="container mx-auto px-4 pt-20 pb-14 flex-1 max-w-5xl">
         <div className="mb-6 mx-auto">
+          <Button variant="ghost" size="sm" className="mb-4 -ml-3 gap-2" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
             Terms of Service
           </h1>

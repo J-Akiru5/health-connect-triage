@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { motion } from "framer-motion";
 
-export function Footer() {
+export function Footer({ className }: { className?: string }) {
   const { t } = useTranslation();
 
   const handleScrollTo = (id: string) => {
@@ -16,7 +16,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="bg-foreground text-primary-foreground relative overflow-hidden noise-overlay">
+    <footer className={`bg-foreground text-primary-foreground relative overflow-hidden noise-overlay ${className || ""}`}>
       {/* Decorative top border */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
       

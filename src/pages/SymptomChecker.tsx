@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,12 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { symptomCategories, EMERGENCY_SYMPTOM_IDS, resolveSymptomLabel } from "@/lib/symptomCategories";
-import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, Loader2 } from "lucide-react";
+import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, Loader2, Activity, CheckCircle2 } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { parseISO, format } from "date-fns";
 
@@ -555,512 +557,325 @@ export default function SymptomChecker() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
       
-      <main className="flex-1 pt-20 pb-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
-          {/* Progress */}
-          <div className="mb-8">
-            <div className="flex justify-between text-sm text-muted-foreground mb-2">
-              <span>Step {step} of {totalSteps}</span>
-              <span>{Math.round(progress)}% complete</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-
-          {savedAssessmentId && (
-            <div className="mb-6 rounded-lg border border-border bg-background p-4">
-              <p className="text-sm text-muted-foreground">
-                <strong>Reference number:</strong>{" "}
-                <span className="font-mono">{savedAssessmentId}</span>
-              </p>
-              {!user && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Create an account to link this assessment to your profile.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Step 1: Basic Info */}
-          {step === 1 && (
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                  <User className="w-6 h-6 text-primary" />
-                </div>
-                <CardTitle className="text-2xl">Report Symptoms</CardTitle>
-                <div className="space-y-1.5">
-                  <p className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
-                    Date:{" "}
-                    {new Date().toLocaleDateString("en-CA", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    This helps us provide accurate triage.
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-foreground">
-                    Patient name (Pangalan) <span className="text-destructive">*</span>
-                  </p>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="surname">
-                        Surname (Apelyido) <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="surname"
-                        type="text"
-                        autoComplete="family-name"
-                        className="rounded-xl h-12"
-                        value={patientInfo.surname}
-                        onChange={(e) => setPatientInfo({ ...patientInfo, surname: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">
-                        First name (Pangalan) <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="firstName"
-                        type="text"
-                        autoComplete="given-name"
-                        className="rounded-xl h-12"
-                        value={patientInfo.firstName}
-                        onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="middleInitial">Middle initial (Gitnang letra)</Label>
-                      <Input
-                        id="middleInitial"
-                        type="text"
-                        maxLength={4}
-                        className="rounded-xl h-12 uppercase"
-                        value={patientInfo.middleInitial}
-                        onChange={(e) =>
-                          setPatientInfo({ ...patientInfo, middleInitial: e.target.value.toUpperCase() })
-                        }
-                      />
-                    </div>
+      <main className="flex-1 pt-24 pb-20">
+        <div className="container mx-auto px-4 lg:px-8 max-w-[1400px]">
+          <div className="grid lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Left: Sticky Sidebar (Status/Progress) */}
+            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+              <Card className="overflow-hidden border-border/50">
+                <CardHeader className="bg-muted/30 pb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-primary uppercase tracking-wider">Assessment Progress</span>
+                    <Badge variant="outline" className="bg-background">{Math.round(progress)}%</Badge>
                   </div>
-                </div>
-                <div className="space-y-2 flex flex-col">
-                  <Label htmlFor="birthday">
-                    Birthday (Kaarawan) <span className="text-destructive">*</span>
-                  </Label>
-                  <DatePicker
-                    date={patientInfo.birthday ? parseISO(patientInfo.birthday) : undefined}
-                    setDate={(date) => setPatientInfo({ ...patientInfo, birthday: date ? format(date, "yyyy-MM-dd") : "" })}
-                    placeholder="Select birthday"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Age will be calculated automatically from your birthday.
-                  </p>
-                </div>
-                <div className="space-y-4 rounded-lg border border-border p-4">
-                  <div className="space-y-2">
-                    <Label>
-                      Gender (Kasarian) <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(
-                        [
-                          { value: "female" as const, label: "Female" },
-                          { value: "male" as const, label: "Male" },
-                          { value: "other" as const, label: "Other" },
-                        ] as const
-                      ).map(({ value, label }) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setPatientInfo({ ...patientInfo, gender: value })}
-                          className={`h-10 rounded-xl border text-sm font-medium transition-all ${
-                            patientInfo.gender === value
-                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                              : "border-border hover:border-primary/50 text-foreground bg-background"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-base font-medium text-muted-foreground">Measurements (optional)</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm">BP (mmHg)</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Input
-                          type="number"
-                          placeholder="120"
-                          className="rounded-xl h-12"
-                          value={patientInfo.bpSystolic}
-                          onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })}
-                        />
-                        <span className="text-muted-foreground text-base">/</span>
-                        <Input
-                          type="number"
-                          placeholder="80"
-                          className="rounded-xl h-12"
-                          value={patientInfo.bpDiastolic}
-                          onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm">HR (bpm)</Label>
-                      <Input
-                        type="number"
-                        placeholder="72"
-                        className="rounded-xl h-12 mt-1"
-                        value={patientInfo.hr}
-                        onChange={(e) => setPatientInfo({ ...patientInfo, hr: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm">Temp (°C)</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        placeholder="36.5"
-                        className="rounded-xl h-12 mt-1"
-                        value={patientInfo.tempC}
-                        onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="notes">
-                    Additional notes{" "}
-                    <span className="font-normal text-muted-foreground">
-                      (optional — when symptoms started, medications you take, allergies, or other helpful details)
-                    </span>
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    If you selected joint or muscle pain, you can add exact side and location here (e.g. left knee, front of thigh).
-                  </p>
-                  <Textarea
-                    id="notes"
-                    rows={2}
-                    className="rounded-xl resize-none"
-                    placeholder="E.g. started 2 days ago; taking paracetamol; no known drug allergies…"
-                    value={patientInfo.notes}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })}
-                  />
-                </div>
-                {validationMessage && (
-                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
-                    {validationMessage}
-                  </p>
-                )}
-                <Button onClick={handleNext} size="lg" className="w-full">
-                  Continue
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 2: Symptoms */}
-          {step === 2 && (
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                  <Stethoscope className="w-6 h-6 text-primary" />
-                </div>
-                <CardTitle className="text-2xl">What symptoms are you experiencing?</CardTitle>
-                <CardDescription className="text-base md:text-lg leading-relaxed">
-                  Select all that apply. For each symptom, choose how long it has lasted and how severe it feels.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {symptomCategories.map((category) => (
-                  <div key={category.name} className="space-y-3">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{category.name}</h3>
-                      {category.description ? (
-                        <p className="text-sm text-muted-foreground mt-1 leading-snug">{category.description}</p>
-                      ) : null}
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {category.symptoms.map((symptom) => {
-                        const checked = selectedSymptoms.includes(symptom.id);
-                        return (
-                          <div
-                            key={symptom.id}
-                            className={`rounded-lg border p-3 transition-all ${
-                              checked ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <label className="flex items-center gap-3 cursor-pointer">
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={() => toggleSymptom(symptom.id)}
-                              />
-                              <span className="text-sm font-medium text-foreground">{symptom.label}</span>
-                            </label>
-                            {checked && (
-                              <div className="mt-3 pt-3 border-t border-border/70 space-y-3">
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs text-muted-foreground">
-                                    How long has this lasted? <span className="text-destructive">*</span>
-                                  </Label>
-                                  <Select
-                                    value={symptomDetails[symptom.id]?.duration ?? ""}
-                                    onValueChange={(val) =>
-                                      setSymptomDetailField(
-                                        symptom.id,
-                                        "duration",
-                                        val as SymptomDurationValue
-                                      )
-                                    }
-                                  >
-                                    <SelectTrigger className="rounded-xl h-10">
-                                      <SelectValue placeholder="Select duration" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {DURATION_OPTIONS.filter(o => o.value !== "").map((o) => (
-                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs text-muted-foreground">How severe is it?</Label>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    {(["mild", "moderate", "severe"] as const).map((s) => (
-                                      <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() => setSymptomDetailField(symptom.id, "severity", s)}
-                                        className={`h-9 rounded-xl border text-xs font-medium capitalize transition-all ${
-                                          (symptomDetails[symptom.id]?.severity ?? "moderate") === s
-                                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                                            : "border-border hover:border-primary/50 text-foreground bg-background"
-                                        }`}
-                                      >
-                                        {s}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-
-                {validationMessage && (
-                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
-                    {validationMessage}
-                  </p>
-                )}
-                <div className="flex gap-3 pt-4">
-                  <Button onClick={handleBack} variant="outline" size="lg">
-                    <ArrowLeft className="w-4 h-4" />
-                    Back
-                  </Button>
-                  <Button onClick={handleNext} size="lg" className="flex-1" disabled={!isStep2Valid}>
-                    Continue
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Risk Factors */}
-          {step === 3 && (
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                  <Calendar className="w-6 h-6 text-primary" />
-                </div>
-                <CardTitle className="text-2xl">Do any of these apply to you?</CardTitle>
-                <CardDescription className="text-base md:text-lg leading-relaxed">
-                  Risk factors help us better assess your condition. Select all that apply.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {riskFactors.map((factor) => (
-                    <label
-                      key={factor.id}
-                      className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
-                        selectedRiskFactors.includes(factor.id)
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <Checkbox
-                        checked={selectedRiskFactors.includes(factor.id)}
-                        onCheckedChange={() => toggleRiskFactor(factor.id)}
-                      />
-                      <span className="text-sm">{factor.label}</span>
-                    </label>
-                  ))}
-                </div>
-
-                {validationMessage && (
-                  <p className="text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
-                    {validationMessage}
-                  </p>
-                )}
-                <div className="flex gap-3 pt-4">
-                  <Button onClick={handleBack} variant="outline" size="lg">
-                    <ArrowLeft className="w-4 h-4" />
-                    Back
-                  </Button>
-                  <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1" disabled={!isStep2Valid}>
-                    Get Triage Result
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 4: Results */}
-          {step === 4 && triageResult && (
-            <div className="animate-fade-in space-y-6">
-              <Card className={`border-2 ${triageResults[triageResult].borderColor}`}>
-                <CardHeader className={`${triageResults[triageResult].bgColor} text-primary-foreground`}>
-                  <div className="flex items-center gap-3">
-                    {(() => {
-                      const Icon = triageResults[triageResult].icon;
-                      return <Icon className="w-8 h-8" />;
-                    })()}
-                    <CardTitle className="text-2xl">AI Triage Result</CardTitle>
-                  </div>
+                  <Progress value={progress} className="h-2" />
                 </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 rounded-lg bg-muted">
-                      <p className="text-sm text-muted-foreground">Risk Score</p>
-                      <p className="text-2xl font-bold text-foreground">{getRiskScore(triageResult)} / 100</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted">
-                      <p className="text-sm text-muted-foreground">Triage Level</p>
-                      <p className="text-2xl font-bold text-foreground">{getTriageLevelLabel(triageResult)}</p>
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-secondary">
-                    <h4 className="font-semibold text-foreground mb-2">Recommended Action</h4>
-                    <p className="text-foreground">→ {triageResults[triageResult].action}</p>
-                    {triageResult === "urgent" && <p className="text-foreground mt-1">→ Contact BHW for Assistance</p>}
-                    {triageReasonLine ? (
-                      <p className="text-sm text-muted-foreground mt-3 leading-relaxed border-t border-border/60 pt-3">
-                        <span className="font-medium text-foreground">Why this result: </span>
-                        {triageReasonLine}
-                      </p>
-                    ) : null}
-                  </div>
-                  {selectedSymptoms.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-foreground mb-2">Symptom Summary</h4>
-                      <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-sm">
-                        {selectedSymptoms.map((id) => {
-                          const label = resolveSymptomLabel(id);
-                          const det = symptomDetails[id];
-                          return (
-                            <li key={id}>
-                              <span className="text-foreground font-medium">{label}</span>
-                              {" — "}
-                              {det?.duration ? formatDurationLabel(det.duration) : "—"}
-                              {", "}
-                              <span className="capitalize">{det?.severity ?? "moderate"}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-                  <p className="text-foreground">
-                    {triageResults[triageResult].description}
-                  </p>
-
-                  <div className="p-4 rounded-lg border border-border">
-                    <h4 className="font-semibold text-foreground mb-2">Contact Information</h4>
-                    <p className="text-primary font-medium">
-                      {triageResults[triageResult].contact}
-                    </p>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="space-y-3">
+                    {([
+                      { s: 1, label: "Basic Information", icon: User },
+                      { s: 2, label: "Symptom Selection", icon: Stethoscope },
+                      { s: 3, label: "Risk Factors", icon: Calendar },
+                      { s: 4, label: "Triage Result", icon: Activity },
+                    ] as const).map((item) => (
+                      <div key={item.s} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${step === item.s ? "bg-primary/10 text-primary" : "text-muted-foreground opacity-60"}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${step === item.s ? "border-primary bg-primary/20" : "border-muted"}`}>
+                          <item.icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-medium">{item.label}</span>
+                        {step > item.s && <CheckCircle2 className="w-4 h-4 ml-auto text-green-500" />}
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="bg-muted rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground">
-                      <strong>Disclaimer:</strong> This AI-assisted triage is for guidance only and does not replace professional medical diagnosis. Always consult a healthcare provider for proper evaluation.
-                    </p>
-                  </div>
-                  {saving && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving your assessment…
-                    </p>
+                  {savedAssessmentId && (
+                    <div className="pt-4 border-t border-border/60">
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Reference ID</p>
+                      <p className="text-xs font-mono bg-muted p-2 rounded text-foreground break-all">{savedAssessmentId}</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
 
-              <div className="flex flex-wrap gap-3">
-                {isPatient && user ? (
-                  <Button
-                    size="lg"
-                    className="flex-1 min-w-[180px]"
-                    onClick={handleRequestTeleconsultation}
-                    disabled={requestingConsult || !savedAssessmentId}
-                  >
-                    {requestingConsult ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Requesting…
-                      </>
-                    ) : (
-                      "Request Teleconsultation"
-                    )}
-                  </Button>
-                ) : (
-                  <Button size="lg" className="flex-1 min-w-[180px]" asChild>
-                    <Link to="/consultations">Request Teleconsultation</Link>
-                  </Button>
-                )}
-                <Button variant="outline" size="lg" asChild>
-                  <Link to={user ? "/dashboard" : "/"}>Back to Dashboard</Link>
-                </Button>
+              {/* Dynamic Emergency Tip */}
+              <div className="p-5 rounded-2xl bg-destructive/5 border border-destructive/10 space-y-3">
+                <div className="flex items-center gap-3 text-destructive">
+                  <AlertTriangle className="w-5 h-5 pulse-ring" />
+                  <span className="font-bold">Emergency Warning</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  If you experience sudden chest pain, severe difficulty breathing, or loss of consciousness, skip this report and seek immediate medical attention at the nearest Emergency Room.
+                </p>
               </div>
             </div>
-          )}
 
-          {step === 4 && !triageResult && (
-            <Card className="animate-fade-in">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Stethoscope className="w-8 h-8 text-muted-foreground" />
+            {/* Right: Main Form Content */}
+            <div className="lg:col-span-8">
+              {/* Step 1: Basic Info */}
+              {step === 1 && (
+                <Card className="animate-fade-in border-border/50 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between mb-2">
+                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <User className="w-6 h-6 text-primary" />
+                      </div>
+                      <Badge variant="outline" className="text-xs py-1">
+                        {new Date().toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-2xl font-bold">Patient Information</CardTitle>
+                    <CardDescription>We need these details to ensure your assessment reaches the right medical records.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-8">
+                    <div className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="surname" className="text-sm font-semibold">Surname (Apelyido) <span className="text-destructive">*</span></Label>
+                          <Input id="surname" className="rounded-xl h-11 bg-muted/20" value={patientInfo.surname} onChange={(e) => setPatientInfo({ ...patientInfo, surname: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName" className="text-sm font-semibold">First Name (Pangalan) <span className="text-destructive">*</span></Label>
+                          <Input id="firstName" className="rounded-xl h-11 bg-muted/20" value={patientInfo.firstName} onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="middleInitial" className="text-sm font-semibold">M.I.</Label>
+                          <Input id="middleInitial" maxLength={4} className="rounded-xl h-11 bg-muted/20 uppercase" value={patientInfo.middleInitial} onChange={(e) => setPatientInfo({ ...patientInfo, middleInitial: e.target.value.toUpperCase() })} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8 items-start">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">Birth Details <span className="text-destructive">*</span></Label>
+                        <DatePicker
+                          date={patientInfo.birthday ? parseISO(patientInfo.birthday) : undefined}
+                          setDate={(date) => setPatientInfo({ ...patientInfo, birthday: date ? format(date, "yyyy-MM-dd") : "" })}
+                        />
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium">Age is calculated automatically</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">Biological Sex <span className="text-destructive">*</span></Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {([{ v: "female", l: "Female" }, { v: "male", l: "Male" }, { v: "other", l: "Other" }] as const).map((g) => (
+                            <button key={g.v} type="button" onClick={() => setPatientInfo({ ...patientInfo, gender: g.v })} className={`h-11 rounded-xl border text-xs font-semibold uppercase transition-all ${patientInfo.gender === g.v ? "bg-primary text-primary-foreground border-primary shadow-lg ring-2 ring-primary/20" : "bg-muted/10 hover:bg-muted/20"}`}>{g.l}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-border/50">
+                      <Label className="text-sm font-semibold mb-3 block">Measurements (Optional Vitals)</Label>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-1.5 col-span-2">
+                          <Label className="text-[11px] uppercase text-muted-foreground font-bold">Blood Pressure (SYS/DIA)</Label>
+                          <div className="flex gap-2">
+                            <Input placeholder="120" className="rounded-xl h-10" value={patientInfo.bpSystolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })} />
+                            <span className="self-center">/</span>
+                            <Input placeholder="80" className="rounded-xl h-10" value={patientInfo.bpDiastolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[11px] uppercase text-muted-foreground font-bold">Temp (°C)</Label>
+                          <Input step="0.1" placeholder="36.5" className="rounded-xl h-10" value={patientInfo.tempC} onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-4">
+                      <Label htmlFor="notes" className="text-sm font-semibold">Additional Context</Label>
+                      <Textarea id="notes" rows={3} className="rounded-2xl bg-muted/20 resize-none" placeholder="Medications, allergies, or when it started..." value={patientInfo.notes} onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })} />
+                    </div>
+
+                    {validationMessage && <p className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">{validationMessage}</p>}
+
+                    <div className="pt-4">
+                      <Button onClick={handleNext} size="lg" className="h-14 w-full rounded-2xl text-base font-bold shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">Continue to Symptoms <ArrowRight className="w-5 h-5 ml-2" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Step 2: Symptoms */}
+              {step === 2 && (
+                <Card className="animate-fade-in border-border/50">
+                  <CardHeader>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Stethoscope className="w-6 h-6 text-primary" />
+                      </div>
+                      <Badge className="bg-primary/20 text-primary hover:bg-primary/20 border-primary/20">{selectedSymptoms.length} Selected</Badge>
+                    </div>
+                    <CardTitle className="text-2xl font-bold">Describe Symptoms</CardTitle>
+                    <CardDescription>Select all categories that apply to how you feel.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-10">
+                    {symptomCategories.map((category) => (
+                      <div key={category.name} className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-1 bg-primary rounded-full" />
+                          <h3 className="font-bold text-lg text-foreground">{category.name}</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                          {category.symptoms.map((symptom) => {
+                            const checked = selectedSymptoms.includes(symptom.id);
+                            return (
+                              <div key={symptom.id} className={`group rounded-xl border-2 p-3 transition-all duration-300 ${checked ? "border-primary bg-primary/[0.03] shadow-md ring-2 ring-primary/10" : "border-border hover:border-primary/30"}`}>
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                  <Checkbox checked={checked} onCheckedChange={() => toggleSymptom(symptom.id)} className="mt-1 h-4 w-4 rounded-md shrink-0" />
+                                  <div className="space-y-3 w-full">
+                                    <span className="font-bold text-sm text-foreground leading-tight">{symptom.label}</span>
+                                    {checked && (
+                                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="pt-3 border-t border-border/80 space-y-4">
+                                        <div className="space-y-2">
+                                          <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Duration</Label>
+                                          <Select value={symptomDetails[symptom.id]?.duration ?? ""} onValueChange={(val) => setSymptomDetailField(symptom.id, "duration", val as SymptomDurationValue)}>
+                                            <SelectTrigger className="rounded-xl h-10 bg-background border-border/60"><SelectValue placeholder="How long?" /></SelectTrigger>
+                                            <SelectContent className="rounded-xl">{DURATION_OPTIONS.filter(o => o.value !== "").map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}</SelectContent>
+                                          </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Activity className="w-3 h-3" /> Severity</Label>
+                                          <div className="grid grid-cols-3 gap-2">
+                                            {(["mild", "moderate", "severe"] as const).map((s) => (
+                                              <button key={s} type="button" onClick={() => setSymptomDetailField(symptom.id, "severity", s)} className={`h-9 rounded-xl border text-[10px] font-bold uppercase transition-all ${ (symptomDetails[symptom.id]?.severity ?? "moderate") === s ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted/10 border-border/60"}`}>{s}</button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </div>
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="sticky bottom-4 left-0 right-0 z-10 pt-6">
+                      <div className="glass-card shadow-2xl p-4 rounded-3xl flex gap-3 border-primary/20">
+                        <Button onClick={handleBack} variant="outline" size="lg" className="rounded-2xl px-8 h-14 border-2 font-bold text-base hover:bg-muted/10"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
+                        <Button onClick={handleNext} size="lg" className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/20" disabled={!isStep2Valid}>Continue Assessment <ArrowRight className="w-5 h-5 ml-2" /></Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Step 3: Risk Factors */}
+              {step === 3 && (
+                <Card className="animate-fade-in border-border/50">
+                  <CardHeader>
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+                      <Calendar className="w-6 h-6 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold">Health Context & Risks</CardTitle>
+                    <CardDescription>Select any pre-existing conditions or life factors that apply.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {riskFactors.map((factor) => (
+                        <label key={factor.id} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedRiskFactors.includes(factor.id) ? "border-primary bg-primary/[0.03] shadow-md ring-2 ring-primary/10" : "border-border hover:border-primary/40"}`}>
+                          <Checkbox checked={selectedRiskFactors.includes(factor.id)} onCheckedChange={() => toggleRiskFactor(factor.id)} className="h-5 w-5 rounded-md shrink-0" />
+                          <span className="font-bold text-sm text-foreground leading-tight">{factor.label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="pt-6 flex gap-3">
+                      <Button onClick={handleBack} variant="outline" size="lg" className="rounded-2xl h-14 px-8 border-2 font-bold text-base"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
+                      <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl">Analyze My Health <ArrowRight className="w-5 h-5 ml-2" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Step 4: Results */}
+              {step === 4 && triageResult && (
+                <div className="animate-fade-in space-y-6">
+                  <Card className={`border-4 overflow-hidden ${triageResults[triageResult].borderColor} shadow-2xl rounded-3xl`}>
+                    <CardHeader className={`${triageResults[triageResult].bgColor} text-primary-foreground p-8`}>
+                      <div className="flex items-center gap-4">
+                        {(() => { const Icon = triageResults[triageResult].icon; return <Icon className="w-12 h-12" />; })()}
+                        <div>
+                          <CardTitle className="text-3xl font-black uppercase tracking-tight">Triage Status: {getTriageLevelLabel(triageResult)}</CardTitle>
+                          <p className="opacity-90 font-medium">AI-Assisted Assessment Complete</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-8 space-y-8">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="p-5 rounded-3xl bg-muted/40 border border-border/50 text-center">
+                          <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-1">Health Priority Score</p>
+                          <p className="text-4xl font-black text-foreground">{getRiskScore(triageResult)}</p>
+                        </div>
+                        <div className="p-5 rounded-3xl bg-muted/40 border border-border/50 text-center flex flex-col justify-center">
+                           <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-2">Category</p>
+                           <Badge className="mx-auto h-7 px-4 rounded-full font-bold uppercase">{triageResult}</Badge>
+                        </div>
+                      </div>
+
+                      <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 shadow-inner">
+                        <h4 className="font-black uppercase text-xs tracking-widest text-primary mb-3">Protocol: Recommended Actions</h4>
+                        <div className="space-y-4">
+                          <p className="text-lg font-bold text-foreground leading-tight">1. {triageResults[triageResult].action}</p>
+                          {triageResult === "urgent" && <p className="text-lg font-bold text-foreground leading-tight">2. Notify Health Center BHW immediately</p>}
+                        </div>
+                        {triageReasonLine && (
+                          <div className="mt-6 pt-4 border-t border-primary/10 italic text-sm text-muted-foreground leading-relaxed">
+                            <span className="font-bold text-foreground not-italic">Clinical Logic: </span>
+                            {triageReasonLine}
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedSymptoms.length > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground">Symptom Summary</h4>
+                          <div className="grid sm:grid-cols-2 gap-3">
+                            {selectedSymptoms.map((id) => {
+                              const label = resolveSymptomLabel(id);
+                              const det = symptomDetails[id];
+                              return (
+                                <div key={id} className="p-3 rounded-xl bg-muted/20 border border-border/50 flex justify-between items-center">
+                                  <span className="font-bold text-sm">{label}</span>
+                                  <Badge variant="outline" className="text-[10px] font-bold">{det?.severity || "moderate"}</Badge>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-6 rounded-2xl border-2 border-dashed border-border/60 bg-muted/10">
+                        <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground mb-2">Facility Contact</h4>
+                        <p className="text-xl font-black text-primary">{triageResults[triageResult].contact}</p>
+                      </div>
+
+                      <div className="bg-destructive/5 rounded-2xl p-4 border border-destructive/10">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          <strong>Medical Disclaimer:</strong> This automated guidance is for informational purposes for Barangay Health Centers. It does not replace a doctor&apos;s diagnosis. In cases of sudden severe symptoms, skip this and proceed to an ER.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex flex-wrap gap-4 pt-4">
+                    <Button size="lg" className="flex-1 h-14 rounded-2xl text-lg font-bold shadow-2xl shadow-primary/30" onClick={handleRequestTeleconsultation} disabled={requestingConsult || !savedAssessmentId}>
+                      {requestingConsult ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Requesting...</> : "Start Teleconsultation Now"}
+                    </Button>
+                    <Button variant="outline" size="lg" className="h-14 px-8 rounded-2xl font-bold border-2" asChild><Link to={user ? "/dashboard" : "/"}>Close Assessment</Link></Button>
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">No Symptoms Selected</h3>
-                <p className="text-muted-foreground mb-6">
-                  Please go back and select at least one symptom to receive a triage assessment.
-                </p>
-                <Button onClick={() => setStep(2)} size="lg">
-                  <ArrowLeft className="w-4 h-4" />
-                  Go Back to Symptoms
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </div>
+          </div>
         </div>
       </main>
 
       <Footer />
     </div>
   );
-}
+};
