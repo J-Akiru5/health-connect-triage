@@ -1,9 +1,12 @@
-import { AzureKeyCredential, OpenAIClient } from "@azure/openai";
+import { AzureOpenAI } from "openai";
+
+const DEFAULT_AZURE_OPENAI_API_VERSION = "2024-06-01";
 
 type AzureOpenAIEnv = {
   endpoint: string;
   apiKey: string;
   deploymentName: string;
+  apiVersion: string;
 };
 
 type ChatCompletionChoiceLike = {
@@ -20,6 +23,7 @@ export function getAzureOpenAIEnv(): AzureOpenAIEnv {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
   const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
   const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME?.trim();
+  const apiVersion = process.env.OPENAI_API_VERSION?.trim() || process.env.AZURE_OPENAI_API_VERSION?.trim() || DEFAULT_AZURE_OPENAI_API_VERSION;
 
   if (!endpoint) {
     throw new Error("Missing AZURE_OPENAI_ENDPOINT");
@@ -57,13 +61,19 @@ export function getAzureOpenAIEnv(): AzureOpenAIEnv {
     endpoint: normalizedEndpoint,
     apiKey,
     deploymentName,
+    apiVersion,
   };
 }
 
-export function createAzureOpenAIClient(): { client: OpenAIClient; deploymentName: string } {
+export function createAzureOpenAIClient(apiKey?: string): { client: AzureOpenAI; deploymentName: string } {
   const env = getAzureOpenAIEnv();
   return {
-    client: new OpenAIClient(env.endpoint, new AzureKeyCredential(env.apiKey)),
+    client: new AzureOpenAI({
+      endpoint: env.endpoint,
+      apiKey: apiKey?.trim() || env.apiKey,
+      deployment: env.deploymentName,
+      apiVersion: env.apiVersion,
+    }),
     deploymentName: env.deploymentName,
   };
 }

@@ -281,14 +281,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const { client, deploymentName } = createAzureOpenAIClient();
-    const response = await client.getChatCompletions(
-      deploymentName,
-      [
+    const response = await client.chat.completions.create({
+      model: deploymentName,
+      messages: [
         { role: "system", content: buildSystemPrompt() },
         { role: "user", content: buildUserPrompt(input) },
       ],
-      { temperature: 0.2, maxTokens: 600 }
-    );
+      temperature: 0.2,
+      max_tokens: 600,
+    });
 
     const rawText = extractAssistantText(response).trim();
     const parsed = rawText ? parseTriagePayload(rawText) : null;
