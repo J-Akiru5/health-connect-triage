@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -24,14 +22,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Pencil, UserX, UserCheck, KeyRound } from "lucide-react";
+import { Loader2, Plus, Pencil, KeyRound, Users } from "lucide-react";
 import type { UserRole } from "@/lib/database.types";
+import { FiltersBarSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type ProfileRow = {
   id: string;
   full_name: string | null;
   role: UserRole;
-  is_active: boolean | null;
   assigned_barangay_name: string | null;
   created_at: string;
 };
@@ -40,11 +38,16 @@ export default function AdminUsers() {
   const { user: currentUser } = useAuth();
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState<UserRole | "">("");
   const [editBarangayName, setEditBarangayName] = useState("");
   const [editFullName, setEditFullName] = useState("");
   const [saving, setSaving] = useState(false);
+
   const [resetRow, setResetRow] = useState<ProfileRow | null>(null);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSending, setResetSending] = useState(false);
@@ -53,22 +56,29 @@ export default function AdminUsers() {
   const load = async () => {
     const { data: profData } = await supabase
       .from("profiles")
-      .select("id, full_name, role, is_active, assigned_barangay_name, created_at")
+      .select("id, full_name, role, assigned_barangay_name, created_at")
       .order("created_at", { ascending: false });
 
-    const rows = (profData ?? []) as ProfileRow[];
-    setProfiles(
-      rows.map((r) => ({
-        ...r,
-        is_active: r.is_active ?? true,
-      }))
-    );
+    setProfiles((profData ?? []) as ProfileRow[]);
     setLoading(false);
   };
 
   useEffect(() => {
     load();
   }, []);
+
+  const filteredProfiles = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return profiles.filter((p) => {
+      const matchesSearch =
+        q.length === 0 ||
+        (p.full_name ?? "").toLowerCase().includes(q) ||
+        p.id.toLowerCase().includes(q) ||
+        (p.assigned_barangay_name ?? "").toLowerCase().includes(q);
+      const matchesRole = roleFilter === "all" || p.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [profiles, searchTerm, roleFilter]);
 
   function openEdit(p: ProfileRow) {
     setEditingId(p.id);
@@ -80,26 +90,34 @@ export default function AdminUsers() {
   async function saveEdit() {
     if (!editingId) return;
     setSaving(true);
+
     const { error } = await supabase
       .from("profiles")
       .update({
-        full_name: editFullName || null,
+        full_name: editFullName.trim() || null,
         role: editRole || undefined,
         assigned_barangay_name: editBarangayName.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", editingId);
+
     if (error) {
       console.error(error);
       setSaving(false);
       return;
     }
+
     await supabase.from("audit_logs").insert({
       user_id: currentUser?.id ?? null,
       action: "admin_update_profile",
       resource: "profiles",
-      details: { profile_id: editingId, role: editRole, assigned_barangay_name: editBarangayName.trim() || null },
+      details: {
+        profile_id: editingId,
+        role: editRole,
+        assigned_barangay_name: editBarangayName.trim() || null,
+      },
     });
+
     setEditingId(null);
     setSaving(false);
     load();
@@ -108,16 +126,19 @@ export default function AdminUsers() {
   async function handleResetPassword() {
     if (!resetRow || !resetEmail.trim()) return;
     setResetSending(true);
+
     try {
       await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
+
       await supabase.from("audit_logs").insert({
         user_id: currentUser?.id ?? null,
         action: "admin_password_reset",
         resource: "profiles",
         details: { profile_id: resetRow.id, email: resetEmail.trim() },
       });
+
       setResetSent(true);
     } catch (e) {
       console.error("Reset failed", e);
@@ -126,29 +147,12 @@ export default function AdminUsers() {
     }
   }
 
-  async function toggleActive(p: ProfileRow) {
-    if (p.id === currentUser?.id) return;
-    const next = !(p.is_active ?? true);
-    const { error } = await supabase.from("profiles").update({ is_active: next, updated_at: new Date().toISOString() }).eq("id", p.id);
-    if (error) {
-      console.error(error);
-      return;
-    }
-    await supabase.from("audit_logs").insert({
-      user_id: currentUser?.id ?? null,
-      action: next ? "admin_activate_user" : "admin_deactivate_user",
-      resource: "profiles",
-      details: { profile_id: p.id },
-    });
-    load();
-  }
-
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading users…
+        <div className="flex h-full min-h-[420px] w-full flex-col gap-5">
+          <FiltersBarSkeleton />
+          <TableRowsSkeleton rows={8} columns={4} />
         </div>
       </AdminLayout>
     );
@@ -156,73 +160,112 @@ export default function AdminUsers() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-            <p className="text-muted-foreground mt-1">
-              Create, update, or deactivate user accounts; assign roles and barangays.
+      <div className="flex flex-col h-full space-y-8 w-full mx-auto max-w-[1920px]">
+        <section className="flex flex-col md:flex-row md:items-end gap-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#800000]/10 border border-[#800000]/20 text-[#800000] text-xs font-bold tracking-widest uppercase mb-2">
+              <Users className="w-3.5 h-3.5" /> Platform Access Control
+            </div>
+            <h1 className="text-[28px] leading-tight font-bold tracking-tight text-foreground border-b-2 border-transparent">
+              User Management
+            </h1>
+            <p className="text-[14px] text-muted-foreground max-w-[700px] leading-relaxed">
+              Create, update, or revoke access credentials and assign RBAC roles and barangays.
             </p>
           </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add user
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add user</DialogTitle>
-                <DialogDescription>
-                  New users must sign up via the platform. After they sign up, assign their role and barangay here.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" asChild>
-                  <Link to="/signup">Open signup page</Link>
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All users</CardTitle>
-            <CardDescription>RBAC and barangay assignment; deactivate to revoke access.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+          <div className="md:ml-auto md:self-end">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="gap-2 bg-[#800000] hover:bg-[#5C0000] text-white rounded-lg shadow-sm hover:shadow-md transition-all px-4 py-2.5 h-auto text-[13px] font-semibold">
+                  <Plus className="h-4 w-4" strokeWidth={2} />
+                  Provision New Identity
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add user</DialogTitle>
+                  <DialogDescription>
+                    New users must sign up via the platform. After they sign up, assign role and barangay here.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" asChild>
+                    <Link to="/signup">Open signup page</Link>
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </section>
+
+        <section className="flex-1 min-h-[350px] bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col relative z-10">
+          <div className="border-b border-border/60 p-4 md:p-5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search name, user ID, or barangay..."
+              />
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="clinician">Clinician</SelectItem>
+                  <SelectItem value="bhw">BHW</SelectItem>
+                  <SelectItem value="patient">Patient</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto bg-card p-0">
+            <table className="w-full text-left border-collapse border-0">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40">
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
+                    Operator Name
+                  </th>
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
+                    Access Level (RBAC)
+                  </th>
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
+                    Assigned Sector
+                  </th>
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap text-right">
+                    Administrative Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProfiles.length === 0 ? (
                   <tr>
-                    <th className="text-left p-3 font-medium">Name</th>
-                    <th className="text-left p-3 font-medium">Role</th>
-                    <th className="text-left p-3 font-medium">Barangay</th>
-                    <th className="text-left p-3 font-medium">Status</th>
-                    <th className="text-right p-3 font-medium">Actions</th>
+                    <td colSpan={4} className="p-8 text-center text-muted-foreground">
+                      No matching users found.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {profiles.map((p) => (
-                    <tr key={p.id} className="border-t">
-                      <td className="p-3">
+                ) : (
+                  filteredProfiles.map((p) => (
+                    <tr key={p.id} className="hover:bg-muted/35 transition-colors group border-t border-border/60">
+                      <td className="py-3 px-6 text-[13px] font-medium text-foreground">
                         {editingId === p.id ? (
                           <Input
                             value={editFullName}
                             onChange={(e) => setEditFullName(e.target.value)}
                             placeholder="Full name"
-                            className="max-w-[180px]"
+                            className="max-w-[220px]"
                           />
                         ) : (
                           p.full_name ?? p.id.slice(0, 8)
                         )}
                       </td>
-                      <td className="p-3">
+                      <td className="py-3 px-6 text-[13px] font-medium text-foreground">
                         {editingId === p.id ? (
                           <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
-                            <SelectTrigger className="w-[140px]">
+                            <SelectTrigger className="w-[150px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -233,27 +276,25 @@ export default function AdminUsers() {
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Badge variant="secondary">{p.role}</Badge>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground uppercase tracking-wider border border-border">
+                            {p.role}
+                          </span>
                         )}
                       </td>
-                      <td className="p-3">
+                      <td className="py-3 px-6 text-[13px] font-medium text-foreground">
                         {editingId === p.id ? (
                           <Input
                             value={editBarangayName}
                             onChange={(e) => setEditBarangayName(e.target.value)}
                             placeholder="Barangay (optional)"
-                            className="w-[200px]"
+                            className="w-[220px]"
                           />
                         ) : (
-                          p.assigned_barangay_name ?? "—"
+                          p.assigned_barangay_name ?? "-"
                         )}
                       </td>
-                      <td className="p-3">
-                        <Badge variant={p.is_active !== false ? "default" : "secondary"}>
-                          {p.is_active !== false ? "Active" : "Inactive"}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-right">
+
+                      <td className="py-3 px-6 text-[13px]">
                         {editingId === p.id ? (
                           <div className="flex justify-end gap-2">
                             <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
@@ -282,40 +323,27 @@ export default function AdminUsers() {
                               <KeyRound className="h-3 w-3" />
                               Reset PW
                             </Button>
-                            {p.id !== currentUser?.id && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => toggleActive(p)}
-                                className="gap-1 text-muted-foreground hover:text-destructive"
-                              >
-                                {p.is_active !== false ? (
-                                  <>
-                                    <UserX className="h-3 w-3" />
-                                    Deactivate
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserCheck className="h-3 w-3" />
-                                    Activate
-                                  </>
-                                )}
-                              </Button>
-                            )}
                           </div>
                         )}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
 
-      {/* Reset Password Dialog */}
-      <Dialog open={!!resetRow} onOpenChange={(open) => { if (!open) { setResetRow(null); setResetSent(false); } }}>
+      <Dialog
+        open={!!resetRow}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetRow(null);
+            setResetSent(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Reset password</DialogTitle>
@@ -340,7 +368,13 @@ export default function AdminUsers() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setResetRow(null); setResetSent(false); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setResetRow(null);
+                setResetSent(false);
+              }}
+            >
               {resetSent ? "Close" : "Cancel"}
             </Button>
             {!resetSent && (

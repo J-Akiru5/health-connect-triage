@@ -22,6 +22,8 @@ import {
   UserCog,
   Video,
 } from "lucide-react";
+import { MetricCardsSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ClinicianVariant = "nurse" | "doctor";
 
@@ -188,9 +190,10 @@ export function ClinicianDashboard({ variant }: { variant: ClinicianVariant }) {
         </Card>
 
         {clinicianLoading ? (
-          <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading…
+          <div className="space-y-6 py-1">
+            <MetricCardsSkeleton count={3} />
+            <Skeleton className="h-14 w-full rounded-xl" />
+            <TableRowsSkeleton rows={6} columns={2} />
           </div>
         ) : highRisk.length > 0 ? (
           <Card className="mb-6 border-destructive/50 bg-destructive/5">

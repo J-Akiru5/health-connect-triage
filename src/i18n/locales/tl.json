@@ -16,12 +16,15 @@
     "signOut": "Mag-sign out"
   },
   "hero": {
-    "badge": "Telehealth para sa Barangay Abangay",
-    "headline": "Dekalidad na Pangangalagang Pangkalusugan,",
-    "headlineAccent": "Mas Malapit sa Tahanan",
-    "description": "Kumonekta sa mga tagapagbigay ng serbisyong pangkalusugan na naglilingkod sa Barangay Abangay. Ang gabay sa pagsusuri ng sintomas at opsyon sa telekonsulta ay makakatulong sa iyong sundin ang tamang hakbang para sa iyong kalusugan.",
-    "ctaPrimary": "Suriin ang Iyong mga Sintomas",
+    "badge": "Telehealth Network ng Barangay Abangay",
+    "headline": "Mas Mabilis na Triage.",
+    "headlineAccent": "Maaasahang Lokal na Pangangalaga.",
+    "description": "Alamin agad ang tamang susunod na hakbang sa kalusugan, at kumonekta sa tamang care team nang hindi umaalis sa komunidad.",
+    "offerLine": "Mula AI-assisted symptom triage hanggang telekonsultasyon at barangay follow-up, nasa iisang ligtas na workflow ang lahat.",
+    "ctaPrimary": "Simulan ang Symptom Check",
+    "ctaConsultation": "Mag-book ng Telekonsulta",
     "ctaSecondary": "Matuto Pa",
+    "ctaNote": "Para sa gabay at pag-prioritize lamang, hindi kapalit ng emergency care.",
     "stat1Value": "24/7",
     "stat1Label": "Bukas",
     "stat2Value": "<5min",
@@ -30,7 +33,14 @@
     "stat3Label": "Para sa mga Residente",
     "stat4Value": "BHW",
     "stat4Label": "Alalay sa Galing",
-    "liveStatus": "Online na Serbisyong Medikal"
+    "liveStatus": "Online na Serbisyong Medikal",
+    "workflowLabel": "Live Care Workflow",
+    "workflowPoint1": "Tinutulungan ng AI triage na matukoy ang antas ng pagkaapurahan sa loob ng ilang minuto.",
+    "workflowPoint2": "Iniuugnay ng telekonsultasyon ang mga residente sa tamang care team.",
+    "workflowPoint3": "Sinusuportahan ng role-based records ang ligtas na follow-up.",
+    "chip1": "May gabay na symptom check",
+    "chip2": "Handa sa telekonsulta",
+    "chip3": "Privacy-first na records"
   },
   "emergency": {
     "title": "Hindi maganda ang pakiramdam? Suriin ang iyong mga sintomas — hindi kailangan ng account.",

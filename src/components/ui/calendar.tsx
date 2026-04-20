@@ -86,7 +86,7 @@ function Calendar({
                     goToMonth(newMonth);
                   }}
                 >
-                  <SelectTrigger className="h-11 w-[140px] bg-primary/5 hover:bg-primary/10 border-primary/20 font-bold text-sm rounded-xl focus:ring-0 focus:ring-offset-0 transition-colors">
+                  <SelectTrigger className="h-11 w-[140px] bg-primary/5 hover:bg-primary/10 border-primary/20 font-bold text-sm rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass-card rounded-[1.5rem] border-border/40 p-2">
@@ -105,7 +105,7 @@ function Calendar({
                     goToMonth(newYear);
                   }}
                 >
-                  <SelectTrigger className="h-11 w-[100px] bg-primary/5 hover:bg-primary/10 border-primary/20 font-bold text-sm rounded-xl focus:ring-0 focus:ring-offset-0 transition-colors">
+                  <SelectTrigger className="h-11 w-[100px] bg-primary/5 hover:bg-primary/10 border-primary/20 font-bold text-sm rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass-card rounded-[1.5rem] border-border/40 p-2 max-h-[350px]">

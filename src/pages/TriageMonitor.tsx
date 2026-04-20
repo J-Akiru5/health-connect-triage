@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -388,9 +390,8 @@ export default function TriageMonitor() {
 
         {loading ? (
           <Card className="rounded-2xl border shadow-sm">
-            <CardContent className="py-16 flex items-center justify-center gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              <span className="text-muted-foreground">Loading…</span>
+            <CardContent className="py-4">
+              <TableRowsSkeleton rows={7} columns={5} />
             </CardContent>
           </Card>
         ) : rows.length === 0 ? (
@@ -596,9 +597,13 @@ export default function TriageMonitor() {
                 </DialogHeader>
                 <div className="py-4 space-y-4 text-sm">
                   {symptomLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Loading…
+                    <div className="space-y-3">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-12 w-full" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
                     </div>
                   ) : symptomDetail ? (
                     <>
@@ -614,7 +619,7 @@ export default function TriageMonitor() {
                           <p className="text-muted-foreground">None recorded.</p>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <p className="font-medium text-muted-foreground mb-1">Duration</p>
                           <p>{symptomDetail.duration ?? "—"}</p>
@@ -674,9 +679,9 @@ export default function TriageMonitor() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   {assignBHWLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Loading BHWs…
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-10 w-full" />
                     </div>
                   ) : assignBHWList.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No BHWs found for this patient's barangay.</p>

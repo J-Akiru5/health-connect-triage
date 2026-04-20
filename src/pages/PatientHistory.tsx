@@ -27,6 +27,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, FileText, Loader2, User, Stethoscope, MessageSquare, ArrowRightLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type VisitItem =
   | { type: "triage"; date: string; triageLevel: string; reportedBy: string | null; assessmentId: string }
@@ -269,9 +271,10 @@ export default function PatientHistory() {
 
         {loadingPatients ? (
           <Card>
-            <CardContent className="py-12 flex items-center justify-center gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              <span className="text-muted-foreground">Loading patients…</span>
+            <CardContent className="py-6 space-y-4">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-10 w-full" />
+              <TableRowsSkeleton rows={4} columns={2} />
             </CardContent>
           </Card>
         ) : patients.length === 0 ? (
@@ -321,9 +324,12 @@ export default function PatientHistory() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {loadingDetail ? (
-                    <div className="flex items-center justify-center py-8 gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                      <span className="text-muted-foreground">Loading…</span>
+                    <div className="space-y-4 py-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-10 w-40" />
                     </div>
                   ) : (
                     <>
@@ -363,7 +369,7 @@ export default function PatientHistory() {
                           <p className="text-sm text-muted-foreground">{medicalHistory.notes}</p>
                         </div>
                       )}
-                      <div className="pt-4 flex gap-3">
+                      <div className="pt-4 flex flex-col sm:flex-row gap-3">
                         <Button variant="outline" size="sm" onClick={openHistoryDialog}>
                           Add / Update history
                         </Button>

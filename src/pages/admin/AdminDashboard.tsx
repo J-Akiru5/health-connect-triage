@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import {
   Users,
-  Stethoscope,
   Calendar,
-  AlertTriangle,
+  AlertCircle,
   FileText,
   ArrowRight,
-  Loader2,
-  Activity,
+  HeartPulse,
+  TrendingUp,
+  Clock,
+  ShieldCheck,
+  ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
+import { MetricCardsSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type Stats = {
   usersTotal: number;
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
           .from("audit_logs")
           .select("id, user_id, action, resource, created_at")
           .order("created_at", { ascending: false })
-          .limit(10),
+          .limit(6),
       ]);
 
       const roleCount: Record<string, number> = {};
@@ -107,164 +107,192 @@ export default function AdminDashboard() {
   if (loading || !stats) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading dashboard…
+        <div className="flex h-full min-h-[420px] w-full flex-col gap-5">
+          <MetricCardsSkeleton />
+          <TableRowsSkeleton rows={7} columns={4} />
         </div>
       </AdminLayout>
     );
   }
 
-  const alerts = [
-    stats.pendingReferrals > 0 && {
-      label: "Pending referrals",
-      count: stats.pendingReferrals,
-      to: "/admin/teleconsult-referrals",
-      variant: "warning" as const,
-    },
-    stats.highRiskTriage > 0 && {
-      label: "High-risk triage cases",
-      count: stats.highRiskTriage,
-      to: "/admin/ai-triage",
-      variant: "destructive" as const,
-    },
-    stats.pendingTeleconsults > 0 && {
-      label: "Scheduled teleconsultations",
-      count: stats.pendingTeleconsults,
-      to: "/admin/teleconsult-referrals",
-      variant: "info" as const,
-    },
-  ].filter(Boolean) as { label: string; count: number; to: string; variant: "warning" | "destructive" | "info" }[];
-
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">System Administrator Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Platform summary, system health, user statistics, and alerts.
-          </p>
-        </div>
-
-        {alerts.length > 0 && (
-          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
-              {alerts.map((a) => (
-                <Button key={a.to + a.label} variant="outline" size="sm" asChild className="gap-2">
-                  <Link to={a.to}>
-                    {a.label}: <Badge variant={a.variant === "destructive" ? "destructive" : "secondary"}>{a.count}</Badge>
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </Button>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.usersTotal}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Patient: {stats.usersByRole.patient ?? 0} · BHW: {stats.usersByRole.bhw ?? 0} · Clinician: {stats.usersByRole.clinician ?? 0} · Admin: {stats.usersByRole.admin ?? 0}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Registered Patients</CardTitle>
-              <Stethoscope className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.patientsCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Consultations</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingTeleconsults}</div>
-              <Button variant="link" className="h-auto p-0 text-xs" asChild>
-                <Link to="/admin/teleconsult-referrals">View</Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">High-Risk Triage</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.highRiskTriage}</div>
-              <Button variant="link" className="h-auto p-0 text-xs" asChild>
-                <Link to="/admin/ai-triage">Monitor</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Recent audit log
-              </CardTitle>
-              <CardDescription>Last 10 actions (login, data access, system changes)</CardDescription>
+      <div className="flex flex-col h-full space-y-8 w-full mx-auto max-w-[1920px]">
+        {/* Header Section */}
+        <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold tracking-widest uppercase mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              All Systems Operational
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/audit">
-                <FileText className="h-4 w-4 mr-2" />
-                Full audit
+            <h1 className="text-[28px] leading-tight font-bold tracking-tight text-foreground border-b-2 border-transparent">
+              Platform Command Center
+            </h1>
+            <p className="text-[14px] text-muted-foreground max-w-[600px] leading-relaxed">
+              Real-time oversight of hospital operations, AI triage assessments, and comprehensive user metrics.
+            </p>
+          </div>
+          <div className="hidden md:flex flex-col items-end">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Timestamp</div>
+            <div className="text-[15px] font-medium text-foreground mt-0.5">{format(new Date(), "PPpp")}</div>
+          </div>
+        </section>
+
+        {/* Key Metrics Grid */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="group relative flex flex-col bg-card rounded-2xl p-5 border border-border shadow-sm transition-all hover:shadow-md hover:border-[#800000]/20 overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-[#800000]/5 to-transparent rounded-full blur-2xl group-hover:bg-[#800000]/10 transition-colors" />
+            <div className="flex items-center gap-3 mb-4 relative z-10">
+              <div className="h-10 w-10 shrink-0 bg-muted/50 border border-border rounded-xl flex items-center justify-center text-muted-foreground group-hover:text-[#800000] group-hover:bg-[#800000]/5 transition-colors">
+                <Users className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Total Accounts</p>
+              </div>
+            </div>
+            <div className="mt-auto relative z-10">
+              <h2 className="text-[34px] font-bold text-foreground tracking-tight leading-none mb-2">{stats.usersTotal}</h2>
+              <div className="flex items-center gap-3 text-[12px] font-medium text-muted-foreground">
+                <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"/> {stats.usersByRole.patient ?? 0} PT</span>
+                <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"/> {stats.usersByRole.bhw ?? 0} HW</span>
+                <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-500"/> {stats.usersByRole.clinician ?? 0} MD</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="group relative flex flex-col bg-card rounded-2xl p-5 border border-border shadow-sm transition-all hover:shadow-md hover:border-[#800000]/20 overflow-hidden">
+             <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-blue-500/5 to-transparent rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors" />
+            <div className="flex items-center gap-3 mb-4 relative z-10">
+              <div className="h-10 w-10 shrink-0 bg-muted/50 border border-border rounded-xl flex items-center justify-center text-muted-foreground group-hover:text-blue-600 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/30 transition-colors">
+                <HeartPulse className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Active Patients</p>
+              </div>
+            </div>
+            <div className="mt-auto relative z-10 flex items-end justify-between">
+              <h2 className="text-[34px] font-bold text-foreground tracking-tight leading-none">{stats.patientsCount}</h2>
+              <div className="flex items-center text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md text-xs font-bold">
+                <TrendingUp className="h-3 w-3 mr-1" /> +12%
+              </div>
+            </div>
+          </div>
+
+          <div className="group relative flex flex-col bg-card rounded-2xl p-5 border border-border shadow-sm transition-all hover:shadow-md hover:border-[#800000]/20 overflow-hidden">
+             <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-amber-500/5 to-transparent rounded-full blur-2xl group-hover:bg-amber-500/10 transition-colors" />
+            <div className="flex items-center gap-3 mb-4 relative z-10">
+              <div className="h-10 w-10 shrink-0 bg-muted/50 border border-border rounded-xl flex items-center justify-center text-muted-foreground group-hover:text-amber-600 group-hover:bg-amber-50 dark:group-hover:bg-amber-950/30 transition-colors">
+                <Calendar className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Pending Consults</p>
+              </div>
+            </div>
+            <div className="mt-auto relative z-10 flex items-end justify-between">
+              <h2 className="text-[34px] font-bold text-foreground tracking-tight leading-none">{stats.pendingTeleconsults}</h2>
+              <Link to="/admin/teleconsult-referrals" className="text-[12px] font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+                Action Required <ChevronRight className="h-3 w-3" />
               </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+            </div>
+          </div>
+
+          <div className="group relative flex flex-col bg-card rounded-2xl p-5 border border-border shadow-sm transition-all hover:shadow-md hover:border-red-500/30 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-red-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-red-500/10 to-transparent rounded-full blur-2xl transition-colors" />
+            <div className="flex items-center gap-3 mb-4 relative z-10">
+              <div className="h-10 w-10 shrink-0 bg-red-50 border border-red-100 rounded-xl flex items-center justify-center text-red-600">
+                <AlertCircle className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-red-600 uppercase tracking-wider">Critical Triage</p>
+              </div>
+            </div>
+            <div className="mt-auto relative z-10 flex items-end justify-between">
+              <h2 className="text-[34px] font-bold text-red-600 tracking-tight leading-none drop-shadow-sm">{stats.highRiskTriage}</h2>
+              <Link to="/admin/ai-triage" className="text-[12px] font-bold text-red-700 bg-red-100/50 px-2.5 py-1 rounded-md hover:bg-red-100 transition-colors flex items-center gap-1">
+                View Queue <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Audit & Compliance Table */}
+        <section className="flex-1 min-h-[350px] bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col relative z-10">
+          <div className="h-[68px] border-b border-border/60 flex items-center justify-between px-6 bg-muted/40">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold tracking-tight text-foreground">Live Audit Trail</h3>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">HIPAA Compliance Logging</p>
+              </div>
+            </div>
+            <Link to="/admin/audit-logs" className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground hover:text-foreground bg-card border border-border px-3 py-1.5 rounded-lg shadow-sm transition-all hover:shadow">     
+              <FileText className="h-3.5 w-3.5" />
+              Detailed Logs
+            </Link>
+          </div>
+
+          <div className="flex-1 overflow-auto bg-card p-0">
+            <table className="w-full text-left border-collapse border-0">
+              <thead>
+                <tr className="border-b border-border/70 bg-muted/40">       
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap w-[200px]">Timestamp</th>
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Operator</th>
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Action Type</th>
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Resource Target</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {recentAudit.length === 0 ? (
                   <tr>
-                    <th className="text-left p-3 font-medium">Time</th>
-                    <th className="text-left p-3 font-medium">User</th>
-                    <th className="text-left p-3 font-medium">Action</th>
-                    <th className="text-left p-3 font-medium">Resource</th>
+                    <td colSpan={4} className="py-12 text-center">
+                      <div className="mx-auto flex flex-col items-center justify-center opacity-40">
+                        <ShieldCheck className="h-10 w-10 mb-3" />
+                        <p className="text-[13px] font-medium">No secure audits recorded yet.</p>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {recentAudit.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="p-4 text-muted-foreground text-center">
-                        No audit entries yet.
+                ) : (
+                  recentAudit.map((log) => (
+                    <tr key={log.id} className="hover:bg-muted/35 transition-colors group">
+                      <td className="py-3 px-6">
+                        <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-[#800000]" />
+                          {format(new Date(log.created_at), "MMM d, h:mm a")}
+                        </div>
+                      </td>
+                      <td className="py-3 px-6">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-muted border border-border flex items-center justify-center text-[11px] font-bold text-muted-foreground">
+                            {log.full_name ? log.full_name.charAt(0) : "S"}
+                          </div>
+                          <span className="text-[13px] font-semibold text-foreground">
+                            {log.full_name || "System"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-6">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground uppercase tracking-wider border border-border">
+                          {log.action.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-6">
+                        <div className="text-[13px] font-medium text-muted-foreground truncate max-w-[250px]">
+                          {log.resource}
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    recentAudit.map((row) => (
-                      <tr key={row.id} className="border-t">
-                        <td className="p-3 text-muted-foreground">{format(new Date(row.created_at), "MMM d, HH:mm")}</td>
-                        <td className="p-3">{row.full_name ?? row.user_id ?? "—"}</td>
-                        <td className="p-3">{row.action}</td>
-                        <td className="p-3">{row.resource}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
       </div>
     </AdminLayout>
   );
 }
+

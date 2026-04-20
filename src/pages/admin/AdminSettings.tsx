@@ -97,7 +97,7 @@ export default function AdminSettings() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6 w-full max-w-[1280px]">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Settings className="h-6 w-6" />
@@ -108,81 +108,83 @@ export default function AdminSettings() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>General</CardTitle>
-            <CardDescription>Platform name and capacity limits.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-2">
-              <Label htmlFor="system-name">System name</Label>
-              <Input
-                id="system-name"
-                value={settings.system_name}
-                onChange={(e) => set("system_name", e.target.value)}
-                placeholder={`TeleHealth — ${SITE_BARANGAY}`}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="max-patients">Max patients per BHW</Label>
-              <Input
-                id="max-patients"
-                type="number"
-                min="1"
-                max="500"
-                value={settings.max_patients_per_bhw}
-                onChange={(e) => set("max_patients_per_bhw", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">Maximum number of patients a single BHW can be assigned to.</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Session</CardTitle>
-            <CardDescription>Authentication and session timeout settings.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-2">
-              <Label>Default session timeout</Label>
-              <Select
-                value={settings.default_session_timeout}
-                onValueChange={(v) => set("default_session_timeout", v)}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="60">60 minutes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Maintenance</CardTitle>
-            <CardDescription>Control platform availability.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-sm">Maintenance mode</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  When enabled, non-admin users see a maintenance message.
-                </p>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card className="xl:col-span-2">
+            <CardHeader>
+              <CardTitle>General</CardTitle>
+              <CardDescription>Platform name and capacity limits.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="system-name">System name</Label>
+                <Input
+                  id="system-name"
+                  value={settings.system_name}
+                  onChange={(e) => set("system_name", e.target.value)}
+                  placeholder={`TeleHealth — ${SITE_BARANGAY}`}
+                />
               </div>
-              <Switch
-                checked={settings.maintenance_mode === "true"}
-                onCheckedChange={(checked) => set("maintenance_mode", checked ? "true" : "false")}
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="grid gap-2">
+                <Label htmlFor="max-patients">Max patients per BHW</Label>
+                <Input
+                  id="max-patients"
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={settings.max_patients_per_bhw}
+                  onChange={(e) => set("max_patients_per_bhw", e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Maximum number of patients a single BHW can be assigned to.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Session</CardTitle>
+              <CardDescription>Authentication and session timeout settings.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-2">
+                <Label>Default session timeout</Label>
+                <Select
+                  value={settings.default_session_timeout}
+                  onValueChange={(v) => set("default_session_timeout", v)}
+                >
+                  <SelectTrigger className="w-full sm:w-56">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">15 minutes</SelectItem>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="60">60 minutes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Maintenance</CardTitle>
+              <CardDescription>Control platform availability.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-sm">Maintenance mode</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    When enabled, non-admin users see a maintenance message.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.maintenance_mode === "true"}
+                  onCheckedChange={(checked) => set("maintenance_mode", checked ? "true" : "false")}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="flex items-center gap-3">
           <Button onClick={handleSave} disabled={saving} className="gap-2">

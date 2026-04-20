@@ -45,6 +45,7 @@ import { format, parse } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 interface ConsultationRow {
   id: string;
@@ -296,9 +297,8 @@ const Consultations = () => {
     }
     setSubmitting(true);
     try {
-      const { data: clinicians } = await supabase.from("profiles").select("id").eq("role", "clinician").limit(1);
-      const providerId = clinicians?.[0]?.id;
-      if (!providerId) {
+      const { data: clinicians } = await supabase.from("profiles").select("id").eq("role", "clinician");
+      if (!clinicians || clinicians.length === 0) {
         Swal.fire({
           title: "Setup Needed",
           text: "No provider is available at the moment. Please try again later.",
@@ -308,6 +308,31 @@ const Consultations = () => {
         setSubmitting(false);
         return;
       }
+      
+      const { data: activeConsults } = await supabase
+        .from("teleconsultations")
+        .select("provider_id")
+        .in("status", ["scheduled", "in_progress"]);
+
+      const loadMap = new Map<string, number>();
+      clinicians.forEach(c => loadMap.set(c.id, 0));
+      if (activeConsults) {
+        activeConsults.forEach(c => {
+          if (loadMap.has(c.provider_id)) {
+            loadMap.set(c.provider_id, loadMap.get(c.provider_id)! + 1);
+          }
+        });
+      }
+
+      let providerId = clinicians[0].id;
+      let minLoad = loadMap.get(providerId) ?? 0;
+      for (const [id, count] of loadMap.entries()) {
+        if (count < minLoad) {
+          minLoad = count;
+          providerId = id;
+        }
+      }
+
       let scheduledAt = null;
       if (selectedDate && selectedTime) {
         // parse the time strictly on top of selectedDate to avoid browser 'Invalid Date' quirks
@@ -396,7 +421,7 @@ const Consultations = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full max-w-2xl mx-auto mb-8 ${isClinician ? "grid-cols-2" : isBhw ? "grid-cols-1" : "grid-cols-2"}`}>
+            <TabsList className={`grid w-full max-w-2xl mx-auto mb-8 ${isBhw ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
               {isClinician && (
                 <TabsTrigger value="provider">My Schedule</TabsTrigger>
               )}
@@ -425,9 +450,8 @@ const Consultations = () => {
                   </CardHeader>
                   <CardContent>
                     {loadingProvider ? (
-                      <div className="flex items-center justify-center py-12 gap-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                        <span className="text-muted-foreground">Loading…</span>
+                      <div className="py-2">
+                        <TableRowsSkeleton rows={6} columns={3} />
                       </div>
                     ) : providerConsults.length === 0 ? (
                       <p className="py-8 text-center text-muted-foreground">No upcoming appointments.</p>
@@ -540,7 +564,7 @@ const Consultations = () => {
                           <Label className="text-base">
                             Select Time <span className="text-destructive">*</span>
                           </Label>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {availableTimeSlots.map((time) => (
                               <Button
                                 key={time}
@@ -692,9 +716,8 @@ const Consultations = () => {
                 <>
                   {loadingBhw ? (
                     <Card>
-                      <CardContent className="py-12 flex items-center justify-center gap-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                        <span className="text-muted-foreground">Loading…</span>
+                      <CardContent className="py-4">
+                        <TableRowsSkeleton rows={6} columns={3} />
                       </CardContent>
                     </Card>
                   ) : bhwConsults.length === 0 ? (
@@ -755,9 +778,8 @@ const Consultations = () => {
                 </>
               ) : loadingConsultations ? (
                 <Card>
-                  <CardContent className="py-12 flex items-center justify-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                    <span className="text-muted-foreground">Loading appointments…</span>
+                  <CardContent className="py-4">
+                    <TableRowsSkeleton rows={6} columns={3} />
                   </CardContent>
                 </Card>
               ) : consultations.length === 0 ? (

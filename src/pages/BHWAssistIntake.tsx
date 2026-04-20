@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Footer } from "@/components/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
 const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "non_urgent" | "home_care"> = {
@@ -296,9 +297,16 @@ export default function BHWAssistIntake() {
             </CardHeader>
             <CardContent className="space-y-4">
               {loadingPatients ? (
-                <div className="flex items-center gap-2 text-muted-foreground py-4">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading patients…
+                <div className="space-y-3 py-2">
+                  <Skeleton className="h-10 w-full rounded-xl" />
+                  <Skeleton className="h-10 w-full rounded-xl" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                  </div>
+                  <Skeleton className="h-20 w-full rounded-xl" />
                 </div>
               ) : (
                 <Select value={patientId ?? ""} onValueChange={(v) => setPatientId(v || null)}>
@@ -352,7 +360,7 @@ export default function BHWAssistIntake() {
               </div>
               <div className="space-y-2">
                 <Label>Optional vitals (BP / HR / Temp °C)</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Input type="number" placeholder="BP Systolic (120)" className="rounded-xl h-11" value={patientInfo.bpSystolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })} />
                   <Input type="number" placeholder="BP Diastolic (80)" className="rounded-xl h-11" value={patientInfo.bpDiastolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })} />
                   <Input type="number" placeholder="Heart Rate (HR)" className="rounded-xl h-11" value={patientInfo.hr} onChange={(e) => setPatientInfo({ ...patientInfo, hr: e.target.value })} />
@@ -389,7 +397,7 @@ export default function BHWAssistIntake() {
                       <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{cat.description}</p>
                     ) : null}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {cat.symptoms.map((s) => (
                       <label key={s.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${selectedSymptoms.includes(s.id) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
                         <Checkbox checked={selectedSymptoms.includes(s.id)} onCheckedChange={() => toggleSymptom(s.id)} />
@@ -399,7 +407,7 @@ export default function BHWAssistIntake() {
                   </div>
                 </div>
               ))}
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button variant="outline" onClick={() => setStep(1)}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
@@ -420,7 +428,7 @@ export default function BHWAssistIntake() {
               <CardDescription>Select all that apply to the patient.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {riskFactors.map((f) => (
                   <label key={f.id} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${selectedRiskFactors.includes(f.id) ? "border-primary bg-primary/5" : "border-border"}`}>
                     <Checkbox checked={selectedRiskFactors.includes(f.id)} onCheckedChange={() => toggleRiskFactor(f.id)} />
@@ -428,7 +436,7 @@ export default function BHWAssistIntake() {
                   </label>
                 ))}
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button variant="outline" onClick={() => setStep(2)}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
@@ -456,7 +464,7 @@ export default function BHWAssistIntake() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-3 rounded-lg bg-muted">
                     <p className="text-sm text-muted-foreground">Risk score</p>
                     <p className="text-xl font-bold">{getRiskScore(triageResult)} / 100</p>

@@ -31,10 +31,13 @@ import {
   TrendingUp,
   CheckCircle2,
   Phone,
+  Shield,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { MetricCardsSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ClinicianConsultRow = {
   id: string;
@@ -133,10 +136,12 @@ export default function Dashboard() {
   const [bhwBarangayName, setBhwBarangayName] = useState<string | null>(null);
   const [bhwLoading, setBhwLoading] = useState(true);
   const [bhwHighRiskCount, setBhwHighRiskCount] = useState(0);
+  const [bhwPatientsSeenToday, setBhwPatientsSeenToday] = useState(0);
 
   const isClinician = profile?.role === "clinician";
   const isPatient = profile?.role === "patient";
   const isBhw = profile?.role === "bhw";
+  const isAdmin = profile?.role === "admin";
 
   /* ── Patient data fetch ── */
   useEffect(() => {
@@ -224,7 +229,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (authLoading || !user?.id || !isBhw) { setBhwLoading(false); return; }
     (async () => {
-      const { data: ppList } = await supabase.from("patient_profiles").select("user_id, first_name, last_name").limit(500);
+      const { data: pData } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+      const assignedBarangay = (pData as any)?.assigned_barangay_name ?? null;
+      setBhwBarangayName(assignedBarangay);
+
+      let query = supabase.from("patient_profiles").select("user_id, first_name, last_name").limit(500);
+      if (assignedBarangay) {
+        query = query.eq("barangay_name", assignedBarangay);
+      }
+      
+      const { data: ppList } = await query;
       if (ppList?.length) {
         const userIds = ppList.map((r: any) => r.user_id);
         const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
@@ -241,6 +255,19 @@ export default function Dashboard() {
           const { count } = await supabase.from("ai_triage_results").select("id", { count: "exact", head: true }).in("assessment_id", assessmentIds).in("triage_level", ["emergency", "urgent"]);
           setBhwHighRiskCount(count ?? 0);
         }
+
+        // Count intakes created today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nextDay = new Date();
+        nextDay.setDate(nextDay.getDate() + 1);
+        const tomorrowStr = nextDay.toISOString().split('T')[0];
+        const { data: todayIntakes } = await supabase
+          .from("symptom_assessments")
+          .select("id")
+          .in("user_id", userIds)
+          .gte("created_at", todayStr)
+          .lt("created_at", tomorrowStr);
+        setBhwPatientsSeenToday((todayIntakes ?? []).length);
       }
       const { count: unread, error: nError } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
       if (nError && handleMissingNotificationsTable(nError)) {
@@ -261,14 +288,19 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navigation />
-        <main className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></main>
+        <main className="flex-1 container mx-auto px-4 pt-24 pb-20 max-w-7xl">
+          <div className="space-y-6">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <MetricCardsSkeleton />
+            <TableRowsSkeleton rows={6} columns={3} />
+          </div>
+        </main>
         <Footer />
       </div>
     );
   }
 
-  if (!user || (!isPatient && !isClinician && !isBhw && profile?.role !== "admin")) {
-    if (profile?.role === "admin") { navigate("/admin", { replace: true }); return null; }
+  if (!user || (!isPatient && !isClinician && !isBhw && !isAdmin)) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navigation />
@@ -332,7 +364,17 @@ export default function Dashboard() {
           </motion.div>
 
           {clinicianLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+            <div className="space-y-6">
+              <MetricCardsSkeleton />
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 lg:col-span-8">
+                  <TableRowsSkeleton rows={6} columns={4} />
+                </div>
+                <div className="col-span-12 lg:col-span-4">
+                  <TableRowsSkeleton rows={6} columns={2} />
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-12 gap-6">
 
@@ -495,7 +537,10 @@ export default function Dashboard() {
           )}
 
           {bhwLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+            <div className="space-y-6">
+              <MetricCardsSkeleton />
+              <TableRowsSkeleton rows={8} columns={3} />
+            </div>
           ) : (
             <div className="grid grid-cols-12 gap-6">
 
@@ -510,7 +555,7 @@ export default function Dashboard() {
                 <StatCard icon={Bell} label="Notifications" value={unreadNotifications} sub="Unread messages" color="amber" to="/notifications" />
               </motion.div>
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
-                <StatCard icon={Activity} label="Active Today" value="Live" sub={todayDisplay} color="green" />
+                <StatCard icon={Activity} label="Intakes Today" value={bhwPatientsSeenToday} sub="Assisted consultations" color="green" />
               </motion.div>
 
               {/* Emergency Quick Report */}
@@ -626,7 +671,18 @@ export default function Dashboard() {
       <main className="flex-1 container mx-auto px-4 pt-24 pb-20 max-w-7xl">
 
         {patientLoading ? (
-          <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          <div className="space-y-6">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <div className="grid grid-cols-12 gap-6">
+              <div className="col-span-12 lg:col-span-8">
+                <Skeleton className="h-48 w-full rounded-2xl" />
+              </div>
+              <div className="col-span-12 lg:col-span-4">
+                <Skeleton className="h-48 w-full rounded-2xl" />
+              </div>
+            </div>
+            <MetricCardsSkeleton count={6} />
+          </div>
         ) : (
           <div className="grid grid-cols-12 gap-6">
 
@@ -698,9 +754,10 @@ export default function Dashboard() {
                   <p className="font-bold text-foreground text-lg leading-tight">{welcomeName || "Patient"}</p>
                   <p className="text-sm text-muted-foreground mb-1">{user?.email}</p>
                   {barangayName && <p className="text-xs text-primary font-medium mb-4">{barangayName}</p>}
-                  <Link to="/profile" className="w-full">
+                  <Link to={isAdmin ? "/admin" : "/profile"} className="w-full">
                     <Button variant="outline" className="w-full rounded-xl gap-2 text-sm" size="sm">
-                      <UserCog className="w-4 h-4" /> Edit Profile
+                      {isAdmin ? <Shield className="w-4 h-4" /> : <UserCog className="w-4 h-4" />}
+                      {isAdmin ? "Open Admin Panel" : "Edit Profile"}
                     </Button>
                   </Link>
                 </CardContent>

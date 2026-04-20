@@ -755,8 +755,8 @@ export default function SymptomChecker() {
                     ))}
 
                     <div className="sticky bottom-4 left-0 right-0 z-10 pt-6">
-                      <div className="glass-card shadow-2xl p-4 rounded-3xl flex gap-3 border-primary/20">
-                        <Button onClick={handleBack} variant="outline" size="lg" className="rounded-2xl px-8 h-14 border-2 font-bold text-base hover:bg-muted/10"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
+                      <div className="glass-card shadow-2xl p-4 rounded-3xl flex flex-col sm:flex-row gap-3 border-primary/20">
+                        <Button onClick={handleBack} variant="outline" size="lg" className="w-full sm:w-auto rounded-2xl px-8 h-14 border-2 font-bold text-base hover:bg-muted/10"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
                         <Button onClick={handleNext} size="lg" className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/20" disabled={!isStep2Valid}>Continue Assessment <ArrowRight className="w-5 h-5 ml-2" /></Button>
                       </div>
                     </div>
@@ -784,8 +784,8 @@ export default function SymptomChecker() {
                       ))}
                     </div>
 
-                    <div className="pt-6 flex gap-3">
-                      <Button onClick={handleBack} variant="outline" size="lg" className="rounded-2xl h-14 px-8 border-2 font-bold text-base"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
+                    <div className="pt-6 flex flex-col sm:flex-row gap-3">
+                      <Button onClick={handleBack} variant="outline" size="lg" className="w-full sm:w-auto rounded-2xl h-14 px-8 border-2 font-bold text-base"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
                       <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl">Analyze My Health <ArrowRight className="w-5 h-5 ml-2" /></Button>
                     </div>
                   </CardContent>
@@ -800,13 +800,13 @@ export default function SymptomChecker() {
                       <div className="flex items-center gap-4">
                         {(() => { const Icon = triageResults[triageResult].icon; return <Icon className="w-12 h-12" />; })()}
                         <div>
-                          <CardTitle className="text-3xl font-black uppercase tracking-tight">Triage Status: {getTriageLevelLabel(triageResult)}</CardTitle>
+                          <CardTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight">Triage Status: {getTriageLevelLabel(triageResult)}</CardTitle>
                           <p className="opacity-90 font-medium">AI-Assisted Assessment Complete</p>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-8 space-y-8">
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div className="p-5 rounded-3xl bg-muted/40 border border-border/50 text-center">
                           <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-1">Health Priority Score</p>
                           <p className="text-4xl font-black text-foreground">{getRiskScore(triageResult)}</p>

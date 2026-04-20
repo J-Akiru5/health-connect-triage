@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -338,9 +340,8 @@ export default function Referrals() {
 
           {loading ? (
             <Card>
-              <CardContent className="py-12 flex items-center justify-center gap-2">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                <span className="text-muted-foreground">Loading…</span>
+              <CardContent className="py-4">
+                <TableRowsSkeleton rows={6} columns={4} />
               </CardContent>
             </Card>
           ) : referrals.length === 0 ? (
@@ -550,9 +551,9 @@ export default function Referrals() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 {assignBHWLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Loading BHWs…
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-10 w-full" />
                   </div>
                 ) : assignBHWList.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No BHWs found for this patient's barangay.</p>

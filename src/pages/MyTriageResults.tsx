@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Loader2, ClipboardList, Stethoscope } from "lucide-react";
@@ -127,9 +128,8 @@ export default function MyTriageResults() {
 
         {loading ? (
           <Card>
-            <CardContent className="py-16 flex items-center justify-center gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              <span className="text-muted-foreground">Loading…</span>
+            <CardContent className="py-6">
+              <TableRowsSkeleton rows={6} columns={3} />
             </CardContent>
           </Card>
         ) : results.length === 0 ? (

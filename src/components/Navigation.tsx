@@ -98,6 +98,7 @@ export function Navigation() {
   }
 
   const isHome = location.pathname === "/";
+  const canAccessProfileEdit = profile?.role === "patient" || profile?.role === "clinician";
 
   return (
     <>
@@ -117,7 +118,7 @@ export function Navigation() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
-            <Link to={session ? "/dashboard" : "/"} className="flex items-center gap-2.5 group relative z-10">
+            <Link to={session ? "/dashboard" : "/"} className="flex items-center gap-2.5 group relative z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -208,7 +209,7 @@ export function Navigation() {
                   {/* Avatar Dropdown */}
                   <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="group relative focus:outline-none ml-1">
+                    <button className="group relative ml-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                       <motion.div 
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -236,24 +237,26 @@ export function Navigation() {
                     </div>
                     {profile?.role === "admin" && (
                       <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
-                        <Link to="/admin" className="w-full flex items-center">
-                          <Shield className="w-4 h-4 text-primary" />
+                        <Link to="/admin" className="w-full flex items-center gap-3">
+                          <Shield className="w-4 h-4 text-current opacity-80" />
                           <span className="font-medium text-sm">{t("nav.admin")}</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
-                      <Link to="/dashboard" className="w-full flex items-center">
-                        <User className="w-4 h-4 text-muted-foreground" />
+                      <Link to="/dashboard" className="w-full flex items-center gap-3">
+                        <User className="w-4 h-4 text-current opacity-80" />
                         <span className="font-medium text-sm">{t("nav.dashboard")}</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
-                      <Link to="/profile" className="w-full flex items-center">
-                        <Menu className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium text-sm">{t("nav.profile")}</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    {canAccessProfileEdit && (
+                      <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
+                        <Link to="/profile" className="w-full flex items-center gap-3">
+                          <Menu className="w-4 h-4 text-current opacity-80" />
+                          <span className="font-medium text-sm">{t("nav.profile")}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <div className="h-px bg-border/40 my-2" />
                     <DropdownMenuItem onClick={handleSignOut} className="rounded-lg h-10 gap-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
                       <LogOut className="w-4 h-4" />
@@ -282,11 +285,25 @@ export function Navigation() {
 
             {/* Mobile actions */}
             <div className="flex lg:hidden items-center gap-1.5">
+              {session && (
+                <Button variant="ghost" size="icon" asChild className="relative rounded-xl text-foreground hover:bg-muted/60">
+                  <Link to="/notifications" aria-label="Open notifications">
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-destructive border-2 border-background rounded-full" />
+                    )}
+                  </Link>
+                </Button>
+              )}
               <ThemeToggle />
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsOpen(!isOpen)}
-                className="p-2 rounded-xl hover:bg-muted/60 transition-colors"
+                className={`relative z-[70] p-2 rounded-xl text-foreground border border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  scrolled
+                    ? "bg-card/80 hover:bg-muted/70"
+                    : "bg-background/80 backdrop-blur-sm hover:bg-background"
+                }`}
                 aria-label="Toggle menu"
               >
                 {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -320,7 +337,7 @@ export function Navigation() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
                   onClick={() => { navigate("/"); setIsOpen(false); }}
-                  className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                  className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {t("nav.home")}
                 </motion.button>
@@ -333,7 +350,7 @@ export function Navigation() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
                       onClick={() => scrollToSection("about")}
-                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {t("nav.about")}
                     </motion.button>
@@ -342,7 +359,7 @@ export function Navigation() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
                       onClick={() => scrollToSection("faq")}
-                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {t("nav.faq")}
                     </motion.button>
@@ -357,7 +374,7 @@ export function Navigation() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
                       onClick={() => { navigate("/dashboard"); setIsOpen(false); }}
-                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {t("nav.dashboard")}
                     </motion.button>
@@ -366,7 +383,7 @@ export function Navigation() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.34, ease: [0.22, 1, 0.36, 1] }}
                       onClick={() => { navigate("/consultations"); setIsOpen(false); }}
-                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                      className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {t("nav.consultations")}
                     </motion.button>
@@ -391,9 +408,11 @@ export function Navigation() {
                         <Link to="/admin"><Shield className="w-4 h-4" /> {t("nav.admin")}</Link>
                       </Button>
                     )}
-                    <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
-                      <Link to="/profile">{t("nav.profile")}</Link>
-                    </Button>
+                    {canAccessProfileEdit && (
+                      <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
+                        <Link to="/profile">{t("nav.profile")}</Link>
+                      </Button>
+                    )}
                     <Button variant="outline" className="w-full justify-start rounded-xl h-12 text-destructive" onClick={handleSignOut}>
                       <LogOut className="w-4 h-4 mr-2" />
                       {t("nav.signOut")}
@@ -423,7 +442,7 @@ function NavPill({ to, label, active }: { to: string; label: string; active: boo
   return (
     <Link
       to={to}
-      className={`relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 ${
+      className={`relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
         active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
       }`}
     >
@@ -443,7 +462,7 @@ function NavPillScroll({ label, onClick }: { label: string; onClick: () => void 
   return (
     <button
       onClick={onClick}
-      className="relative px-4 py-1.5 text-sm font-medium rounded-full text-muted-foreground hover:text-foreground transition-colors duration-200"
+      className="relative px-4 py-1.5 text-sm font-medium rounded-full text-muted-foreground hover:text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       {label}
     </button>
