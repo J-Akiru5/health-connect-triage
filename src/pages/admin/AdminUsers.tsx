@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Plus, Pencil, KeyRound, Users } from "lucide-react";
 import type { UserRole } from "@/lib/database.types";
+import { FiltersBarSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type ProfileRow = {
   id: string;
@@ -149,9 +150,9 @@ export default function AdminUsers() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading users...
+        <div className="flex h-full min-h-[420px] w-full flex-col gap-5">
+          <FiltersBarSkeleton />
+          <TableRowsSkeleton rows={8} columns={4} />
         </div>
       </AdminLayout>
     );
@@ -162,13 +163,13 @@ export default function AdminUsers() {
       <div className="flex flex-col h-full space-y-8 w-full mx-auto max-w-[1920px]">
         <section className="flex flex-col md:flex-row md:items-end gap-4">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#800000]/10 border border-[#800000]/20 text-[#800000] text-[11px] font-bold tracking-widest uppercase mb-2">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#800000]/10 border border-[#800000]/20 text-[#800000] text-xs font-bold tracking-widest uppercase mb-2">
               <Users className="w-3.5 h-3.5" /> Platform Access Control
             </div>
-            <h1 className="text-[28px] leading-tight font-bold tracking-tight text-slate-900 border-b-2 border-transparent">
+            <h1 className="text-[28px] leading-tight font-bold tracking-tight text-foreground border-b-2 border-transparent">
               User Management
             </h1>
-            <p className="text-[14px] text-slate-500 max-w-[700px] leading-relaxed">
+            <p className="text-[14px] text-muted-foreground max-w-[700px] leading-relaxed">
               Create, update, or revoke access credentials and assign RBAC roles and barangays.
             </p>
           </div>
@@ -198,8 +199,8 @@ export default function AdminUsers() {
           </div>
         </section>
 
-        <section className="flex-1 min-h-[350px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col relative z-10">
-          <div className="border-b border-slate-100 p-4 md:p-5">
+        <section className="flex-1 min-h-[350px] bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col relative z-10">
+          <div className="border-b border-border/60 p-4 md:p-5">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Input
                 value={searchTerm}
@@ -221,20 +222,20 @@ export default function AdminUsers() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto bg-white p-0">
+          <div className="flex-1 overflow-auto bg-card p-0">
             <table className="w-full text-left border-collapse border-0">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80">
-                  <th className="py-3 px-6 text-[11px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
+                <tr className="border-b border-border/60 bg-muted/40">
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
                     Operator Name
                   </th>
-                  <th className="py-3 px-6 text-[11px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
                     Access Level (RBAC)
                   </th>
-                  <th className="py-3 px-6 text-[11px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
                     Assigned Sector
                   </th>
-                  <th className="py-3 px-6 text-[11px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap text-right">
+                  <th className="py-3 px-6 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap text-right">
                     Administrative Actions
                   </th>
                 </tr>
@@ -248,8 +249,8 @@ export default function AdminUsers() {
                   </tr>
                 ) : (
                   filteredProfiles.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group border-t border-slate-100">
-                      <td className="py-3 px-6 text-[13px] font-medium text-slate-800">
+                    <tr key={p.id} className="hover:bg-muted/35 transition-colors group border-t border-border/60">
+                      <td className="py-3 px-6 text-[13px] font-medium text-foreground">
                         {editingId === p.id ? (
                           <Input
                             value={editFullName}
@@ -261,7 +262,7 @@ export default function AdminUsers() {
                           p.full_name ?? p.id.slice(0, 8)
                         )}
                       </td>
-                      <td className="py-3 px-6 text-[13px] font-medium text-slate-800">
+                      <td className="py-3 px-6 text-[13px] font-medium text-foreground">
                         {editingId === p.id ? (
                           <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
                             <SelectTrigger className="w-[150px]">
@@ -275,12 +276,12 @@ export default function AdminUsers() {
                             </SelectContent>
                           </Select>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase tracking-wider border border-slate-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground uppercase tracking-wider border border-border">
                             {p.role}
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-6 text-[13px] font-medium text-slate-800">
+                      <td className="py-3 px-6 text-[13px] font-medium text-foreground">
                         {editingId === p.id ? (
                           <Input
                             value={editBarangayName}

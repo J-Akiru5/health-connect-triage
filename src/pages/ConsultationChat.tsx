@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, MessageSquare, FileText, Send, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type MessageRow = {
   id: string;
@@ -231,9 +233,11 @@ export default function ConsultationChat() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <main className="container mx-auto px-4 pt-24 pb-20 flex items-center justify-center gap-2">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          <span className="text-muted-foreground">Loading…</span>
+        <main className="container mx-auto px-4 pt-24 pb-20">
+          <div className="max-w-6xl mx-auto space-y-4">
+            <Skeleton className="h-8 w-72" />
+            <TableRowsSkeleton rows={8} columns={2} />
+          </div>
         </main>
       </div>
     );
@@ -343,9 +347,11 @@ export default function ConsultationChat() {
               </CardHeader>
               <CardContent>
                 {!noteLoaded ? (
-                  <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Loading…
+                  <div className="space-y-3 py-2">
+                    <Skeleton className="h-5 w-48" />
+                    <Skeleton className="h-11 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
                   </div>
                 ) : isProvider ? (
                   <form onSubmit={handleSaveNote} className="space-y-4">

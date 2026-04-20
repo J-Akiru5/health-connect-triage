@@ -263,7 +263,7 @@ export default function Login() {
                             <Checkbox 
                               checked={field.value} 
                               onCheckedChange={field.onChange}
-                              className="rounded-lg h-5 w-5 data-[state=checked]:bg-primary outline-none"
+                              className="rounded-lg h-5 w-5 data-[state=checked]:bg-primary"
                             />
                           </FormControl>
                           <FormLabel className="text-sm font-medium text-muted-foreground cursor-pointer select-none">

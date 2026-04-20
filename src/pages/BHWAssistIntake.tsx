@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Footer } from "@/components/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
 const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "non_urgent" | "home_care"> = {
@@ -296,9 +297,16 @@ export default function BHWAssistIntake() {
             </CardHeader>
             <CardContent className="space-y-4">
               {loadingPatients ? (
-                <div className="flex items-center gap-2 text-muted-foreground py-4">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading patients…
+                <div className="space-y-3 py-2">
+                  <Skeleton className="h-10 w-full rounded-xl" />
+                  <Skeleton className="h-10 w-full rounded-xl" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                  </div>
+                  <Skeleton className="h-20 w-full rounded-xl" />
                 </div>
               ) : (
                 <Select value={patientId ?? ""} onValueChange={(v) => setPatientId(v || null)}>

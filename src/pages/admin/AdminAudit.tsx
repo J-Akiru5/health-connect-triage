@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { Loader2, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type AuditRow = {
   id: string;
@@ -112,10 +113,16 @@ export default function AdminAudit() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.length === 0 ? (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="p-4">
+                        <TableRowsSkeleton rows={5} columns={5} />
+                      </td>
+                    </tr>
+                  ) : rows.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-4 text-center text-muted-foreground">
-                        {loading ? "Loading…" : "No matching audit entries."}
+                        No matching audit entries.
                       </td>
                     </tr>
                   ) : (

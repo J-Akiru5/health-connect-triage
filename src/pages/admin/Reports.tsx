@@ -10,9 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, BarChart3, Loader2, FileCheck2, Printer } from "lucide-react";
+import { Download, BarChart3, FileCheck2, Printer } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
+import { FiltersBarSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type TriageStatRow = {
   barangay_name: string | null;
@@ -90,9 +91,17 @@ export function Reports() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading reports…
+        <div className="space-y-5 py-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Building analytics snapshot</CardTitle>
+              <CardDescription>Aggregating triage levels across barangays.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FiltersBarSkeleton fields={2} />
+            </CardContent>
+          </Card>
+          <TableRowsSkeleton rows={9} columns={3} />
         </div>
       </AdminLayout>
     );
@@ -126,7 +135,7 @@ export function Reports() {
         {/* Print-only Header */}
         <div className="hidden print:block mb-8 text-center pb-6 border-b-2">
           <h1 className="text-2xl font-bold">Barangay Triage Analytics Report</h1>
-          <p className="text-gray-500">Generated on {format(new Date(), "MMMM d, yyyy")}</p>
+          <p className="text-muted-foreground">Generated on {format(new Date(), "MMMM d, yyyy")}</p>
         </div>
 
         <Card className="print:border-none print:shadow-none">
@@ -169,10 +178,10 @@ export function Reports() {
                   </thead>
                   <tbody className="divide-y">
                     {filteredData.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-muted/50 transition-colors bg-white">
+                      <tr key={idx} className="hover:bg-muted/50 transition-colors bg-card">
                         <td className="p-3 whitespace-nowrap">{row.barangay_name}</td>
                         <td className="p-3">
-                          <span className={`px-2 py-1 uppercase text-[10px] font-bold rounded-md ${
+                          <span className={`px-2 py-1 uppercase text-xs font-bold rounded-md ${
                             row.triage_level === 'emergency' ? 'bg-red-100 text-red-700' :
                             row.triage_level === 'urgent' ? 'bg-orange-100 text-orange-700' :
                             'bg-green-100 text-green-700'

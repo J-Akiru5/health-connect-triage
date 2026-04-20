@@ -34,6 +34,8 @@ import {
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { MetricCardsSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ClinicianConsultRow = {
   id: string;
@@ -269,7 +271,13 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navigation />
-        <main className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></main>
+        <main className="flex-1 container mx-auto px-4 pt-24 pb-20 max-w-7xl">
+          <div className="space-y-6">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <MetricCardsSkeleton />
+            <TableRowsSkeleton rows={6} columns={3} />
+          </div>
+        </main>
         <Footer />
       </div>
     );
@@ -340,7 +348,17 @@ export default function Dashboard() {
           </motion.div>
 
           {clinicianLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+            <div className="space-y-6">
+              <MetricCardsSkeleton />
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 lg:col-span-8">
+                  <TableRowsSkeleton rows={6} columns={4} />
+                </div>
+                <div className="col-span-12 lg:col-span-4">
+                  <TableRowsSkeleton rows={6} columns={2} />
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-12 gap-6">
 
@@ -503,7 +521,10 @@ export default function Dashboard() {
           )}
 
           {bhwLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+            <div className="space-y-6">
+              <MetricCardsSkeleton />
+              <TableRowsSkeleton rows={8} columns={3} />
+            </div>
           ) : (
             <div className="grid grid-cols-12 gap-6">
 
@@ -634,7 +655,18 @@ export default function Dashboard() {
       <main className="flex-1 container mx-auto px-4 pt-24 pb-20 max-w-7xl">
 
         {patientLoading ? (
-          <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          <div className="space-y-6">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <div className="grid grid-cols-12 gap-6">
+              <div className="col-span-12 lg:col-span-8">
+                <Skeleton className="h-48 w-full rounded-2xl" />
+              </div>
+              <div className="col-span-12 lg:col-span-4">
+                <Skeleton className="h-48 w-full rounded-2xl" />
+              </div>
+            </div>
+            <MetricCardsSkeleton count={6} />
+          </div>
         ) : (
           <div className="grid grid-cols-12 gap-6">
 

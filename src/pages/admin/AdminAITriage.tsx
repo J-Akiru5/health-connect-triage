@@ -11,8 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Cpu, AlertTriangle } from "lucide-react";
+import { Cpu, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import { FiltersBarSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type TriageLevel = "emergency" | "urgent" | "non_urgent" | "home_care";
 
@@ -96,9 +97,18 @@ export default function AdminAITriage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading AI triage data…
+        <div className="space-y-5 py-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Preparing triage intelligence</CardTitle>
+              <CardDescription>Loading model snapshots and recent assessment logs.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <TableRowsSkeleton rows={3} columns={2} />
+              <FiltersBarSkeleton fields={3} />
+            </CardContent>
+          </Card>
+          <TableRowsSkeleton rows={8} columns={4} />
         </div>
       </AdminLayout>
     );

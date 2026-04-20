@@ -4,9 +4,10 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Bell, Loader2, ArrowLeft, CheckCheck } from "lucide-react";
+import { Bell, ArrowLeft, CheckCheck } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Notifications() {
@@ -75,9 +76,8 @@ export default function Notifications() {
 
           {loading ? (
             <Card className="rounded-2xl border shadow-sm">
-              <CardContent className="py-16 flex items-center justify-center gap-3">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                <span className="text-muted-foreground">Loading…</span>
+              <CardContent className="py-6">
+                <TableRowsSkeleton rows={6} columns={3} />
               </CardContent>
             </Card>
           ) : notifications.length === 0 ? (

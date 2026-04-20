@@ -10,9 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
+import { FiltersBarSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type AuditLog = {
   id: string;
@@ -91,9 +92,17 @@ export function AuditLogs() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading logs…
+        <div className="space-y-5 py-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Preparing audit timeline</CardTitle>
+              <CardDescription>Loading the latest 100 HIPAA-compliant events.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FiltersBarSkeleton fields={3} />
+            </CardContent>
+          </Card>
+          <TableRowsSkeleton rows={8} columns={5} />
         </div>
       </AdminLayout>
     );
@@ -178,12 +187,12 @@ export function AuditLogs() {
                           {log.profiles?.full_name || "System"}
                         </td>
                         <td className="p-3">
-                          <code className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded">
+                          <code className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                             {log.action}
                           </code>
                         </td>
                         <td className="p-3 whitespace-nowrap">{log.resource}</td>
-                        <td className="p-3 text-muted-foreground font-mono text-[10px] break-all">
+                        <td className="p-3 text-muted-foreground font-mono text-xs break-all">
                           {JSON.stringify(log.details)}
                         </td>
                       </tr>

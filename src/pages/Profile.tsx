@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -137,9 +139,23 @@ function ClinicianProfileForm({ user, profile }: { user: { id: string; email?: s
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        <p className="text-muted-foreground">{t("common.loading")}</p>
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 pt-24 pb-20 max-w-6xl">
+          <div className="space-y-6">
+            <Skeleton className="h-8 w-64" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-4 space-y-4">
+                <Skeleton className="h-72 w-full rounded-2xl" />
+                <Skeleton className="h-36 w-full rounded-2xl" />
+              </div>
+              <div className="lg:col-span-8 space-y-4">
+                <Skeleton className="h-11 w-56 rounded-xl" />
+                <TableRowsSkeleton rows={8} columns={2} />
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -583,9 +599,23 @@ export default function Profile() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        <p className="text-muted-foreground">{t("common.loading")}</p>
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 pt-24 pb-20 max-w-6xl">
+          <div className="space-y-6">
+            <Skeleton className="h-8 w-64" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-4 space-y-4">
+                <Skeleton className="h-72 w-full rounded-2xl" />
+                <Skeleton className="h-36 w-full rounded-2xl" />
+              </div>
+              <div className="lg:col-span-8 space-y-4">
+                <Skeleton className="h-11 w-56 rounded-xl" />
+                <TableRowsSkeleton rows={8} columns={2} />
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Bell, Send } from "lucide-react";
 import type { UserRole } from "@/lib/database.types";
+import { FiltersBarSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type NotificationRow = {
   id: string;
@@ -108,9 +109,22 @@ export default function AdminNotifications() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading…
+        <div className="space-y-5 py-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Preparing notification composer</CardTitle>
+              <CardDescription>Loading recipients, types, and recent history.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FiltersBarSkeleton fields={2} />
+              <div className="grid gap-3">
+                <div className="h-10 rounded-md bg-muted animate-pulse" />
+                <div className="h-10 rounded-md bg-muted animate-pulse" />
+                <div className="h-10 w-28 rounded-md bg-muted animate-pulse" />
+              </div>
+            </CardContent>
+          </Card>
+          <TableRowsSkeleton rows={7} columns={4} />
         </div>
       </AdminLayout>
     );

@@ -45,6 +45,7 @@ import { format, parse } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 interface ConsultationRow {
   id: string;
@@ -449,9 +450,8 @@ const Consultations = () => {
                   </CardHeader>
                   <CardContent>
                     {loadingProvider ? (
-                      <div className="flex items-center justify-center py-12 gap-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                        <span className="text-muted-foreground">Loading…</span>
+                      <div className="py-2">
+                        <TableRowsSkeleton rows={6} columns={3} />
                       </div>
                     ) : providerConsults.length === 0 ? (
                       <p className="py-8 text-center text-muted-foreground">No upcoming appointments.</p>
@@ -716,9 +716,8 @@ const Consultations = () => {
                 <>
                   {loadingBhw ? (
                     <Card>
-                      <CardContent className="py-12 flex items-center justify-center gap-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                        <span className="text-muted-foreground">Loading…</span>
+                      <CardContent className="py-4">
+                        <TableRowsSkeleton rows={6} columns={3} />
                       </CardContent>
                     </Card>
                   ) : bhwConsults.length === 0 ? (
@@ -779,9 +778,8 @@ const Consultations = () => {
                 </>
               ) : loadingConsultations ? (
                 <Card>
-                  <CardContent className="py-12 flex items-center justify-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                    <span className="text-muted-foreground">Loading appointments…</span>
+                  <CardContent className="py-4">
+                    <TableRowsSkeleton rows={6} columns={3} />
                   </CardContent>
                 </Card>
               ) : consultations.length === 0 ? (

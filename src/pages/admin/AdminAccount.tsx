@@ -181,7 +181,7 @@ export default function AdminAccount() {
             <CardContent className="space-y-5">
               <div className="flex items-center gap-4">
                 <div className="relative group">
-                  <Avatar className="h-20 w-20 border border-slate-200 shadow-sm">
+                  <Avatar className="h-20 w-20 border border-border shadow-sm">
                     <AvatarImage src={avatarUrl || ""} className="object-cover" />
                     <AvatarFallback className="bg-[#800000]/10 text-[#800000] text-lg font-semibold">
                       {fullName?.charAt(0) || user?.email?.charAt(0) || "A"}
@@ -192,8 +192,8 @@ export default function AdminAccount() {
                     <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
                   </label>
                 </div>
-                <div className="text-sm text-slate-500">
-                  <p className="font-semibold text-slate-800">Profile photo</p>
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">Profile photo</p>
                   <p>Hover and click to upload a new avatar.</p>
                 </div>
               </div>
@@ -201,7 +201,7 @@ export default function AdminAccount() {
               <div className="grid gap-2">
                 <Label htmlFor="admin-email">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input id="admin-email" value={user?.email ?? ""} readOnly className="pl-9 bg-muted" />
                 </div>
               </div>

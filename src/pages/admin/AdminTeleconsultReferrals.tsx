@@ -11,8 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Video, ArrowRightLeft, AlertTriangle } from "lucide-react";
+import { Video, ArrowRightLeft, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import { FiltersBarSkeleton, TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type TeleconsultRow = {
   id: string;
@@ -118,9 +119,18 @@ export default function AdminTeleconsultReferrals() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading…
+        <div className="space-y-5 py-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Preparing teleconsultation board</CardTitle>
+              <CardDescription>Loading schedules, referrals, and escalation status.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FiltersBarSkeleton fields={3} />
+            </CardContent>
+          </Card>
+          <TableRowsSkeleton rows={6} columns={4} />
+          <TableRowsSkeleton rows={6} columns={5} />
         </div>
       </AdminLayout>
     );

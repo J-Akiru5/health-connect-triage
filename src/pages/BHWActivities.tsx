@@ -26,6 +26,8 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Loader2, Users, Home, Heart, ClipboardList } from "lucide-react";
 import { format } from "date-fns";
 import { Footer } from "@/components/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type ActivityType = "HOME_VISIT" | "FOLLOW_UP" | "ASSISTED_INTAKE" | "REFERRAL_ASSIST";
 
@@ -201,9 +203,13 @@ export default function BHWActivities() {
           </CardHeader>
           <CardContent className="space-y-4">
             {loadingPatients ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading patients…
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-24 w-full rounded-md" />
+                <Skeleton className="h-10 w-32 rounded-md" />
               </div>
             ) : (
               <>
@@ -262,9 +268,8 @@ export default function BHWActivities() {
           </CardHeader>
           <CardContent className="p-0">
             {loadingActivities ? (
-              <div className="py-12 flex items-center justify-center gap-2 text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin" />
-                Loading…
+              <div className="p-4">
+                <TableRowsSkeleton rows={6} columns={4} />
               </div>
             ) : activities.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
