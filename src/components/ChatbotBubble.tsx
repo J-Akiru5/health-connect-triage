@@ -226,7 +226,10 @@ export function ChatbotBubble() {
 
   /* ═══ Render ═══ */
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end" id="chatbot-bubble-root">
+    <div
+      className="fixed bottom-4 left-4 right-4 z-50 flex flex-col items-stretch sm:left-auto sm:right-5 sm:items-end"
+      id="chatbot-bubble-root"
+    >
       {/* ── Chat Panel ── */}
       <AnimatePresence>
         {isOpen && (
@@ -235,11 +238,11 @@ export function ChatbotBubble() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 16 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="mb-3 origin-bottom-right"
+            className="mb-3 w-full origin-bottom-right sm:w-[390px]"
           >
-            <div className="w-[360px] max-w-[calc(100vw-2.5rem)] rounded-2xl shadow-2xl shadow-primary/10 border border-border/40 bg-card/95 backdrop-blur-xl flex flex-col h-[520px] overflow-hidden">
+            <div className="flex h-[min(78vh,640px)] min-h-[480px] w-full flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/95 shadow-2xl shadow-primary/10 backdrop-blur-xl">
               {/* ── Header ── */}
-              <div className="relative flex items-center justify-between px-4 py-3 bg-gradient-to-r from-primary to-primary/85 text-primary-foreground">
+              <div className="relative flex items-center justify-between bg-gradient-to-r from-primary to-primary/85 px-4 py-3 text-primary-foreground">
                 {/* Decorative glow */}
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
 
@@ -277,8 +280,8 @@ export function ChatbotBubble() {
               </div>
 
               {/* ── Messages ── */}
-              <ScrollArea className="flex-1">
-                <div className="p-4 space-y-3">
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="space-y-3 p-4">
                   {messages.map((msg) => (
                     <ChatMessage key={msg.id} message={msg} />
                   ))}
@@ -300,7 +303,7 @@ export function ChatbotBubble() {
               </ScrollArea>
 
               {/* ── Input ── */}
-              <div className="border-t border-border/40 bg-card/80 backdrop-blur-sm p-3">
+              <div className="border-t border-border/40 bg-card/80 p-3 backdrop-blur-sm">
                 <form onSubmit={sendMessage} className="flex items-end gap-2">
                   <div className="flex-1 relative">
                     <textarea
@@ -311,8 +314,7 @@ export function ChatbotBubble() {
                       placeholder="Type a message..."
                       disabled={isLoading}
                       rows={1}
-                      className="w-full resize-none rounded-xl border border-border/50 bg-muted/40 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all disabled:opacity-50"
-                      style={{ maxHeight: "100px" }}
+                      className="chatbot-textarea w-full resize-none rounded-xl border border-border/50 bg-muted/40 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
                     />
                   </div>
                   <Button
@@ -349,7 +351,7 @@ export function ChatbotBubble() {
             aria-label="Open health assistant chat"
           >
             {/* Pulse ring */}
-            <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping opacity-40 pointer-events-none" style={{ animationDuration: "3s" }} />
+            <span className="chatbot-ping-ring absolute inset-0 rounded-full bg-primary/30 animate-ping opacity-40 pointer-events-none" />
             <MessageCircle className="w-6 h-6 relative z-10" />
 
             {/* Tooltip */}

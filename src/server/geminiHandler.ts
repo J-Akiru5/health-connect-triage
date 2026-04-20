@@ -9,6 +9,38 @@ type ChatRequestBody = {
   messages: ChatMessage[];
 };
 
+function normalizeConversation(messages: ChatMessage[]) {
+  const cleanedMessages = messages.filter(
+    (message) => typeof message?.content === "string" && message.content.trim().length > 0,
+  );
+
+  const firstUserIndex = cleanedMessages.findIndex((message) => message.role === "user");
+  if (firstUserIndex === -1) {
+    return { history: [], lastMessage: "" };
+  }
+
+  const conversation = cleanedMessages.slice(firstUserIndex).filter(
+    (message) => message.role === "user" || message.role === "assistant",
+  );
+
+  const lastUserIndex = [...conversation].reverse().findIndex((message) => message.role === "user");
+  const actualLastUserIndex = lastUserIndex === -1 ? -1 : conversation.length - 1 - lastUserIndex;
+
+  if (actualLastUserIndex === -1) {
+    return { history: [], lastMessage: "" };
+  }
+
+  const lastMessage = conversation[actualLastUserIndex]?.content.trim() || "";
+  const history = conversation
+    .slice(0, actualLastUserIndex)
+    .map((message) => ({
+      role: mapToGeminiRole(message.role),
+      parts: [{ text: message.content.trim() }],
+    }));
+
+  return { history, lastMessage };
+}
+
 export async function generateGeminiResponse(body: ChatRequestBody) {
   const messages = body.messages || [];
 
@@ -40,16 +72,13 @@ export async function generateGeminiResponse(body: ChatRequestBody) {
 
   const { model } = createGeminiClient(systemInstructions);
 
-  // Filter out system messages as they are injected as instructions in Gemini
-  const chatHistory = messages
-    .filter(m => m.role !== 'system')
-    .slice(0, -1) // All but last
-    .map(m => ({
-      role: mapToGeminiRole(m.role),
-      parts: [{ text: m.content }]
-    }));
+  const { history: chatHistory, lastMessage } = normalizeConversation(
+    messages.filter((message) => message.role !== "system"),
+  );
 
-  const lastMessage = messages[messages.length - 1]?.content || "";
+  if (!lastMessage) {
+    throw new Error("No user message provided");
+  }
 
   // Start chat with instructions and history
   const chat = model.startChat({
