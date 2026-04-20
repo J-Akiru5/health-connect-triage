@@ -28,7 +28,9 @@
     "stat2Label": "Triage Time",
     "stat3Value": "Free",
     "stat3Label": "For Residents",
-    "liveStatus": "AI Triage Active"
+    "stat4Value": "BHW",
+    "stat4Label": "Assisted Care",
+    "liveStatus": "Health Services Online"
   },
   "emergency": {
     "title": "Feeling unwell? Check your symptoms — no account needed.",
