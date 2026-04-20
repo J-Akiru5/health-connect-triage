@@ -225,7 +225,7 @@ export function ChatbotBubble() {
 
   /* ═══ Render ═══ */
   return (
-    <div className="fixed bottom-5 left-5 z-50" id="chatbot-bubble-root">
+    <div className="fixed bottom-5 right-5 z-50" id="chatbot-bubble-root">
       {/* ── Chat Panel ── */}
       <AnimatePresence>
         {isOpen && (
@@ -234,7 +234,7 @@ export function ChatbotBubble() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 16 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="mb-3 origin-bottom-left"
+            className="mb-3 origin-bottom-right"
           >
             <div className="w-[360px] max-w-[calc(100vw-2.5rem)] rounded-2xl shadow-2xl shadow-primary/10 border border-border/40 bg-card/95 backdrop-blur-xl flex flex-col h-[520px] overflow-hidden">
               {/* ── Header ── */}
@@ -352,7 +352,7 @@ export function ChatbotBubble() {
             <MessageCircle className="w-6 h-6 relative z-10" />
 
             {/* Tooltip */}
-            <span className="absolute left-full ml-3 px-3 py-1.5 rounded-lg bg-card text-foreground text-xs font-medium shadow-lg border border-border/30 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            <span className="absolute right-full mr-3 px-3 py-1.5 rounded-lg bg-card text-foreground text-xs font-medium shadow-lg border border-border/30 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
               <Sparkles className="w-3 h-3 inline mr-1 text-primary" />
               Ask me anything about health
             </span>
