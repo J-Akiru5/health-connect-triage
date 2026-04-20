@@ -21,7 +21,6 @@ type Stats = {
   usersTotal: number;
   usersByRole: Record<string, number>;
   patientsCount: number;
-  pendingTeleconsults: number;
   pendingReferrals: number;
   highRiskTriage: number;
   recentAuditCount: number;
@@ -47,7 +46,6 @@ export default function AdminDashboard() {
         { count: usersTotal },
         { data: profiles },
         { count: patientsCount },
-        { count: pendingTeleconsults },
         { count: pendingReferrals },
         { count: highRiskTriage },
         { count: recentAuditCount },
@@ -56,10 +54,6 @@ export default function AdminDashboard() {
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("profiles").select("role"),
         supabase.from("patient_profiles").select("id", { count: "exact", head: true }),
-        supabase
-          .from("teleconsultations")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["scheduled", "in_progress"]),
         supabase.from("referrals").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase
           .from("ai_triage_results")
@@ -82,7 +76,6 @@ export default function AdminDashboard() {
         usersTotal: usersTotal ?? 0,
         usersByRole: roleCount,
         patientsCount: patientsCount ?? 0,
-        pendingTeleconsults: pendingTeleconsults ?? 0,
         pendingReferrals: pendingReferrals ?? 0,
         highRiskTriage: highRiskTriage ?? 0,
         recentAuditCount: recentAuditCount ?? 0,
@@ -185,12 +178,12 @@ export default function AdminDashboard() {
                 <Calendar className="h-5 w-5" strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Pending Consults</p>
+                <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Pending Referrals</p>
               </div>
             </div>
             <div className="mt-auto relative z-10 flex items-end justify-between">
-              <h2 className="text-[34px] font-bold text-foreground tracking-tight leading-none">{stats.pendingTeleconsults}</h2>
-              <Link to="/admin/teleconsult-referrals" className="text-[12px] font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+              <h2 className="text-[34px] font-bold text-foreground tracking-tight leading-none">{stats.pendingReferrals}</h2>
+              <Link to="/admin/reports" className="text-[12px] font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
                 Action Required <ChevronRight className="h-3 w-3" />
               </Link>
             </div>

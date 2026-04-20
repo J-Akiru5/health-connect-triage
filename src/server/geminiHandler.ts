@@ -10,7 +10,6 @@ type ChatRequestBody = {
 };
 
 export async function generateGeminiResponse(body: ChatRequestBody) {
-  const { model } = createGeminiClient();
   const messages = body.messages || [];
 
   const systemInstructions = [
@@ -18,7 +17,7 @@ export async function generateGeminiResponse(body: ChatRequestBody) {
     "",
     "LANGUAGE: Respond fluently in the language the user writes in. You support English, Filipino/Tagalog, and Hiligaynon/Ilonggo. Match the user's language naturally.",
     "",
-    "ROLE: You provide general wellness guidance, explain medical terms in plain language, and help users navigate the app's features (Symptom Checker, Teleconsultations, Triage Results, Emergency Reports, etc.).",
+    "ROLE: You provide general wellness guidance, explain medical terms in plain language, and help users navigate the app's features (Symptom Checker, Triage Results, Referrals, Emergency Reports, etc.).",
     "",
     "STRICT GUARD RAILS — FOLLOW THESE WITHOUT EXCEPTION:",
     "",
@@ -39,6 +38,8 @@ export async function generateGeminiResponse(body: ChatRequestBody) {
     "Keep responses concise (3-6 sentences), warm, and culturally appropriate for the Filipino community.",
   ].join("\n");
 
+  const { model } = createGeminiClient(systemInstructions);
+
   // Filter out system messages as they are injected as instructions in Gemini
   const chatHistory = messages
     .filter(m => m.role !== 'system')
@@ -58,12 +59,8 @@ export async function generateGeminiResponse(body: ChatRequestBody) {
       maxOutputTokens: 800,
     },
   });
-
-  // Inject system instructions via a prepend to the last message or as system instruction if SDK supports it well
-  // For standard GenerativeModel usage, we can use systemInstruction during creation, but let's stick to the current creation helper for now.
-  // Actually, we can pass systemInstruction to genAI.getGenerativeModel
   
-  const result = await model.sendMessage(`${systemInstructions}\n\nUSER REQUEST: ${lastMessage}`);
+  const result = await chat.sendMessage(lastMessage);
   const response = await result.response;
   const text = response.text().trim();
 

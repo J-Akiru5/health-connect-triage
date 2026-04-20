@@ -74,23 +74,16 @@ This document checks implementation of the **SYSTEM MODULES AND DATA SPECIFICATI
 
 ## 4. Teleconsultation Management Module (CORE)
 
+Removed from active scope.
+
 | Spec field / capability | Status | Notes |
 |-------------------------|--------|--------|
-| Consultation ID | ✅ | `teleconsultations.id` |
-| Assigned Nurse/Physician | ✅ | `teleconsultations.provider_id` |
-| Consultation Type (Chat / Audio / Video) | ⚠️ | No DB column; UI shows "Teleconsultation (Video Call)" but type not stored; in-app chat is implemented |
-| Scheduled Time | ✅ | `teleconsultations.scheduled_at` |
-| Case Summary (from triage) | ✅ | Via `assessment_id` → symptom_assessments + ai_triage_results |
-| Consultation Notes | ✅ | `consultation_notes`: diagnosis, advice, treatment_plan, follow_up_date, notes |
-| Diagnosis | ✅ | `consultation_notes.diagnosis` |
-| Advice / Treatment Plan | ✅ | `consultation_notes.advice`, `treatment_plan` |
-| Consultation transcripts | ✅ | `consultation_messages` (in-app chat) |
-| Duration and timestamps | ✅ | `started_at`, `ended_at` |
-| Missed or cancelled sessions | ✅ | `status`: no_show, cancelled |
-| Follow-up flags | ✅ | `consultation_notes.follow_up_date` |
-| Queue management (Start/Complete) | ✅ | Consultations page: Start, Complete; status in_progress, completed |
+| Consultation scheduling | ❌ | Teleconsultation process removed |
+| Consultation chat/transcripts | ❌ | `consultation_messages` removed |
+| Consultation notes | ❌ | `consultation_notes` removed |
+| Consultation status/queue | ❌ | `teleconsultations` removed |
 
-**Verdict:** Implemented; only gap is storing consultation type (chat/audio/video) in DB if needed.
+**Verdict:** Decommissioned by design; triage + referrals remain the active care coordination path.
 
 ---
 
@@ -105,7 +98,7 @@ This document checks implementation of the **SYSTEM MODULES AND DATA SPECIFICATI
 | Urgency level | ✅ | `referrals.urgency`: routine, urgent, emergency |
 | Supporting documents | ✅ | `referrals.required_documents` |
 | Referral status | ✅ | `referrals.status`: pending, confirmed, completed, cancelled |
-| Create referral (manual) | ✅ | CreateReferralModal; from Triage Monitor, Consultations, Referrals page |
+| Create referral (manual) | ✅ | CreateReferralModal; from Triage Monitor and Referrals page |
 | Referral outcome tracking | ⚠️ | Status only; no structured outcome field |
 | Time-to-referral metrics | ❌ | Not computed or displayed |
 | Escalation history | ❌ | No separate escalation log |
@@ -248,8 +241,8 @@ This document checks implementation of the **SYSTEM MODULES AND DATA SPECIFICATI
 
 ## Summary
 
-- **Fully or largely implemented (CORE):** User & Identity (with minor gaps), Patient Profile & Health Record, AI Triage, Teleconsultation (except consultation_type in DB), Referral & Escalation (core flow), BHW Operations (core), Notifications (in-app), Analytics (dashboards), Consent & Privacy, Barangay Admin, Audit & Compliance.
-- **Gaps (CORE):** Last login timestamp, password reset logs, session metadata; profile update history and data completeness; consultation_type (Chat/Audio/Video) in DB; referral reason field, time-to-referral, escalation history; notification priority and SMS/delivery channel; response times and barangay-level analytics; CSV/PDF export; AI threshold parameters; health facility registry; configuration change history.
+- **Fully or largely implemented (CORE):** User & Identity (with minor gaps), Patient Profile & Health Record, AI Triage, Referral & Escalation (core flow), BHW Operations (core), Notifications (in-app), Analytics (dashboards), Consent & Privacy, Barangay Admin, Audit & Compliance.
+- **Gaps (CORE):** Last login timestamp, password reset logs, session metadata; profile update history and data completeness; referral reason field, time-to-referral, escalation history; notification priority and SMS/delivery channel; response times and barangay-level analytics; CSV/PDF export; AI threshold parameters; health facility registry; configuration change history.
 - **SHOULD/COULD:** Research model metrics and annotation logs; training manuals/videos; LGU/DOH integration not started.
 
 Use this document to prioritize next steps (e.g. health facility registry, notification priority/SMS, analytics export, AI thresholds) based on product and compliance needs.

@@ -286,7 +286,7 @@ const triageResults = {
     bgColor: "bg-non-urgent",
     borderColor: "border-non-urgent",
     description: "Your symptoms are not immediately concerning, but you should schedule a consultation for proper evaluation.",
-    action: "Book a teleconsultation or visit during regular clinic hours.",
+    action: "Coordinate follow-up care or visit during regular clinic hours.",
     contact: "Book via app or call: 0917-345-6789",
   },
   "home-care": {
@@ -325,7 +325,6 @@ export default function SymptomChecker() {
   });
   const [savedAssessmentId, setSavedAssessmentId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [requestingConsult, setRequestingConsult] = useState(false);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
@@ -521,37 +520,6 @@ export default function SymptomChecker() {
     });
     setSavedAssessmentId(null);
   };
-
-  async function handleRequestTeleconsultation() {
-    if (!user?.id || !savedAssessmentId || !triageResult) return;
-    setRequestingConsult(true);
-    try {
-      const { data: clinicians } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("role", "clinician")
-        .limit(1);
-      const providerId = clinicians?.[0]?.id;
-      if (!providerId) {
-        alert("No provider is available at the moment. Please try again later or contact your BHW.");
-        setRequestingConsult(false);
-        return;
-      }
-      await supabase.from("teleconsultations").insert({
-        patient_id: user.id,
-        provider_id: providerId,
-        assessment_id: savedAssessmentId,
-        status: "scheduled",
-        scheduled_at: null,
-      });
-      navigate("/consultations");
-    } catch (e) {
-      console.error("Failed to request teleconsultation", e);
-      alert("Could not submit request. Please try again.");
-    } finally {
-      setRequestingConsult(false);
-    }
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -863,8 +831,8 @@ export default function SymptomChecker() {
                   </Card>
 
                   <div className="flex flex-wrap gap-4 pt-4">
-                    <Button size="lg" className="flex-1 h-14 rounded-2xl text-lg font-bold shadow-2xl shadow-primary/30" onClick={handleRequestTeleconsultation} disabled={requestingConsult || !savedAssessmentId}>
-                      {requestingConsult ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Requesting...</> : "Start Teleconsultation Now"}
+                    <Button size="lg" className="flex-1 h-14 rounded-2xl text-lg font-bold shadow-2xl shadow-primary/30" asChild>
+                      <Link to={user ? "/referrals" : "/signup"}>{user ? "Open Referrals" : "Create Account to Continue"}</Link>
                     </Button>
                     <Button variant="outline" size="lg" className="h-14 px-8 rounded-2xl font-bold border-2" asChild><Link to={user ? "/dashboard" : "/"}>Close Assessment</Link></Button>
                   </div>

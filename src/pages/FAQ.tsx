@@ -17,23 +17,23 @@ const FAQ = () => {
   const faqs = [
     {
       question: "What is TeleHealth?",
-      answer: `TeleHealth is the telehealth platform for ${SITE_BARANGAY}. It brings quality healthcare services closer to home: we use AI-assisted triage to help you assess your symptoms and connect with healthcare professionals serving our barangay.`,
+      answer: `TeleHealth is the digital health platform for ${SITE_BARANGAY}. It brings quality healthcare services closer to home through AI-assisted triage, referral coordination, and support for barangay health workers.`,
     },
     {
       question: "How does the symptom checker work?",
-      answer: "Our AI-powered symptom checker asks you a series of questions about your symptoms, medical history, and current condition. Based on your responses, it provides a preliminary assessment and recommends the appropriate level of care - whether you should seek immediate emergency care, schedule a consultation, or use self-care measures.",
+      answer: "Our AI-powered symptom checker asks you a series of questions about your symptoms, medical history, and current condition. Based on your responses, it provides a preliminary assessment and recommends the appropriate level of care - whether you should seek immediate emergency care, coordinate a referral, or use self-care measures.",
     },
     {
       question: "Is the symptom checker a replacement for medical consultation?",
       answer: "No, the symptom checker is not a replacement for professional medical advice. It's a triage tool designed to help you understand the urgency of your condition and guide you to the appropriate level of care. Always consult with a healthcare professional for proper diagnosis and treatment.",
     },
     {
-      question: "How do I book a consultation?",
-      answer: `You can book a consultation through our platform by selecting your preferred date and time. Our system will connect you with available healthcare workers at the barangay health center or rural health unit serving ${SITE_BARANGAY}. You will receive a confirmation with the details of your appointment.`,
+      question: "How do referrals work?",
+      answer: `If your triage result needs escalation, your care team can create a referral to the appropriate facility. You can track the referral status in the app and follow guidance from your barangay health workers and RHU serving ${SITE_BARANGAY}.`,
     },
     {
       question: "What services are available through TeleHealth?",
-      answer: `We offer symptom checking, teleconsultations with healthcare professionals, appointment booking, health education resources, and connections to local health centers for ${SITE_BARANGAY}. The platform also supports Barangay Health Workers (BHWs) and Rural Health Units (RHUs) with tools and resources.`,
+      answer: `We offer symptom checking, triage guidance, referral tracking, health education resources, and connections to local health centers for ${SITE_BARANGAY}. The platform also supports Barangay Health Workers (BHWs) and Rural Health Units (RHUs) with tools and resources.`,
     },
     {
       question: "Is my personal health information secure?",
@@ -53,7 +53,7 @@ const FAQ = () => {
     },
     {
       question: "What technology do I need to use this platform?",
-      answer: "You need a device (smartphone, tablet, or computer) with internet access and a web browser. For teleconsultations, you'll also need a camera and microphone. The platform is designed to work on most modern devices and browsers, and we're continuously working to make it accessible even with limited internet connectivity.",
+      answer: "You need a device (smartphone, tablet, or computer) with internet access and a web browser. The platform is designed to work on most modern devices and browsers, and we're continuously working to make it accessible even with limited internet connectivity.",
     },
     {
       question: "How accurate is the AI symptom checker?",
@@ -61,7 +61,7 @@ const FAQ = () => {
     },
     {
       question: "Can I access my health records through this platform?",
-      answer: "Yes, if you create an account, you can access your consultation history and health records through the platform. This allows you to track your health over time and share relevant information with healthcare providers during future consultations.",
+      answer: "Yes, if you create an account, you can access your triage history, referrals, and health records through the platform. This allows you to track your health over time and share relevant information with healthcare providers.",
     },
   ];
 

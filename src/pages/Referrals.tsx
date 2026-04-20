@@ -241,9 +241,9 @@ export default function Referrals() {
     (async () => {
       if (isClinician) {
         const { data: consults } = await supabase
-          .from("teleconsultations")
+          .from("referrals")
           .select("patient_id")
-          .eq("provider_id", user.id);
+          .eq("from_provider_id", user.id);
         const ids = [...new Set((consults ?? []).map((c: { patient_id: string }) => c.patient_id))];
         if (ids.length === 0) {
           setPatientsList([]);

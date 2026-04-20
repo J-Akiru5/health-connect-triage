@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
  * Initialize the Gemini client using environment variables.
  * Note: This runs on the server (Vercel functions).
  */
-export function createGeminiClient() {
+export function createGeminiClient(systemInstruction?: string) {
   const apiKey = process.env.GEMINI_API_KEY;
   const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -13,7 +13,13 @@ export function createGeminiClient() {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelName });
+  const modelOptions: any = { model: modelName };
+  
+  if (systemInstruction) {
+    modelOptions.systemInstruction = systemInstruction;
+  }
+  
+  const model = genAI.getGenerativeModel(modelOptions);
 
   return { genAI, model };
 }

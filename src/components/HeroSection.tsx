@@ -165,7 +165,7 @@ export function HeroSection() {
                 </motion.div>
               </Link>
 
-              <Link to={session ? "/consultations" : "/login"}>
+              <Link to={session ? "/referrals" : "/login"}>
                 <motion.div whileHover={reduceMotion ? undefined : { scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <Button variant="glass" size="xl" className="w-full sm:w-auto text-base px-8 border-border/60">
                     {session ? t("nav.consultations") : t("hero.ctaConsultation")}

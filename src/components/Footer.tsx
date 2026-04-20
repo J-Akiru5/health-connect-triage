@@ -54,7 +54,7 @@ export function Footer({ className }: { className?: string }) {
             <ul className="space-y-4">
               {[
                 { to: "/symptom-checker", label: t("footer.symptomChecker") },
-                { to: "/consultations", label: t("footer.bookConsultation") },
+                { to: "/referrals", label: t("footer.bookConsultation") },
                 { onClick: () => handleScrollTo("about"), label: t("footer.aboutUs") },
                 { onClick: () => handleScrollTo("faq"), label: t("footer.faqs") },
               ].map((link, i) => (

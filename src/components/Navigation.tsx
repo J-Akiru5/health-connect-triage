@@ -148,7 +148,7 @@ export function Navigation() {
               {session && (
                 <>
                   <NavPill to="/dashboard" label={t("nav.dashboard")} active={location.pathname === "/dashboard"} />
-                  <NavPill to="/consultations" label={t("nav.consultations")} active={location.pathname === "/consultations"} />
+                  <NavPill to="/referrals" label={t("nav.consultations")} active={location.pathname === "/referrals"} />
                 </>
               )}
             </div>
@@ -373,7 +373,7 @@ export function Navigation() {
                   </>
                 )}
 
-                {/* Dashboard/Consultations if session exists */}
+                {/* Dashboard/Referrals if session exists */}
                 {session && (
                   <>
                     <motion.button
@@ -389,7 +389,7 @@ export function Navigation() {
                       initial={{ opacity: 0, x: -30 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.34, ease: [0.22, 1, 0.36, 1] }}
-                      onClick={() => { navigate("/consultations"); setIsOpen(false); }}
+                      onClick={() => { navigate("/referrals"); setIsOpen(false); }}
                       className="text-left px-4 py-4 rounded-2xl text-2xl font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {t("nav.consultations")}

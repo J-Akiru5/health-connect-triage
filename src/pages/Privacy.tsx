@@ -50,7 +50,7 @@ export default function Privacy() {
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>
-                <strong className="text-foreground">Care:</strong> Your data is used to deliver telehealth services, triage support, consultations, referrals, and continuity of care. Only authorized health workers and clinicians involved in your care can access your records.
+                <strong className="text-foreground">Care:</strong> Your data is used to deliver triage support, referrals, and continuity of care. Only authorized health workers and clinicians involved in your care can access your records.
               </p>
               <p>
                 <strong className="text-foreground">Research (if you consented):</strong> If you agreed to research use, de-identified or anonymized data may be used for studies to improve rural telehealth and triage. Research is conducted in line with ethics approvals and consent.

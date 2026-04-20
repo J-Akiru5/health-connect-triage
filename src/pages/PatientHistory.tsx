@@ -25,14 +25,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, FileText, Loader2, User, Stethoscope, MessageSquare, ArrowRightLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, User, Stethoscope, ArrowRightLeft } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 
 type VisitItem =
   | { type: "triage"; date: string; triageLevel: string; reportedBy: string | null; assessmentId: string }
-  | { type: "consultation"; date: string; id: string; status: string; providerName: string | null }
   | { type: "referral"; date: string; id: string; facilityName: string; urgency: string; status: string };
 
 export default function PatientHistory() {
@@ -69,9 +68,9 @@ export default function PatientHistory() {
     }
     (async () => {
       const { data: consults } = await supabase
-        .from("teleconsultations")
+        .from("referrals")
         .select("patient_id")
-        .eq("provider_id", user.id);
+        .eq("from_provider_id", user.id);
       const ids = [...new Set((consults ?? []).map((c: { patient_id: string }) => c.patient_id))];
       if (ids.length === 0) {
         setPatients([]);
@@ -134,27 +133,6 @@ export default function PatientHistory() {
           });
         });
       }
-
-      const { data: consults } = await supabase
-        .from("teleconsultations")
-        .select("id, created_at, status, provider_id")
-        .eq("patient_id", selectedPatientId)
-        .order("created_at", { ascending: false });
-      const providerIds = [...new Set((consults ?? []).map((c: { provider_id: string }) => c.provider_id))];
-      let providerNames: Map<string, string> = new Map();
-      if (providerIds.length > 0) {
-        const { data: provs } = await supabase.from("profiles").select("id, full_name").in("id", providerIds);
-        providerNames = new Map((provs ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Provider"]));
-      }
-      (consults ?? []).forEach((c: { id: string; created_at: string; status: string; provider_id: string }) => {
-        items.push({
-          type: "consultation",
-          date: c.created_at,
-          id: c.id,
-          status: c.status,
-          providerName: providerNames.get(c.provider_id) ?? null,
-        });
-      });
 
       const { data: refs } = await supabase
         .from("referrals")
@@ -388,7 +366,7 @@ export default function PatientHistory() {
                 <CardHeader>
                   <CardTitle className="text-lg">Visit history</CardTitle>
                   <CardDescription>
-                    Triage events, consultations, and referrals for this patient. Newest first.
+                    Triage events and referrals for this patient. Newest first.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -417,29 +395,6 @@ export default function PatientHistory() {
                               <Badge variant={item.triageLevel === "emergency" || item.triageLevel === "urgent" ? "destructive" : "secondary"} className="shrink-0">
                                 {levelLabel}
                               </Badge>
-                            </li>
-                          );
-                        }
-                        if (item.type === "consultation") {
-                          return (
-                            <li key={`consultation-${item.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                                  <MessageSquare className="w-4 h-4 text-primary" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm text-foreground">Consultation</p>
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {dateStr} · {item.providerName ?? "Provider"} · {item.status}
-                                  </p>
-                                </div>
-                              </div>
-                              <Button variant="ghost" size="sm" asChild className="shrink-0 gap-1">
-                                <Link to={item.id ? `/consultations/${item.id}/chat` : "/consultations"}>
-                                  Open chat
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </Link>
-                              </Button>
                             </li>
                           );
                         }

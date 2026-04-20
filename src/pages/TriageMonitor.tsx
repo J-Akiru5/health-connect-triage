@@ -35,7 +35,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { CreateReferralModal, type CreateReferralPrefilledPatient } from "@/components/CreateReferralModal";
-import { ArrowLeft, Loader2, Activity, Video, ArrowRightLeft, CheckCircle2, Pencil, AlertCircle, Users, ClipboardList } from "lucide-react";
+import { ArrowLeft, Loader2, Activity, ArrowRightLeft, CheckCircle2, Pencil, AlertCircle, Users, ClipboardList } from "lucide-react";
 
 const TRIAGE_LEVELS = ["emergency", "urgent", "non_urgent", "home_care"] as const;
 
@@ -93,63 +93,24 @@ export default function TriageMonitor() {
       return;
     }
     (async () => {
-      if (profile?.role === "bhw") {
-        const { data: triageData } = await supabase
-          .from("ai_triage_results")
-          .select("id, assessment_id, risk_score, triage_level, created_at, validated_triage_level, provider_rationale")
-          .order("created_at", { ascending: false });
-        const triageAssessmentIds = [...new Set((triageData ?? []).map((t: { assessment_id: string }) => t.assessment_id))];
-        if (triageAssessmentIds.length === 0) {
-          setRows([]);
-          setLoading(false);
-          return;
-        }
-        const { data: assessments } = await supabase
-          .from("symptom_assessments")
-          .select("id, user_id")
-          .in("id", triageAssessmentIds);
-        const assessmentToPatient = new Map((assessments ?? []).map((a: { id: string; user_id: string }) => [a.id, a.user_id]));
-        const patientIds = [...new Set((assessments ?? []).map((a: { user_id: string }) => a.user_id))];
-        const { data: profData } = patientIds.length
-          ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
-          : { data: [] as { id: string; full_name: string | null }[] };
-        const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
-        const list: TriageRow[] = (triageData ?? []).map((t: { id: string; assessment_id: string; risk_score: number | null; triage_level: string; created_at: string; validated_triage_level: string | null; provider_rationale: string | null }) => ({
-          id: t.id,
-          assessment_id: t.assessment_id,
-          patient_id: assessmentToPatient.get(t.assessment_id) ?? "",
-          patient_name: nameMap.get(assessmentToPatient.get(t.assessment_id) ?? "") ?? "Patient",
-          risk_score: t.risk_score != null ? Number(t.risk_score) : null,
-          triage_level: t.triage_level,
-          created_at: t.created_at,
-          validated_triage_level: t.validated_triage_level ?? null,
-          provider_rationale: t.provider_rationale ?? null,
-        }));
-        setRows(list);
-        setLoading(false);
-        return;
-      }
-      const { data: consults } = await supabase
-        .from("teleconsultations")
-        .select("id, patient_id, assessment_id")
-        .eq("provider_id", user.id);
-      const assessmentIds = (consults ?? []).map((c: { assessment_id: string | null }) => c.assessment_id).filter(Boolean) as string[];
-      if (assessmentIds.length === 0) {
+      const { data: triageData } = await supabase
+        .from("ai_triage_results")
+        .select("id, assessment_id, risk_score, triage_level, created_at, validated_triage_level, provider_rationale")
+        .order("created_at", { ascending: false });
+      const triageAssessmentIds = [...new Set((triageData ?? []).map((t: { assessment_id: string }) => t.assessment_id))];
+      if (triageAssessmentIds.length === 0) {
         setRows([]);
         setLoading(false);
         return;
       }
-      const { data: triageData } = await supabase
-        .from("ai_triage_results")
-        .select("id, assessment_id, risk_score, triage_level, created_at, validated_triage_level, provider_rationale")
-        .in("assessment_id", assessmentIds)
-        .order("created_at", { ascending: false });
       const { data: assessments } = await supabase
         .from("symptom_assessments")
         .select("id, user_id")
-        .in("id", assessmentIds);
+        .in("id", triageAssessmentIds);
       const patientIds = [...new Set((assessments ?? []).map((a: { user_id: string }) => a.user_id))];
-      const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", patientIds);
+      const { data: profData } = patientIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+        : { data: [] as { id: string; full_name: string | null }[] };
       const nameMap = new Map((profData ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "Patient"]));
       const assessmentToPatient = new Map((assessments ?? []).map((a: { id: string; user_id: string }) => [a.id, a.user_id]));
       const list: TriageRow[] = (triageData ?? []).map((t: { id: string; assessment_id: string; risk_score: number | null; triage_level: string; created_at: string; validated_triage_level: string | null; provider_rationale: string | null }) => ({
@@ -513,12 +474,6 @@ export default function TriageMonitor() {
             </Card>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button variant="outline" asChild className="gap-2 rounded-xl">
-                <Link to="/consultations">
-                  <Video className="w-4 h-4" />
-                  Assign teleconsultation
-                </Link>
-              </Button>
               <Button variant="outline" asChild className="gap-2 rounded-xl">
                 <Link to="/referrals">
                   <ArrowRightLeft className="w-4 h-4" />

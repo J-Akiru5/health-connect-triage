@@ -123,7 +123,7 @@ const triageResults = {
     bgColor: "bg-non-urgent",
     borderColor: "border-non-urgent",
     description: "Your symptoms are not immediately concerning, but you should schedule a consultation for proper evaluation.",
-    action: "Book a teleconsultation or visit during regular clinic hours.",
+    action: "Coordinate referral follow-up or visit during regular clinic hours.",
     contact: "Book via app or call: 0917-345-6789",
   },
   "home-care": {
@@ -775,7 +775,7 @@ export default function EmergencyReport() {
                         </div>
                         <div className="flex-1 text-center md:text-left">
                             <h3 className="text-xl font-black mb-2">Save this result for your records?</h3>
-                            <p className="text-sm text-muted-foreground mb-4 font-medium leading-relaxed">Create a free patient account to save this assessment, track health history, and request immediate teleconsultations via video/chat.</p>
+                            <p className="text-sm text-muted-foreground mb-4 font-medium leading-relaxed">Create a free patient account to save this assessment, track health history, and coordinate referrals with your care team.</p>
                             <div className="flex flex-wrap justify-center md:justify-start gap-4">
                               <Button asChild className="rounded-xl h-11 px-6 font-bold shadow-lg shadow-primary/20"><Link to="/signup">Register Now</Link></Button>
                               <Button asChild variant="outline" className="rounded-xl h-11 px-6 font-bold border-2"><Link to="/login">Sign In</Link></Button>

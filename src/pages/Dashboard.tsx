@@ -12,7 +12,6 @@ import { handleMissingNotificationsTable } from "@/lib/notifications";
 import {
   Stethoscope,
   ClipboardList,
-  Video,
   ArrowRightLeft,
   FileText,
   Bell,
@@ -41,13 +40,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type ClinicianConsultRow = {
   id: string;
-  patient_id: string;
   patient_name: string;
-  status: string;
-  scheduled_at: string | null;
-  created_at: string;
   triage_level: string | null;
-  assessment_id: string | null;
+  created_at: string;
 };
 
 type TriageBadgeProps = { level: string | null };
@@ -121,7 +116,7 @@ export default function Dashboard() {
   } | null>(null);
   const [patientLoading, setPatientLoading] = useState(true);
   const [latestTriage, setLatestTriage] = useState<{ triage_level: string | null; created_at: string } | null>(null);
-  const [nextConsult, setNextConsult] = useState<{ scheduled_at: string | null; status: string } | null>(null);
+  const [patientReferralCount, setPatientReferralCount] = useState(0);
   const [patientUnread, setPatientUnread] = useState(0);
 
   /* ── Clinician state ── */
@@ -129,6 +124,7 @@ export default function Dashboard() {
   const [clinicianLoading, setClinicianLoading] = useState(true);
   const [clinicianBarangay, setClinicianBarangay] = useState<string | null>(null);
   const [clinicianReferrals, setClinicianReferrals] = useState(0);
+  const [clinicianHighRiskCount, setClinicianHighRiskCount] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   /* ── BHW state ── */
@@ -163,18 +159,16 @@ export default function Dashboard() {
         if (tr) setLatestTriage(tr as { triage_level: string | null; created_at: string });
       }
 
-      const { data: consult } = await supabase
-        .from("teleconsultations").select("scheduled_at, status")
-        .eq("patient_id", user.id).in("status", ["scheduled", "in_progress"])
-        .order("scheduled_at", { ascending: true }).limit(1);
-      setNextConsult(consult?.[0] ?? null);
-
-      const { count, error } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
+      const [{ count: unreadCount, error }, { count: referralsCount }] = await Promise.all([
+        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
+        supabase.from("referrals").select("id", { count: "exact", head: true }).eq("patient_id", user.id).in("status", ["pending", "confirmed"]),
+      ]);
       if (error && handleMissingNotificationsTable(error)) {
         setPatientUnread(0);
       } else {
-        setPatientUnread(count ?? 0);
+        setPatientUnread(unreadCount ?? 0);
       }
+      setPatientReferralCount(referralsCount ?? 0);
       setPatientLoading(false);
     })();
   }, [user?.id, isPatient, authLoading]);
@@ -183,33 +177,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (authLoading || !user?.id || !isClinician) { setClinicianLoading(false); return; }
     (async () => {
-      const { data: consults } = await supabase
-        .from("teleconsultations").select("id, patient_id, status, scheduled_at, created_at, assessment_id")
-        .eq("provider_id", user.id).in("status", ["scheduled", "in_progress"])
-        .order("scheduled_at", { ascending: true, nullsFirst: false });
-
-      if (consults?.length) {
-        const patientIds = [...new Set(consults.map((c: any) => c.patient_id))];
-        const assessmentIds = consults.map((c: any) => c.assessment_id).filter(Boolean) as string[];
-        const [profRes, triageRes] = await Promise.all([
-          supabase.from("profiles").select("id, full_name").in("id", patientIds),
-          assessmentIds.length ? supabase.from("ai_triage_results").select("assessment_id, triage_level").in("assessment_id", assessmentIds) : { data: [] },
-        ]);
-        const nameMap = new Map((profRes.data ?? []).map((p: any) => [p.id, p.full_name ?? "Patient"]));
-        const triageMap = new Map((triageRes.data ?? []).map((tr: any) => [tr.assessment_id, tr.triage_level]));
-        setClinicianConsults(consults.map((c: any) => ({
-          id: c.id, patient_id: c.patient_id,
-          patient_name: nameMap.get(c.patient_id) ?? "Patient",
-          status: c.status, scheduled_at: c.scheduled_at,
-          created_at: c.created_at,
-          triage_level: c.assessment_id ? triageMap.get(c.assessment_id) ?? null : null,
-          assessment_id: c.assessment_id,
-        })));
-      }
-
-      const [{ count: unread, error: nError }, { count: referrals }, { data: pData }] = await Promise.all([
+      setClinicianConsults([]);
+      const [{ count: unread, error: nError }, { count: referrals }, { count: highRisk }, { data: pData }] = await Promise.all([
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
         supabase.from("referrals").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("ai_triage_results").select("id", { count: "exact", head: true }).in("triage_level", ["emergency", "urgent"]),
         supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single(),
       ]);
 
@@ -220,6 +192,7 @@ export default function Dashboard() {
       }
       
       setClinicianReferrals(referrals ?? 0);
+      setClinicianHighRiskCount(highRisk ?? 0);
       setClinicianBarangay((pData as any)?.assigned_barangay_name ?? null);
       setClinicianLoading(false);
     })();
@@ -317,14 +290,13 @@ export default function Dashboard() {
      CLINICIAN DASHBOARD
   ════════════════════════════════════════ */
   if (isClinician) {
-    const highRisk = clinicianConsults.filter(c => c.triage_level === "emergency" || c.triage_level === "urgent");
+    const highRisk = clinicianHighRiskCount;
     const welcomeName = profile?.full_name?.trim()
       ? (profile.full_name.startsWith("Dr.") ? profile.full_name : `Dr. ${profile.full_name}`)
       : "Clinician";
 
     const quickActions = [
       { to: "/triage-monitor", icon: ClipboardList, label: "Triage Monitor" },
-      { to: "/consultations", icon: Video, label: "Teleconsultations" },
       { to: "/referrals", icon: ArrowRightLeft, label: "Referrals" },
       { to: "/patient-history", icon: FileText, label: "Patient History" },
       { to: "/notifications", icon: Bell, label: "Notifications", badge: unreadNotifications },
@@ -380,63 +352,40 @@ export default function Dashboard() {
 
               {/* Stat Cards Row */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
-                <StatCard icon={Video} label="Active Consultations" value={clinicianConsults.length} sub="Scheduled or in progress" color="primary" to="/consultations" />
-              </motion.div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
-                <StatCard icon={AlertTriangle} label="High-Risk Patients" value={highRisk.length} sub="Emergency or urgent triage" color={highRisk.length > 0 ? "destructive" : "green"} to="/triage-monitor" />
-              </motion.div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
                 <StatCard icon={ArrowRightLeft} label="Pending Referrals" value={clinicianReferrals} sub="Awaiting review" color="amber" to="/referrals" />
               </motion.div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
+                <StatCard icon={AlertTriangle} label="High-Risk Patients" value={highRisk} sub="Emergency or urgent triage" color={highRisk > 0 ? "destructive" : "green"} to="/triage-monitor" />
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
                 <StatCard icon={Bell} label="Unread Notifications" value={unreadNotifications} sub="Action required" color="violet" to="/notifications" />
               </motion.div>
 
-              {/* Patient Queue */}
+              {/* Monitoring Summary */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="col-span-12 lg:col-span-8">
                 < Card className="border-border/60 h-full">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-lg flex items-center gap-2"><ClipboardList className="w-5 h-5 text-primary" /> Patient Queue</CardTitle>
-                        <CardDescription>Today's scheduled and in-progress consultations</CardDescription>
+                        <CardTitle className="text-lg flex items-center gap-2"><ClipboardList className="w-5 h-5 text-primary" /> Priority Monitoring</CardTitle>
+                        <CardDescription>Track high-risk triage outcomes and referral follow-up.</CardDescription>
                       </div>
-                      <Button asChild size="sm" className="rounded-xl gap-2"><Link to="/consultations">View All <ArrowRight className="w-3.5 h-3.5" /></Link></Button>
+                      <Button asChild size="sm" className="rounded-xl gap-2"><Link to="/triage-monitor">Open Triage Monitor <ArrowRight className="w-3.5 h-3.5" /></Link></Button>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {clinicianConsults.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
-                          <CheckCircle2 className="w-7 h-7 text-muted-foreground" />
-                        </div>
-                        <p className="font-semibold text-foreground mb-1">All Clear</p>
-                        <p className="text-sm text-muted-foreground">No scheduled or in-progress consultations right now.</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-border/60 p-4">
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">High-risk triage</p>
+                        <p className="mt-2 text-2xl font-bold text-foreground">{highRisk}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Requires prompt review and escalation planning.</p>
                       </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {clinicianConsults.slice(0, 8).map((c) => (
-                          <Link key={c.id} to="/consultations">
-                            <div className="flex items-center gap-4 p-3 rounded-xl border border-border/60 hover:border-primary/30 hover:bg-muted/30 transition-all group">
-                              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                <Stethoscope className="w-4 h-4 text-primary" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-foreground truncate">{c.patient_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {c.scheduled_at ? format(new Date(c.scheduled_at), "MMM d, h:mm a") : "Not scheduled"}
-                                </p>
-                              </div>
-                              <TriageBadge level={c.triage_level} />
-                              <Badge variant={c.status === "in_progress" ? "default" : "secondary"} className="text-[10px] shrink-0">
-                                {c.status === "in_progress" ? "Live" : "Scheduled"}
-                              </Badge>
-                              <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                            </div>
-                          </Link>
-                        ))}
+                      <div className="rounded-xl border border-border/60 p-4">
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending referrals</p>
+                        <p className="mt-2 text-2xl font-bold text-foreground">{clinicianReferrals}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Coordinate with BHW and receiving facilities.</p>
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -555,7 +504,7 @@ export default function Dashboard() {
                 <StatCard icon={Bell} label="Notifications" value={unreadNotifications} sub="Unread messages" color="amber" to="/notifications" />
               </motion.div>
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
-                <StatCard icon={Activity} label="Intakes Today" value={bhwPatientsSeenToday} sub="Assisted consultations" color="green" />
+                <StatCard icon={Activity} label="Intakes Today" value={bhwPatientsSeenToday} sub="Assisted assessments" color="green" />
               </motion.div>
 
               {/* Emergency Quick Report */}
@@ -790,29 +739,20 @@ export default function Dashboard() {
               </Link>
             </motion.div>
 
-            {/* Next Teleconsultation */}
+            {/* Referral Status */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="col-span-12 sm:col-span-6 lg:col-span-4">
-              <Link to="/consultations" className="block h-full">
+              <Link to="/referrals" className="block h-full">
                 <Card className="border-border/60 hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group h-full">
                   <CardContent className="p-6 flex flex-col h-full">
                     <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                      <Video className="w-5 h-5 text-primary" />
+                      <ArrowRightLeft className="w-5 h-5 text-primary" />
                     </div>
-                    <h3 className="font-bold text-foreground mb-1">Teleconsultation</h3>
-                    {nextConsult?.scheduled_at ? (
-                      <div className="mt-1">
-                        <Badge variant={nextConsult.status === "in_progress" ? "default" : "secondary"} className="text-[10px] mb-2">
-                          {nextConsult.status === "in_progress" ? "Live Now" : "Scheduled"}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(nextConsult.scheduled_at), "MMM d, h:mm a")}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground mt-1">No upcoming session</p>
-                    )}
+                    <h3 className="font-bold text-foreground mb-1">My Referrals</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {patientReferralCount > 0 ? `${patientReferralCount} active referral(s)` : "No active referrals"}
+                    </p>
                     <div className="flex-1" />
-                    <p className="text-xs text-primary font-medium mt-4 flex items-center gap-1">View sessions <ArrowRight className="w-3 h-3" /></p>
+                    <p className="text-xs text-primary font-medium mt-4 flex items-center gap-1">View referrals <ArrowRight className="w-3 h-3" /></p>
                   </CardContent>
                 </Card>
               </Link>

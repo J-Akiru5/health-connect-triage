@@ -9,8 +9,6 @@ import ScrollToTop from "@/components/ScrollToTop";
 import RealtimeAlertsWrapper from "@/components/RealtimeAlertsWrapper";
 import Index from "./pages/Index";
 import SymptomChecker from "./pages/SymptomChecker";
-import Consultations from "./pages/Consultations";
-import ConsultationChat from "./pages/ConsultationChat";
 import { ChatbotBubble } from "./components/ChatbotBubble";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
@@ -35,7 +33,6 @@ import { AdminRoute } from "@/components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminAITriage from "./pages/admin/AdminAITriage";
-import AdminTeleconsultReferrals from "./pages/admin/AdminTeleconsultReferrals";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminAudit from "./pages/admin/AdminAudit";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -66,22 +63,6 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
-              <Route
-                path="/consultations"
-                element={
-                  <ProtectedRoute>
-                    <Consultations />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/consultations/:consultationId/chat"
-                element={
-                  <ProtectedRoute>
-                    <ConsultationChat />
-                  </ProtectedRoute>
-                }
-              />
               <Route
                 path="/profile"
                 element={
@@ -182,7 +163,6 @@ const App = () => (
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
               <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/admin/ai-triage" element={<AdminRoute><AdminAITriage /></AdminRoute>} />
-              <Route path="/admin/teleconsult-referrals" element={<AdminRoute><AdminTeleconsultReferrals /></AdminRoute>} />
               <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
               <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
               <Route path="/admin/audit-logs" element={<AdminRoute><AuditLogs /></AdminRoute>} />

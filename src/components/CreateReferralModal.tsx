@@ -37,8 +37,6 @@ type CreateReferralModalProps = {
   prefilledPatient: CreateReferralPrefilledPatient | null;
   /** When prefilledPatient is null, show a patient dropdown from this list. */
   patientsList?: CreateReferralPrefilledPatient[];
-  /** Optional teleconsultation id when creating from a consultation. */
-  teleconsultationId?: string;
   onSuccess: () => void;
 };
 
@@ -47,7 +45,6 @@ export function CreateReferralModal({
   onOpenChange,
   prefilledPatient,
   patientsList = [],
-  teleconsultationId,
   onSuccess,
 }: CreateReferralModalProps) {
   const { user, profile } = useAuth();
@@ -99,7 +96,6 @@ export function CreateReferralModal({
           urgency,
           required_documents: requiredDocuments.trim() || null,
           prior_records_notes: priorRecordsNotes.trim() || null,
-          teleconsultation_id: teleconsultationId || null,
           status: "pending",
         })
         .select("id")
@@ -146,7 +142,7 @@ export function CreateReferralModal({
               <Label>Patient</Label>
               {patientsList.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">
-                  No patients in your list. Create a referral from Triage Monitor or Consultations for a specific patient.
+                  No patients in your list. Create a referral from Triage Monitor for a specific patient.
                 </p>
               ) : (
                 <Select value={selectedPatientId} onValueChange={setSelectedPatientId} required>

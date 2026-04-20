@@ -4,7 +4,7 @@ A modern web application for connecting communities to better healthcare through
 
 ## Features
 
-- Telehealth services
+- AI-assisted triage and referral coordination
 - Symptom checker
 - Health management tools
 - Community health resources

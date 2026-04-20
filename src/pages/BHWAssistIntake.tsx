@@ -27,7 +27,6 @@ import {
   AlertCircle,
   Clock,
   Home,
-  Video,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Footer } from "@/components/Footer";
@@ -72,8 +71,8 @@ function getTriageLevelLabel(level: TriageLevel): string {
 }
 const triageResults: Record<NonNullable<TriageLevel>, { title: string; action: string; icon: typeof AlertTriangle }> = {
   emergency: { title: "Emergency Care Needed", action: "Call emergency services or proceed to the nearest hospital immediately.", icon: AlertTriangle },
-  urgent: { title: "Urgent Care Recommended", action: "Contact RHU or schedule teleconsultation today.", icon: AlertCircle },
-  "non-urgent": { title: "Schedule a Consultation", action: "Book a teleconsultation or visit during regular clinic hours.", icon: Clock },
+  urgent: { title: "Urgent Care Recommended", action: "Contact RHU and initiate referral coordination today.", icon: AlertCircle },
+  "non-urgent": { title: "Schedule Follow-up Care", action: "Coordinate barangay follow-up or visit during regular clinic hours.", icon: Clock },
   "home-care": { title: "Home Care Advised", action: "Rest, stay hydrated, and monitor. Consult if symptoms worsen.", icon: Home },
 };
 
@@ -99,7 +98,6 @@ export default function BHWAssistIntake() {
   const [triageResult, setTriageResult] = useState<TriageLevel>(null);
   const [savedAssessmentId, setSavedAssessmentId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [schedulingConsult, setSchedulingConsult] = useState(false);
   const isBhw = profile?.role === "bhw";
 
   useEffect(() => {
@@ -190,57 +188,6 @@ export default function BHWAssistIntake() {
       setSaving(false);
     }
   };
-
-  async function handleScheduleTeleconsultation() {
-    if (!user?.id || !patientId || !savedAssessmentId || !triageResult) return;
-    setSchedulingConsult(true);
-    try {
-      const { data: clinicians } = await supabase.from("profiles").select("id").eq("role", "clinician").limit(1);
-      const providerId = clinicians?.[0]?.id;
-      if (!providerId) {
-        alert("No provider available. Please try again later.");
-        setSchedulingConsult(false);
-        return;
-      }
-      await supabase.from("teleconsultations").insert({
-        patient_id: patientId,
-        provider_id: providerId,
-        assessment_id: savedAssessmentId,
-        status: "scheduled",
-        scheduled_at: null,
-      });
-      const patientName = patients.find((p) => p.user_id === patientId)?.full_name ?? "Patient";
-      const bhwName = profile?.full_name ?? "BHW";
-      await supabase.from("notifications").insert([
-        {
-          user_id: patientId,
-          message: "A teleconsultation has been scheduled for you.",
-          type: "system",
-        },
-        {
-          user_id: providerId,
-          message: `New teleconsultation request from patient ${patientName} assigned by BHW ${bhwName}.`,
-          type: "system",
-        },
-      ]);
-      await supabase.from("bhw_activities").insert({
-        bhw_id: user.id,
-        patient_id: patientId,
-        activity_type: "FOLLOW_UP",
-        notes: "Teleconsultation scheduled after assisted intake",
-      });
-      await supabase.from("audit_logs").insert({
-        user_id: user.id,
-        action: "bhw_scheduled_teleconsultation",
-        resource: "teleconsultations",
-        details: { patient_id: patientId },
-      });
-    } catch (e) {
-      console.error("Failed to schedule", e);
-    } finally {
-      setSchedulingConsult(false);
-    }
-  }
 
   if (!user || !isBhw) {
     return (
@@ -510,9 +457,8 @@ export default function BHWAssistIntake() {
               </CardContent>
             </Card>
             <div className="flex flex-wrap gap-3">
-              <Button size="lg" onClick={handleScheduleTeleconsultation} disabled={schedulingConsult} className="gap-2">
-                {schedulingConsult ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-                Schedule teleconsultation for patient
+              <Button size="lg" asChild>
+                <Link to="/referrals">Create referral</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link to="/dashboard">Back to Dashboard</Link>

@@ -56,9 +56,9 @@ export async function generateTriageExplanation(body: ExplainRequestBody) {
     `Vitals: ${vitals ? JSON.stringify(vitals) : "none"}`,
   ].join("\n");
 
-  const { model } = createGeminiClient();
+  const { model } = createGeminiClient(systemInstructions);
 
-  const result = await model.generateContent(`${systemInstructions}\n\nUSER REQUEST:\n${userPrompt}`);
+  const result = await model.generateContent(userPrompt);
   const response = await result.response;
   const explanation = response.text().trim();
 
