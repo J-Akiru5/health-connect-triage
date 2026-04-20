@@ -1,17 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { generateTriageExplanation } from "../src/server/triageExplain";
+import { generateChatbotResponse } from "../src/server/chatbotHandler";
 
-type ExplainRequestBody = {
-  triageLevel?: string | null;
-  riskScore?: number | null;
-  recommendedAction?: string | null;
-  assessment?: {
-    symptoms?: unknown;
-    duration?: string | null;
-    severity?: string | null;
-    notes?: string | null;
-    vitals?: Record<string, unknown> | null;
-  } | null;
+type ChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
+type ChatRequestBody = {
+  messages: ChatMessage[];
 };
 
 function json(res: VercelResponse, status: number, body: unknown) {
@@ -28,11 +24,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return json(res, 500, { error: "Server not configured: Azure OpenAI environment variables missing" });
   }
 
-  const body = (req.body ?? {}) as ExplainRequestBody;
+  const body = (req.body ?? {}) as ChatRequestBody;
+
+  if (!body.messages || !Array.isArray(body.messages)) {
+    return json(res, 400, { error: "Messages array is required" });
+  }
 
   try {
-    const explanation = await generateTriageExplanation(body, process.env.AZURE_OPENAI_API_KEY ?? "");
-    return json(res, 200, { explanation });
+    const response = await generateChatbotResponse(body, process.env.AZURE_OPENAI_API_KEY ?? "");
+    return json(res, 200, { response });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const status = typeof (e as { status?: unknown }).status === "number" ? (e as any).status : 500;
@@ -40,4 +40,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return json(res, status, { error: status >= 500 ? "Server error" : "Request failed", detail });
   }
 }
-
