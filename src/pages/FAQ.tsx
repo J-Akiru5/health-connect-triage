@@ -6,9 +6,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { SITE_BARANGAY } from "@/lib/site";
 
 const FAQ = () => {
+  const navigate = useNavigate();
+
   const faqs = [
     {
       question: "What is TeleHealth?",
@@ -66,8 +71,23 @@ const FAQ = () => {
       <div className="pt-16 pb-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
           {/* Header */}
-          <div className="text-center mb-12 mt-8">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
+          <div className="text-center mb-12 mt-8 relative">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="absolute left-0 top-0 -mt-2 hidden md:flex gap-2" 
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+            <div className="md:hidden flex justify-start mb-4">
+              <Button variant="ghost" size="sm" className="-ml-3 gap-2" onClick={() => navigate(-1)}>
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground mt-4 md:mt-0">
               Frequently Asked Questions
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">

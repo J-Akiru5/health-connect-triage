@@ -31,8 +31,30 @@ export function getAzureOpenAIEnv(): AzureOpenAIEnv {
     throw new Error("Missing AZURE_OPENAI_DEPLOYMENT_NAME");
   }
 
+  let parsedEndpoint: URL;
+  try {
+    parsedEndpoint = new URL(endpoint);
+  } catch {
+    throw new Error(
+      "Invalid AZURE_OPENAI_ENDPOINT. Use your Azure resource base URL, for example: https://<resource>.openai.azure.com/"
+    );
+  }
+
+  const isAzureOpenAIHost =
+    parsedEndpoint.hostname.endsWith(".openai.azure.com") ||
+    parsedEndpoint.hostname.endsWith(".cognitiveservices.azure.com");
+
+  if (!isAzureOpenAIHost) {
+    throw new Error(
+      "Invalid AZURE_OPENAI_ENDPOINT host. Expected an Azure OpenAI resource host ending in .openai.azure.com or .cognitiveservices.azure.com"
+    );
+  }
+
+  // Accept full target URI input and normalize to resource base endpoint.
+  const normalizedEndpoint = parsedEndpoint.origin;
+
   return {
-    endpoint: endpoint.replace(/\/+$/, ""),
+    endpoint: normalizedEndpoint,
     apiKey,
     deploymentName,
   };

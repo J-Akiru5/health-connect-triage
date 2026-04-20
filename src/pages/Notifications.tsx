@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { handleMissingNotificationsTable } from "@/lib/notifications";
 import { Bell, Loader2, ArrowLeft, CheckCheck } from "lucide-react";
 import { format } from "date-fns";
 
@@ -27,11 +28,18 @@ export default function Notifications() {
       return;
     }
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notifications")
         .select("id, type, title, body, read_at, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
+
+      if (error && handleMissingNotificationsTable(error)) {
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+
       setNotifications(data ?? []);
       setLoading(false);
     })();
@@ -39,7 +47,17 @@ export default function Notifications() {
 
   async function markAllRead() {
     if (!user?.id) return;
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", user.id).is("read_at", null);
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .is("read_at", null);
+
+    if (error && handleMissingNotificationsTable(error)) {
+      setNotifications([]);
+      return;
+    }
+
     setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
   }
 

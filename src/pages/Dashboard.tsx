@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { handleMissingNotificationsTable } from "@/lib/notifications";
 import {
   Stethoscope,
   ClipboardList,
@@ -128,11 +129,17 @@ export default function Dashboard() {
     if (authLoading) return;
     if (!user?.id || (profile?.role !== "clinician" && profile?.role !== "bhw")) return;
     (async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .is("read_at", null);
+
+      if (error && handleMissingNotificationsTable(error)) {
+        setUnreadNotifications(0);
+        return;
+      }
+
       setUnreadNotifications(count ?? 0);
     })();
   }, [user?.id, profile?.role, authLoading]);

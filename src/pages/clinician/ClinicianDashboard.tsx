@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { handleMissingNotificationsTable } from "@/lib/notifications";
 import { format } from "date-fns";
 import {
   AlertTriangle,
@@ -122,11 +123,17 @@ export function ClinicianDashboard({ variant }: { variant: ClinicianVariant }) {
   useEffect(() => {
     if (!user?.id || profile?.role !== "clinician") return;
     (async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .is("read_at", null);
+
+      if (error && handleMissingNotificationsTable(error)) {
+        setUnreadNotifications(0);
+        return;
+      }
+
       setUnreadNotifications(count ?? 0);
     })();
   }, [user?.id, profile?.role]);
