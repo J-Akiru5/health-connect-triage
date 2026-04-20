@@ -8,8 +8,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ScrollToTop from "@/components/ScrollToTop";
 import Index from "./pages/Index";
 import SymptomChecker from "./pages/SymptomChecker";
-import FAQ from "./pages/FAQ";
-import About from "./pages/About";
 import Consultations from "./pages/Consultations";
 import ConsultationChat from "./pages/ConsultationChat";
 import Profile from "./pages/Profile";

@@ -62,6 +62,7 @@ interface ProviderConsultRow {
   scheduled_at: string | null;
   created_at: string;
   triage_level: string | null;
+  assessment_id?: string | null;
 }
 
 const Consultations = () => {
