@@ -201,6 +201,18 @@ export default function AdminDashboard() {
               </Button>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">High-Risk Triage</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.highRiskTriage}</div>
+              <Button variant="link" className="h-auto p-0 text-xs" asChild>
+                <Link to="/admin/ai-triage">Monitor</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         <Card>

@@ -28,7 +28,9 @@
     "stat2Label": "Oras sang Triage",
     "stat3Value": "Libre",
     "stat3Label": "Para sa mga Residente",
-    "liveStatus": "AI Triage Aktibo"
+    "stat4Value": "BHW",
+    "stat4Label": "Alalay sa Ikaayong Lawas",
+    "liveStatus": "Online nga Serbisyo sa Ikaayong Lawas"
   },
   "emergency": {
     "title": "Indi maayo ang imo pamatyag? Isusi ang imo mga sintomas — indi kinahanglan sang account.",

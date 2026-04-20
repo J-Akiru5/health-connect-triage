@@ -28,7 +28,9 @@
     "stat2Label": "Oras ng Triage",
     "stat3Value": "Libre",
     "stat3Label": "Para sa mga Residente",
-    "liveStatus": "AI Triage Aktibo"
+    "stat4Value": "BHW",
+    "stat4Label": "Alalay sa Galing",
+    "liveStatus": "Online na Serbisyong Medikal"
   },
   "emergency": {
     "title": "Hindi maganda ang pakiramdam? Suriin ang iyong mga sintomas — hindi kailangan ng account.",

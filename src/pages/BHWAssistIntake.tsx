@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -314,36 +316,47 @@ export default function BHWAssistIntake() {
               )}
               <div className="space-y-2">
                 <Label>Duration of symptoms</Label>
-                <select
-                  className="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground"
+                <Select
                   value={patientInfo.duration}
-                  onChange={(e) => setPatientInfo({ ...patientInfo, duration: e.target.value })}
+                  onValueChange={(val) => setPatientInfo({ ...patientInfo, duration: val })}
                 >
-                  <option value="">Select</option>
-                  <option value="today">Just today</option>
-                  <option value="days">A few days</option>
-                  <option value="week">About a week</option>
-                  <option value="weeks">More than a week</option>
-                </select>
+                  <SelectTrigger className="rounded-xl h-11">
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Just today</SelectItem>
+                    <SelectItem value="days">A few days</SelectItem>
+                    <SelectItem value="week">About a week</SelectItem>
+                    <SelectItem value="weeks">More than a week</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Severity</Label>
-                <div className="flex flex-wrap gap-4">
+                <div className="grid grid-cols-3 gap-2">
                   {(["mild", "moderate", "severe"] as const).map((s) => (
-                    <label key={s} className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="severity" checked={patientInfo.severity === s} onChange={() => setPatientInfo({ ...patientInfo, severity: s })} className="rounded-full border-input" />
-                      <span className="capitalize">{s}</span>
-                    </label>
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setPatientInfo({ ...patientInfo, severity: s })}
+                      className={`h-10 rounded-xl border text-sm font-medium capitalize transition-all ${
+                        patientInfo.severity === s
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border hover:border-primary/50 text-foreground bg-background"
+                      }`}
+                    >
+                      {s}
+                    </button>
                   ))}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Optional vitals (BP / HR / Temp °C)</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="number" placeholder="BP 120" className="h-10 px-3 rounded-lg border border-input bg-background text-foreground" value={patientInfo.bpSystolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })} />
-                  <input type="number" placeholder="80" className="h-10 px-3 rounded-lg border border-input bg-background text-foreground" value={patientInfo.bpDiastolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })} />
-                  <input type="number" placeholder="HR" className="h-10 px-3 rounded-lg border border-input bg-background text-foreground" value={patientInfo.hr} onChange={(e) => setPatientInfo({ ...patientInfo, hr: e.target.value })} />
-                  <input type="number" step="0.1" placeholder="Temp" className="h-10 px-3 rounded-lg border border-input bg-background text-foreground" value={patientInfo.tempC} onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })} />
+                  <Input type="number" placeholder="BP Systolic (120)" className="rounded-xl h-11" value={patientInfo.bpSystolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })} />
+                  <Input type="number" placeholder="BP Diastolic (80)" className="rounded-xl h-11" value={patientInfo.bpDiastolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })} />
+                  <Input type="number" placeholder="Heart Rate (HR)" className="rounded-xl h-11" value={patientInfo.hr} onChange={(e) => setPatientInfo({ ...patientInfo, hr: e.target.value })} />
+                  <Input type="number" step="0.1" placeholder="Temperature °C" className="rounded-xl h-11" value={patientInfo.tempC} onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -351,7 +364,7 @@ export default function BHWAssistIntake() {
                 <p className="text-xs text-muted-foreground">
                   For joint or muscle pain, record exact side and spot if known (e.g. kanang tuhod, harap ng hità).
                 </p>
-                <textarea rows={2} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground" value={patientInfo.notes} onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })} placeholder="Additional notes…" />
+                <Textarea rows={2} className="rounded-xl resize-none" value={patientInfo.notes} onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })} placeholder="Additional notes…" />
               </div>
               <Button onClick={() => setStep(2)} size="lg" className="w-full rounded-xl" disabled={!patientId}>
                 Continue to symptoms
