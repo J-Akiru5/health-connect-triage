@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getChatbotReply } from "../src/server/chatbot";
+import { generateChatbotResponse } from "../src/server/chatbotHandler";
 
-type ChatMessageInput = {
-  role?: string;
-  content?: string;
+type ChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
 };
 
 type ChatRequestBody = {
-  messages?: ChatMessageInput[];
+  messages: ChatMessage[];
 };
 
 function json(res: VercelResponse, status: number, body: unknown) {
@@ -20,18 +20,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return json(res, 405, { error: "Method not allowed" });
   }
 
+  if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
+    return json(res, 500, { error: "Server not configured: Azure OpenAI environment variables missing" });
+  }
+
   const body = (req.body ?? {}) as ChatRequestBody;
 
-  try {
-    const result = await getChatbotReply(body);
-    return json(res, 200, result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return json(res, 500, { error: "Request failed", detail: message });
+  if (!body.messages || !Array.isArray(body.messages)) {
+    return json(res, 400, { error: "Messages array is required" });
   }
-}import type { VercelRequest, VercelResponse } from "@vercel/node";
-    return json(res, 500, { error: "Request failed", detail: message });
 
-type ChatMessageInput = {
-
-  role?: string;
+  try {
+    const response = await generateChatbotResponse(body, process.env.AZURE_OPENAI_API_KEY ?? "");
+    return json(res, 200, { response });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const status = typeof (e as { status?: unknown }).status === "number" ? (e as any).status : 500;
+    const detail = typeof (e as { detail?: unknown }).detail === "string" ? (e as any).detail : msg;
+    return json(res, status, { error: status >= 500 ? "Server error" : "Request failed", detail });
+  }
+}

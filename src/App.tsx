@@ -12,6 +12,7 @@ import FAQ from "./pages/FAQ";
 import About from "./pages/About";
 import Consultations from "./pages/Consultations";
 import ConsultationChat from "./pages/ConsultationChat";
+import { ChatbotBubble } from "./components/ChatbotBubble";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import Referrals from "./pages/Referrals";
@@ -185,6 +186,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <ChatbotBubble />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
