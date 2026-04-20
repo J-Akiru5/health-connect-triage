@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -363,9 +364,9 @@ export default function TriageMonitor() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20 max-w-4xl">
+      <main className="container mx-auto px-4 pt-24 pb-20 flex-1 max-w-6xl">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/dashboard">
@@ -725,6 +726,7 @@ export default function TriageMonitor() {
           </>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

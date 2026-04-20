@@ -1,8 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Navigation } from "@/components/Navigation";
@@ -114,7 +122,7 @@ export default function EmergencyReport() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
       <main className="flex-1 pt-20 pb-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           {/* Alert banner */}
           <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -150,29 +158,30 @@ export default function EmergencyReport() {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="name">Your Name (optional)</Label>
-                  <input
+                  <Input
                     id="name"
-                    type="text"
-                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Juan dela Cruz"
+                    className="rounded-xl h-11"
                     value={patientInfo.name}
                     onChange={(e) => setPatientInfo({ ...patientInfo, name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="duration">How long have you had symptoms?</Label>
-                  <select
-                    id="duration"
-                    className="w-full h-12 px-4 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  <Select
                     value={patientInfo.duration}
-                    onChange={(e) => setPatientInfo({ ...patientInfo, duration: e.target.value })}
+                    onValueChange={(val) => setPatientInfo({ ...patientInfo, duration: val })}
                   >
-                    <option value="">Select duration</option>
-                    <option value="today">Just started today</option>
-                    <option value="days">A few days</option>
-                    <option value="week">About a week</option>
-                    <option value="weeks">More than a week</option>
-                  </select>
+                    <SelectTrigger className="rounded-xl h-11">
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Just started today</SelectItem>
+                      <SelectItem value="days">A few days</SelectItem>
+                      <SelectItem value="week">About a week</SelectItem>
+                      <SelectItem value="weeks">More than a week</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button onClick={() => setStep(2)} size="lg" className="w-full">
                   Continue

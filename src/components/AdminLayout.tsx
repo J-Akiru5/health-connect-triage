@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Footer } from "@/components/Footer";
 import {
   LayoutDashboard,
   Users,
@@ -111,8 +112,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           />
         )}
 
-        <main className="min-h-[calc(100vh-3.5rem)] flex-1 p-4 md:ml-64 md:p-6">
-          {children}
+        <main className="min-h-[calc(100vh-3.5rem)] flex-1 p-4 md:ml-64 md:p-6 flex flex-col">
+          <div className="flex-1">
+            {children}
+          </div>
+          <Footer className="mt-12" />
         </main>
       </div>
     </div>

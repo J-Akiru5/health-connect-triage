@@ -65,7 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(currentSession);
     setUser(currentSession?.user ?? null);
     if (currentSession?.user) {
-      const p = await fetchProfile(currentSession.user.id);
+      let p = await fetchProfile(currentSession.user.id);
+      if (!p) {
+        const meta = currentSession.user.user_metadata as { full_name?: string; role?: UserRole } | undefined;
+        const { error: insErr } = await supabase.from("profiles").insert({
+          id: currentSession.user.id,
+          full_name: meta?.full_name ?? currentSession.user.email?.split("@")[0] ?? "User",
+          role: meta?.role ?? "patient",
+        });
+        if (!insErr) p = await fetchProfile(currentSession.user.id);
+      }
       setProfile(p);
     } else {
       setProfile(null);
@@ -87,7 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // client so signInWithPassword never settles (login stuck on "Signing in…").
         setTimeout(() => {
           void (async () => {
-            const p = await fetchProfile(uid);
+            let p = await fetchProfile(uid);
+            if (!p && newSession?.user) {
+              const meta = newSession.user.user_metadata as { full_name?: string; role?: UserRole } | undefined;
+              await supabase.from("profiles").insert({
+                id: uid,
+                full_name: meta?.full_name ?? newSession.user.email?.split("@")[0] ?? "User",
+                role: meta?.role ?? "patient",
+              });
+              p = await fetchProfile(uid);
+            }
             const {
               data: { session: latest },
             } = await supabase.auth.getSession();
@@ -122,7 +140,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Email confirmation required");
       }
       if (data.user) {
-        const p = await fetchProfile(data.user.id);
+        let p = await fetchProfile(data.user.id);
+        if (!p) {
+          const { error: insertError } = await supabase.from("profiles").insert({
+            id: data.user.id,
+            full_name: fullName,
+            role: role,
+          });
+          if (!insertError) p = await fetchProfile(data.user.id);
+        }
         setProfile(p);
         return { userId: data.user.id };
       }

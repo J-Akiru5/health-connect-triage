@@ -28,6 +28,7 @@ import {
   Video,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Footer } from "@/components/Footer";
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
 const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "non_urgent" | "home_care"> = {
@@ -255,9 +256,9 @@ export default function BHWAssistIntake() {
   const selectedPatientName = patientId ? patients.find((p) => p.user_id === patientId)?.full_name ?? "Patient" : null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-20 pb-24 max-w-3xl">
+      <main className="container mx-auto px-4 pt-20 pb-24 flex-1 max-w-5xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/dashboard">
@@ -499,6 +500,7 @@ export default function BHWAssistIntake() {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }
