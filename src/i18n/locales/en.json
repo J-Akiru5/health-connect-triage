@@ -16,12 +16,15 @@
     "signOut": "Sign out"
   },
   "hero": {
-    "badge": "Telehealth for Barangay Abangay",
-    "headline": "Quality Healthcare,",
-    "headlineAccent": "Closer to Home",
-    "description": "Connect with healthcare providers serving Barangay Abangay. Guided symptom checks and teleconsult options help you take the right next step for your health.",
-    "ctaPrimary": "Check Your Symptoms",
+    "badge": "Barangay Abangay Telehealth Network",
+    "headline": "Faster Triage.",
+    "headlineAccent": "Trusted Local Care.",
+    "description": "Know your next medical step in minutes, then connect with the right care team without leaving your community.",
+    "offerLine": "From AI-assisted symptom triage to teleconsultation and barangay follow-up, everything runs in one secure workflow.",
+    "ctaPrimary": "Start Symptom Check",
+    "ctaConsultation": "Book Teleconsultation",
     "ctaSecondary": "Learn More",
+    "ctaNote": "For guidance and prioritization support only, not a replacement for emergency care.",
     "stat1Value": "24/7",
     "stat1Label": "Available",
     "stat2Value": "<5min",
@@ -30,7 +33,14 @@
     "stat3Label": "For Residents",
     "stat4Value": "BHW",
     "stat4Label": "Assisted Care",
-    "liveStatus": "Health Services Online"
+    "liveStatus": "Health Services Online",
+    "workflowLabel": "Live Care Workflow",
+    "workflowPoint1": "AI triage helps identify urgency in minutes.",
+    "workflowPoint2": "Teleconsult pathways link residents to care teams.",
+    "workflowPoint3": "Role-based records support safe follow-up.",
+    "chip1": "Guided symptom check",
+    "chip2": "Teleconsult ready",
+    "chip3": "Privacy-first records"
   },
   "emergency": {
     "title": "Feeling unwell? Check your symptoms — no account needed.",

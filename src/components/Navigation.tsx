@@ -83,6 +83,7 @@ export function Navigation() {
   }
 
   const isHome = location.pathname === "/";
+  const canAccessProfileEdit = profile?.role === "patient" || profile?.role === "clinician";
 
   return (
     <>
@@ -233,12 +234,14 @@ export function Navigation() {
                         <span className="font-medium text-sm">{t("nav.dashboard")}</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
-                      <Link to="/profile" className="w-full flex items-center gap-3">
-                        <Menu className="w-4 h-4 text-current opacity-80" />
-                        <span className="font-medium text-sm">{t("nav.profile")}</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    {canAccessProfileEdit && (
+                      <DropdownMenuItem asChild className="rounded-lg h-10 gap-3 cursor-pointer">
+                        <Link to="/profile" className="w-full flex items-center gap-3">
+                          <Menu className="w-4 h-4 text-current opacity-80" />
+                          <span className="font-medium text-sm">{t("nav.profile")}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <div className="h-px bg-border/40 my-2" />
                     <DropdownMenuItem onClick={handleSignOut} className="rounded-lg h-10 gap-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
                       <LogOut className="w-4 h-4" />
@@ -267,11 +270,25 @@ export function Navigation() {
 
             {/* Mobile actions */}
             <div className="flex lg:hidden items-center gap-1.5">
+              {session && (
+                <Button variant="ghost" size="icon" asChild className="relative rounded-xl text-foreground hover:bg-muted/60">
+                  <Link to="/notifications" aria-label="Open notifications">
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-destructive border-2 border-background rounded-full" />
+                    )}
+                  </Link>
+                </Button>
+              )}
               <ThemeToggle />
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsOpen(!isOpen)}
-                className="p-2 rounded-xl hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={`relative z-[70] p-2 rounded-xl text-foreground border border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  scrolled
+                    ? "bg-card/80 hover:bg-muted/70"
+                    : "bg-background/80 backdrop-blur-sm hover:bg-background"
+                }`}
                 aria-label="Toggle menu"
               >
                 {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -376,9 +393,11 @@ export function Navigation() {
                         <Link to="/admin"><Shield className="w-4 h-4" /> {t("nav.admin")}</Link>
                       </Button>
                     )}
-                    <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
-                      <Link to="/profile">{t("nav.profile")}</Link>
-                    </Button>
+                    {canAccessProfileEdit && (
+                      <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
+                        <Link to="/profile">{t("nav.profile")}</Link>
+                      </Button>
+                    )}
                     <Button variant="outline" className="w-full justify-start rounded-xl h-12 text-destructive" onClick={handleSignOut}>
                       <LogOut className="w-4 h-4 mr-2" />
                       {t("nav.signOut")}

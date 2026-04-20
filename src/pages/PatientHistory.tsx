@@ -369,7 +369,7 @@ export default function PatientHistory() {
                           <p className="text-sm text-muted-foreground">{medicalHistory.notes}</p>
                         </div>
                       )}
-                      <div className="pt-4 flex gap-3">
+                      <div className="pt-4 flex flex-col sm:flex-row gap-3">
                         <Button variant="outline" size="sm" onClick={openHistoryDialog}>
                           Add / Update history
                         </Button>

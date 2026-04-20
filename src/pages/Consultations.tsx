@@ -421,7 +421,7 @@ const Consultations = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full max-w-2xl mx-auto mb-8 ${isClinician ? "grid-cols-2" : isBhw ? "grid-cols-1" : "grid-cols-2"}`}>
+            <TabsList className={`grid w-full max-w-2xl mx-auto mb-8 ${isBhw ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
               {isClinician && (
                 <TabsTrigger value="provider">My Schedule</TabsTrigger>
               )}
@@ -564,7 +564,7 @@ const Consultations = () => {
                           <Label className="text-base">
                             Select Time <span className="text-destructive">*</span>
                           </Label>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {availableTimeSlots.map((time) => (
                               <Button
                                 key={time}

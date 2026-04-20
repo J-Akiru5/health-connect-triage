@@ -16,9 +16,9 @@ const buttonVariants = cva(
         ghost: "hover:bg-muted hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         // Hero button variant - prominent CTA
-        hero: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl active:scale-[0.98] text-base",
+        hero: "border border-primary/30 bg-[linear-gradient(120deg,hsl(var(--primary))_0%,hsl(172_58%_30%)_58%,hsl(0_68%_32%)_100%)] text-primary-foreground hover:brightness-105 shadow-lg hover:shadow-glow active:scale-[0.98] text-base",
         // Glassmorphic button
-        glass: "bg-card/60 backdrop-blur-xl text-foreground border border-border/50 hover:bg-card/80 shadow-glass active:scale-[0.98]",
+        glass: "bg-card/65 backdrop-blur-xl text-foreground border border-border/60 hover:bg-card/85 shadow-glass active:scale-[0.98]",
         // Triage urgency variants
         emergency: "bg-emergency text-emergency-foreground hover:bg-emergency/90 shadow-md",
         urgent: "bg-urgent text-urgent-foreground hover:bg-urgent/90 shadow-md",

@@ -600,7 +600,7 @@ export default function TriageMonitor() {
                     <div className="space-y-3">
                       <Skeleton className="h-4 w-28" />
                       <Skeleton className="h-12 w-full" />
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Skeleton className="h-10 w-full" />
                         <Skeleton className="h-10 w-full" />
                       </div>
@@ -619,7 +619,7 @@ export default function TriageMonitor() {
                           <p className="text-muted-foreground">None recorded.</p>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <p className="font-medium text-muted-foreground mb-1">Duration</p>
                           <p>{symptomDetail.duration ?? "—"}</p>

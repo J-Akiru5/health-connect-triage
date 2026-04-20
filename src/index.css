@@ -301,6 +301,50 @@
     );
   }
 
+  .hero-cinematic-overlay {
+    background:
+      linear-gradient(112deg, hsl(var(--background) / 0.92) 6%, hsl(var(--background) / 0.58) 46%, hsl(var(--background) / 0.9) 100%),
+      radial-gradient(circle at 82% 18%, hsl(var(--primary) / 0.2) 0%, transparent 48%),
+      radial-gradient(circle at 14% 82%, hsl(var(--destructive) / 0.14) 0%, transparent 46%);
+  }
+
+  .dark .hero-cinematic-overlay {
+    background:
+      linear-gradient(112deg, hsl(var(--background) / 0.96) 6%, hsl(var(--background) / 0.72) 46%, hsl(var(--background) / 0.95) 100%),
+      radial-gradient(circle at 82% 18%, hsl(var(--primary) / 0.18) 0%, transparent 48%),
+      radial-gradient(circle at 14% 82%, hsl(var(--destructive) / 0.1) 0%, transparent 46%);
+  }
+
+  .hero-vignette {
+    background: radial-gradient(circle at 50% 42%, transparent 28%, hsl(var(--background) / 0.22) 64%, hsl(var(--background) / 0.52) 100%);
+  }
+
+  .dark .hero-vignette {
+    background: radial-gradient(circle at 50% 42%, transparent 28%, hsl(var(--background) / 0.3) 64%, hsl(var(--background) / 0.62) 100%);
+  }
+
+  .hero-trust-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--border) / 0.55);
+    background: hsl(var(--card) / 0.52);
+    padding: 0.45rem 0.72rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: hsl(var(--foreground) / 0.86);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 6px 20px -10px hsl(var(--foreground) / 0.22);
+  }
+
+  .dark .hero-trust-chip {
+    background: hsl(var(--card) / 0.44);
+    border-color: hsl(var(--border) / 0.45);
+    color: hsl(var(--foreground) / 0.9);
+  }
+
   /* Scroll progress bar */
   .scroll-progress {
     transform-origin: left;
@@ -351,4 +395,10 @@
 @keyframes orbit {
   0% { transform: rotate(0deg) translateX(20px) rotate(0deg); }
   100% { transform: rotate(360deg) translateX(20px) rotate(-360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-ring {
+    animation: none !important;
+  }
 }

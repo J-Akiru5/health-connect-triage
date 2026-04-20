@@ -16,12 +16,15 @@
     "signOut": "Mag-sign out"
   },
   "hero": {
-    "badge": "Telehealth para sa Barangay Abangay",
-    "headline": "Maayo nga Serbisyo sa Ikaayong Lawas,",
-    "headlineAccent": "Mas Malapit sa Inyo Balay",
-    "description": "Magkonekta sa mga taghatag sang serbisyo sa ikaayong lawas nga nagaalagad sa Barangay Abangay. Ang ginahon sa pagsusi sang sintomas kag mga opsyon sa telekonsulta makabulig sa imo nga masunod ang husto nga tikang para sa imo ikaayong lawas.",
-    "ctaPrimary": "Isusi ang Imo mga Sintomas",
+    "badge": "Telehealth Network sang Barangay Abangay",
+    "headline": "Mas Dasig nga Triage.",
+    "headlineAccent": "Masaligan nga Lokal nga Pag-atipan.",
+    "description": "Hibaloi dayon ang husto nga sunod nga tikang sa ikaayong lawas, kag magkonekta sa insakto nga care team nga wala ka naga-halín sa komunidad.",
+    "offerLine": "Halin sa AI-assisted symptom triage pakadto sa telekonsultasyon kag barangay follow-up, ara tanan sa isa ka luwas nga workflow.",
+    "ctaPrimary": "Sugdi ang Symptom Check",
+    "ctaConsultation": "Mag-book sang Telekonsulta",
     "ctaSecondary": "Maghibalo Pa",
+    "ctaNote": "Para sa ginahon kag prioritization support lamang, indi pamuno sa emergency care.",
     "stat1Value": "24/7",
     "stat1Label": "Bukas",
     "stat2Value": "<5min",
@@ -30,7 +33,14 @@
     "stat3Label": "Para sa mga Residente",
     "stat4Value": "BHW",
     "stat4Label": "Alalay sa Ikaayong Lawas",
-    "liveStatus": "Online nga Serbisyo sa Ikaayong Lawas"
+    "liveStatus": "Online nga Serbisyo sa Ikaayong Lawas",
+    "workflowLabel": "Live Care Workflow",
+    "workflowPoint1": "Ang AI triage nagabulig sa pag-ila sang kaapurahan sa sulod sang pila ka minuto.",
+    "workflowPoint2": "Ang telekonsultasyon nagakonekta sang mga residente sa husto nga care team.",
+    "workflowPoint3": "Ang role-based records nagasuporta sang luwas nga follow-up.",
+    "chip1": "May ginahon nga symptom check",
+    "chip2": "Handa para sa telekonsulta",
+    "chip3": "Privacy-first nga records"
   },
   "emergency": {
     "title": "Indi maayo ang imo pamatyag? Isusi ang imo mga sintomas — indi kinahanglan sang account.",

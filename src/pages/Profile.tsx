@@ -317,7 +317,7 @@ function ClinicianProfileForm({ user, profile }: { user: { id: string; email?: s
                     />
                   </CardContent>
                 </Card>
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <Button type="submit" disabled={saving} size="lg" className="rounded-xl px-8 shadow-lg shadow-primary/20">
                     {saving ? (
                       <>
@@ -972,7 +972,7 @@ export default function Profile() {
                     </CardContent>
                   </Card>
 
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
                     <Button type="submit" size="lg" disabled={saving} className="rounded-xl px-8 shadow-lg shadow-primary/20">
                       {saving ? (
                         <>

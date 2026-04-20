@@ -30,6 +30,7 @@ import {
   TrendingUp,
   CheckCircle2,
   Phone,
+  Shield,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -139,6 +140,7 @@ export default function Dashboard() {
   const isClinician = profile?.role === "clinician";
   const isPatient = profile?.role === "patient";
   const isBhw = profile?.role === "bhw";
+  const isAdmin = profile?.role === "admin";
 
   /* ── Patient data fetch ── */
   useEffect(() => {
@@ -283,8 +285,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!user || (!isPatient && !isClinician && !isBhw && profile?.role !== "admin")) {
-    if (profile?.role === "admin") { navigate("/admin", { replace: true }); return null; }
+  if (!user || (!isPatient && !isClinician && !isBhw && !isAdmin)) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navigation />
@@ -738,9 +739,10 @@ export default function Dashboard() {
                   <p className="font-bold text-foreground text-lg leading-tight">{welcomeName || "Patient"}</p>
                   <p className="text-sm text-muted-foreground mb-1">{user?.email}</p>
                   {barangayName && <p className="text-xs text-primary font-medium mb-4">{barangayName}</p>}
-                  <Link to="/profile" className="w-full">
+                  <Link to={isAdmin ? "/admin" : "/profile"} className="w-full">
                     <Button variant="outline" className="w-full rounded-xl gap-2 text-sm" size="sm">
-                      <UserCog className="w-4 h-4" /> Edit Profile
+                      {isAdmin ? <Shield className="w-4 h-4" /> : <UserCog className="w-4 h-4" />}
+                      {isAdmin ? "Open Admin Panel" : "Edit Profile"}
                     </Button>
                   </Link>
                 </CardContent>

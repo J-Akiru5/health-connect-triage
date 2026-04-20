@@ -27,7 +27,7 @@ export function AboutSection() {
   ];
 
   return (
-    <section id="about" className="py-20 lg:py-32 relative noise-overlay" ref={ref}>
+    <section id="about" className="py-20 lg:py-32 relative overflow-hidden noise-overlay" ref={ref}>
       {/* Floating orb */}
       <motion.div
         animate={{ x: [0, 20, 0], y: [0, -30, 0] }}
