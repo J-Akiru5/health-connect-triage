@@ -24,15 +24,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return json(res, 405, { error: "Method not allowed" });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return json(res, 500, { error: "Server not configured: OPENAI_API_KEY missing" });
+  if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
+    return json(res, 500, { error: "Server not configured: Azure OpenAI environment variables missing" });
   }
 
   const body = (req.body ?? {}) as ExplainRequestBody;
 
   try {
-    const explanation = await generateTriageExplanation(body, apiKey);
+    const explanation = await generateTriageExplanation(body, process.env.AZURE_OPENAI_API_KEY ?? "");
     return json(res, 200, { explanation });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
