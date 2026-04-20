@@ -20,11 +20,12 @@ import {
 } from "@/components/ui/select";
 import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, adminAuthClient } from "@/lib/supabase";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { parseISO, format } from "date-fns";
 import { Footer } from "@/components/Footer";
+import Swal from 'sweetalert2';
 
 type Sex = "male" | "female" | "other" | "prefer_not_to_say";
 
@@ -63,29 +64,79 @@ export default function BHWRegisterPatient() {
     })();
   }, [user?.id, isBhw]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    navigate("/signup", {
-      state: {
-        bhwPrefill: {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !careConsent) {
+      Swal.fire("Error", "Please fill required fields and agree to care consent.", "error");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const generatedPassword = Math.random().toString(36).slice(-10) + "A1!";
+      
+      const { data: newAuthData, error: authError } = await adminAuthClient.auth.admin.createUser({
+        email: email.trim(),
+        password: generatedPassword,
+        email_confirm: true,
+        user_metadata: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          full_name: `${firstName.trim()} ${lastName.trim()}`,
           role: "patient",
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          middleInitial: middleInitial.trim(),
-          dateOfBirth: dateOfBirth || undefined,
-          sex: sex || undefined,
-          street: street.trim() || undefined,
-          barangayName: barangayName.trim() || undefined,
-          city: city.trim() || undefined,
-          province: province.trim() || undefined,
-          zipCode: zipCode.trim() || undefined,
-          contactPhone: contactPhone.trim() || undefined,
-          email: email.trim(),
-          careConsent,
-          researchConsent,
-        },
-      },
-    });
+        }
+      });
+      
+      if (authError) throw authError;
+      
+      const newUserId = newAuthData.user.id;
+      
+      const { error: profileError } = await adminAuthClient.from("profiles").update({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        full_name: `${firstName.trim()} ${lastName.trim()}`,
+        role: "patient",
+      }).eq("id", newUserId);
+      if (profileError) throw profileError;
+
+      const { error: patientError } = await adminAuthClient.from("patient_profiles").insert({
+        user_id: newUserId,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        middle_initial: middleInitial.trim() || null,
+        date_of_birth: dateOfBirth || null,
+        sex: sex || null,
+        street: street.trim() || null,
+        barangay_name: barangayName.trim() || null,
+        city: city.trim() || null,
+        province: province.trim() || null,
+        zip_code: zipCode.trim() || null,
+        contact_phone: contactPhone.trim() || null,
+      });
+      if (patientError) throw patientError;
+
+      await adminAuthClient.from("consent_records").insert({
+        user_id: newUserId,
+        care_consent: careConsent,
+        research_consent: researchConsent,
+        consent_date: new Date().toISOString()
+      });
+
+      Swal.fire({
+        title: "Patient Registered!",
+        html: `Patient account created successfully.<br><br><b>Email:</b> ${email.trim()}<br><b>Temporary Password:</b> ${generatedPassword}<br><br>Please provide this password to the patient.`,
+        icon: "success",
+        confirmButtonColor: "#0f766e"
+      }).then(() => {
+        navigate("/dashboard");
+      });
+      
+    } catch (error: any) {
+      console.error(error);
+      Swal.fire("Registration Failed", error.message || "Could not register patient", "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (!user || !isBhw) {

@@ -1,7 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Cpu, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
@@ -27,6 +35,9 @@ export default function AdminAITriage() {
   const [modelStats, setModelStats] = useState<ModelStats[]>([]);
   const [recent, setRecent] = useState<RecentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const [modelFilter, setModelFilter] = useState("all");
 
   useEffect(() => {
     (async () => {
@@ -61,6 +72,27 @@ export default function AdminAITriage() {
     })();
   }, []);
 
+  const highRisk = recent.filter((r) => r.triage_level === "emergency" || r.triage_level === "urgent");
+
+  const modelOptions = useMemo(
+    () => [...new Set(recent.map((r) => r.model_version ?? "unknown"))],
+    [recent]
+  );
+
+  const filteredRecent = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return recent.filter((r) => {
+      const matchesSearch =
+        q.length === 0 ||
+        r.assessment_id.toLowerCase().includes(q) ||
+        (r.model_version ?? "unknown").toLowerCase().includes(q);
+      const matchesLevel = levelFilter === "all" || r.triage_level === levelFilter;
+      const normalizedModel = r.model_version ?? "unknown";
+      const matchesModel = modelFilter === "all" || normalizedModel === modelFilter;
+      return matchesSearch && matchesLevel && matchesModel;
+    });
+  }, [recent, searchTerm, levelFilter, modelFilter]);
+
   if (loading) {
     return (
       <AdminLayout>
@@ -71,8 +103,6 @@ export default function AdminAITriage() {
       </AdminLayout>
     );
   }
-
-  const highRisk = recent.filter((r) => r.triage_level === "emergency" || r.triage_level === "urgent");
 
   return (
     <AdminLayout>
@@ -151,6 +181,38 @@ export default function AdminAITriage() {
             <CardDescription>Logs stored for audit and research.</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search assessment ID or model..."
+              />
+              <Select value={levelFilter} onValueChange={setLevelFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All levels</SelectItem>
+                  <SelectItem value="emergency">Emergency</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectItem value="non_urgent">Non-urgent</SelectItem>
+                  <SelectItem value="home_care">Home care</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={modelFilter} onValueChange={setModelFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All models</SelectItem>
+                  {modelOptions.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m === "unknown" ? "Unversioned" : m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
@@ -162,14 +224,14 @@ export default function AdminAITriage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recent.length === 0 ? (
+                  {filteredRecent.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                        No results yet.
+                        No matching results.
                       </td>
                     </tr>
                   ) : (
-                    recent.slice(0, 20).map((r) => (
+                    filteredRecent.slice(0, 20).map((r) => (
                       <tr key={r.id} className="border-t">
                         <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "MMM d, HH:mm")}</td>
                         <td className="p-3">

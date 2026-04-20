@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,9 @@ export default function AdminNotifications() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [readFilter, setReadFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
 
   const load = async () => {
     const { data } = await supabase
@@ -48,6 +51,21 @@ export default function AdminNotifications() {
   useEffect(() => {
     load();
   }, []);
+
+  const typeOptions = useMemo(() => [...new Set(list.map((n) => n.type))], [list]);
+
+  const filteredList = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return list.filter((n) => {
+      const matchesSearch = q.length === 0 || n.title.toLowerCase().includes(q) || n.type.toLowerCase().includes(q);
+      const matchesRead =
+        readFilter === "all" ||
+        (readFilter === "read" && !!n.read_at) ||
+        (readFilter === "unread" && !n.read_at);
+      const matchesType = typeFilter === "all" || n.type === typeFilter;
+      return matchesSearch && matchesRead && matchesType;
+    });
+  }, [list, searchTerm, readFilter, typeFilter]);
 
   async function sendNotification() {
     if (!title.trim()) return;
@@ -119,35 +137,37 @@ export default function AdminNotifications() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label>Target</Label>
-              <Select value={targetRole} onValueChange={setTargetRole}>
-                <SelectTrigger className="w-full max-w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All users</SelectItem>
-                  <SelectItem value="patient">Patients only</SelectItem>
-                  <SelectItem value="bhw">BHWs only</SelectItem>
-                  <SelectItem value="clinician">Clinicians only</SelectItem>
-                  <SelectItem value="admin">Admins only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Type</Label>
-              <Select value={notifType} onValueChange={setNotifType}>
-                <SelectTrigger className="w-full max-w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="system_alert">System alert</SelectItem>
-                  <SelectItem value="emergency">Emergency</SelectItem>
-                  <SelectItem value="health_campaign">Health campaign</SelectItem>
-                  <SelectItem value="follow_up_reminder">Follow-up reminder</SelectItem>
-                  <SelectItem value="info">Info</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Target</Label>
+                <Select value={targetRole} onValueChange={setTargetRole}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All users</SelectItem>
+                    <SelectItem value="patient">Patients only</SelectItem>
+                    <SelectItem value="bhw">BHWs only</SelectItem>
+                    <SelectItem value="clinician">Clinicians only</SelectItem>
+                    <SelectItem value="admin">Admins only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Type</Label>
+                <Select value={notifType} onValueChange={setNotifType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system_alert">System alert</SelectItem>
+                    <SelectItem value="emergency">Emergency</SelectItem>
+                    <SelectItem value="health_campaign">Health campaign</SelectItem>
+                    <SelectItem value="follow_up_reminder">Follow-up reminder</SelectItem>
+                    <SelectItem value="info">Info</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="notif-title">Title</Label>
@@ -183,6 +203,36 @@ export default function AdminNotifications() {
             <CardDescription>Delivery and read status for compliance reporting.</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search title or type..."
+              />
+              <Select value={readFilter} onValueChange={setReadFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter read" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="read">Read</SelectItem>
+                  <SelectItem value="unread">Unread</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  {typeOptions.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
@@ -194,14 +244,14 @@ export default function AdminNotifications() {
                   </tr>
                 </thead>
                 <tbody>
-                  {list.length === 0 ? (
+                  {filteredList.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                        No notifications yet.
+                        No matching notifications.
                       </td>
                     </tr>
                   ) : (
-                    list.map((n) => (
+                    filteredList.map((n) => (
                       <tr key={n.id} className="border-t">
                         <td className="p-3">{n.type}</td>
                         <td className="p-3">{n.title}</td>

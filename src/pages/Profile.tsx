@@ -732,21 +732,21 @@ export default function Profile() {
                         <FormField control={form.control} name="lastName" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("auth.lastName")}</FormLabel>
-                            <FormControl><Input placeholder="Dela Cruz" className="rounded-xl h-11" {...field} /></FormControl>
+                            <FormControl><Input placeholder={profile?.full_name?.split(' ').slice(1).join(' ') || ""} className="rounded-xl h-11" {...field} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={form.control} name="firstName" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("auth.firstName")}</FormLabel>
-                            <FormControl><Input placeholder="Juan" className="rounded-xl h-11" {...field} /></FormControl>
+                            <FormControl><Input placeholder={profile?.full_name?.split(' ')[0] || ""} className="rounded-xl h-11" {...field} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={form.control} name="middleInitial" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("auth.middleInitial")}</FormLabel>
-                            <FormControl><Input placeholder="M." className="rounded-xl h-11" {...field} /></FormControl>
+                            <FormControl><Input placeholder="" className="rounded-xl h-11" {...field} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -767,7 +767,7 @@ export default function Profile() {
                         )} />
                         <FormField control={form.control} name="sex" render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t("auth.sex")}</FormLabel>
+                            <FormLabel>{t("auth.selectSex")}</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value ?? ""}>
                               <FormControl>
                                 <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder={t("auth.selectSex")} /></SelectTrigger>
@@ -796,14 +796,14 @@ export default function Profile() {
                       <FormField control={form.control} name="street" render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("auth.streetPurok")}</FormLabel>
-                          <FormControl><Input placeholder="Purok 5" className="rounded-xl h-11" {...field} /></FormControl>
+                          <FormControl><Input placeholder={patientProfile?.street || ""} className="rounded-xl h-11" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="barangayName" render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("auth.barangay")}</FormLabel>
-                          <FormControl><Input placeholder="Barangay" className="rounded-xl h-11" {...field} /></FormControl>
+                          <FormControl><Input placeholder={patientProfile?.barangay_name || ""} className="rounded-xl h-11" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -811,14 +811,14 @@ export default function Profile() {
                         <FormField control={form.control} name="city" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("auth.cityMunicipality")}</FormLabel>
-                            <FormControl><Input className="rounded-xl h-11" {...field} /></FormControl>
+                            <FormControl><Input placeholder={patientProfile?.city || ""} className="rounded-xl h-11" {...field} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={form.control} name="province" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("auth.province")}</FormLabel>
-                            <FormControl><Input className="rounded-xl h-11" {...field} /></FormControl>
+                            <FormControl><Input placeholder={patientProfile?.province || ""} className="rounded-xl h-11" {...field} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -826,7 +826,7 @@ export default function Profile() {
                       <FormField control={form.control} name="zipCode" render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("auth.zipCode")}</FormLabel>
-                          <FormControl><Input placeholder="1234" className="rounded-xl h-11" {...field} /></FormControl>
+                          <FormControl><Input placeholder={patientProfile?.zip_code || ""} className="rounded-xl h-11" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -842,7 +842,7 @@ export default function Profile() {
                       <FormField control={form.control} name="contactPhone" render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("profile.phoneNumber")}</FormLabel>
-                          <FormControl><Input type="tel" placeholder="09XX XXX XXXX" className="rounded-xl h-11" {...field} /></FormControl>
+                          <FormControl><Input type="tel" placeholder={patientProfile?.contact_phone || ""} className="rounded-xl h-11" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />

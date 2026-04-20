@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ScrollToTop from "@/components/ScrollToTop";
+import RealtimeAlertsWrapper from "@/components/RealtimeAlertsWrapper";
 import Index from "./pages/Index";
 import SymptomChecker from "./pages/SymptomChecker";
 import Consultations from "./pages/Consultations";
@@ -38,6 +39,9 @@ import AdminTeleconsultReferrals from "./pages/admin/AdminTeleconsultReferrals";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminAudit from "./pages/admin/AdminAudit";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminAccount from "./pages/admin/AdminAccount";
+import { AuditLogs } from "./pages/admin/AuditLogs";
+import { Reports } from "./pages/admin/Reports";
 
 const queryClient = new QueryClient();
 
@@ -46,145 +50,150 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/symptom-checker" element={<SymptomChecker />} />
-            <Route path="/emergency-report" element={<EmergencyReport />} />
-            <Route path="/faq" element={<Navigate to="/#faq" replace />} />
-            <Route path="/about" element={<Navigate to="/#about" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route
-              path="/consultations"
-              element={
-                <ProtectedRoute>
-                  <Consultations />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/consultations/:consultationId/chat"
-              element={
-                <ProtectedRoute>
-                  <ConsultationChat />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/rhu-dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/referrals"
-              element={
-                <ProtectedRoute>
-                  <Referrals />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/notifications"
-              element={
-                <ProtectedRoute>
-                  <Notifications />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-triage-results"
-              element={
-                <ProtectedRoute>
-                  <MyTriageResults />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/medical-history"
-              element={
-                <ProtectedRoute>
-                  <MedicalHistory />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/triage-monitor"
-              element={
-                <ProtectedRoute>
-                  <TriageMonitor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bhw/register-patient"
-              element={
-                <ProtectedRoute>
-                  <BHWRegisterPatient />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bhw/assist-intake"
-              element={
-                <ProtectedRoute>
-                  <BHWAssistIntake />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bhw/activities"
-              element={
-                <ProtectedRoute>
-                  <BHWActivities />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/patient-history"
-              element={
-                <ProtectedRoute>
-                  <PatientHistory />
-                </ProtectedRoute>
-              }
-            />
-            {/* Admin routes — System Administrator workflow */}
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-            <Route path="/admin/ai-triage" element={<AdminRoute><AdminAITriage /></AdminRoute>} />
-            <Route path="/admin/teleconsult-referrals" element={<AdminRoute><AdminTeleconsultReferrals /></AdminRoute>} />
-            <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
-            <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
-            <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <ChatbotBubble />
+          <RealtimeAlertsWrapper>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/symptom-checker" element={<SymptomChecker />} />
+              <Route path="/emergency-report" element={<EmergencyReport />} />
+              <Route path="/faq" element={<Navigate to="/#faq" replace />} />
+              <Route path="/about" element={<Navigate to="/#about" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route
+                path="/consultations"
+                element={
+                  <ProtectedRoute>
+                    <Consultations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/consultations/:consultationId/chat"
+                element={
+                  <ProtectedRoute>
+                    <ConsultationChat />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/rhu-dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/referrals"
+                element={
+                  <ProtectedRoute>
+                    <Referrals />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <Notifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-triage-results"
+                element={
+                  <ProtectedRoute>
+                    <MyTriageResults />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/medical-history"
+                element={
+                  <ProtectedRoute>
+                    <MedicalHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/triage-monitor"
+                element={
+                  <ProtectedRoute>
+                    <TriageMonitor />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/bhw/register-patient"
+                element={
+                  <ProtectedRoute>
+                    <BHWRegisterPatient />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/bhw/assist-intake"
+                element={
+                  <ProtectedRoute>
+                    <BHWAssistIntake />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/bhw/activities"
+                element={
+                  <ProtectedRoute>
+                    <BHWActivities />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/patient-history"
+                element={
+                  <ProtectedRoute>
+                    <PatientHistory />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Admin routes — System Administrator workflow */}
+              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+              <Route path="/admin/ai-triage" element={<AdminRoute><AdminAITriage /></AdminRoute>} />
+              <Route path="/admin/teleconsult-referrals" element={<AdminRoute><AdminTeleconsultReferrals /></AdminRoute>} />
+              <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
+              <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
+              <Route path="/admin/audit-logs" element={<AdminRoute><AuditLogs /></AdminRoute>} />
+              <Route path="/admin/reports" element={<AdminRoute><Reports /></AdminRoute>} />
+              <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
+              <Route path="/admin/account" element={<AdminRoute><AdminAccount /></AdminRoute>} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <ChatbotBubble />
+          </RealtimeAlertsWrapper>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

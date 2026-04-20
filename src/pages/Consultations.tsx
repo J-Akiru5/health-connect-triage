@@ -296,9 +296,8 @@ const Consultations = () => {
     }
     setSubmitting(true);
     try {
-      const { data: clinicians } = await supabase.from("profiles").select("id").eq("role", "clinician").limit(1);
-      const providerId = clinicians?.[0]?.id;
-      if (!providerId) {
+      const { data: clinicians } = await supabase.from("profiles").select("id").eq("role", "clinician");
+      if (!clinicians || clinicians.length === 0) {
         Swal.fire({
           title: "Setup Needed",
           text: "No provider is available at the moment. Please try again later.",
@@ -308,6 +307,31 @@ const Consultations = () => {
         setSubmitting(false);
         return;
       }
+      
+      const { data: activeConsults } = await supabase
+        .from("teleconsultations")
+        .select("provider_id")
+        .in("status", ["scheduled", "in_progress"]);
+
+      const loadMap = new Map<string, number>();
+      clinicians.forEach(c => loadMap.set(c.id, 0));
+      if (activeConsults) {
+        activeConsults.forEach(c => {
+          if (loadMap.has(c.provider_id)) {
+            loadMap.set(c.provider_id, loadMap.get(c.provider_id)! + 1);
+          }
+        });
+      }
+
+      let providerId = clinicians[0].id;
+      let minLoad = loadMap.get(providerId) ?? 0;
+      for (const [id, count] of loadMap.entries()) {
+        if (count < minLoad) {
+          minLoad = count;
+          providerId = id;
+        }
+      }
+
       let scheduledAt = null;
       if (selectedDate && selectedTime) {
         // parse the time strictly on top of selectedDate to avoid browser 'Invalid Date' quirks

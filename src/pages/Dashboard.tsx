@@ -132,6 +132,7 @@ export default function Dashboard() {
   const [bhwBarangayName, setBhwBarangayName] = useState<string | null>(null);
   const [bhwLoading, setBhwLoading] = useState(true);
   const [bhwHighRiskCount, setBhwHighRiskCount] = useState(0);
+  const [bhwPatientsSeenToday, setBhwPatientsSeenToday] = useState(0);
 
   const isClinician = profile?.role === "clinician";
   const isPatient = profile?.role === "patient";
@@ -213,7 +214,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (authLoading || !user?.id || !isBhw) { setBhwLoading(false); return; }
     (async () => {
-      const { data: ppList } = await supabase.from("patient_profiles").select("user_id, first_name, last_name").limit(500);
+      const { data: pData } = await supabase.from("profiles").select("assigned_barangay_name").eq("id", user.id).single();
+      const assignedBarangay = (pData as any)?.assigned_barangay_name ?? null;
+      setBhwBarangayName(assignedBarangay);
+
+      let query = supabase.from("patient_profiles").select("user_id, first_name, last_name").limit(500);
+      if (assignedBarangay) {
+        query = query.eq("barangay_name", assignedBarangay);
+      }
+      
+      const { data: ppList } = await query;
       if (ppList?.length) {
         const userIds = ppList.map((r: any) => r.user_id);
         const { data: profData } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
@@ -230,6 +240,19 @@ export default function Dashboard() {
           const { count } = await supabase.from("ai_triage_results").select("id", { count: "exact", head: true }).in("assessment_id", assessmentIds).in("triage_level", ["emergency", "urgent"]);
           setBhwHighRiskCount(count ?? 0);
         }
+
+        // Count intakes created today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nextDay = new Date();
+        nextDay.setDate(nextDay.getDate() + 1);
+        const tomorrowStr = nextDay.toISOString().split('T')[0];
+        const { data: todayIntakes } = await supabase
+          .from("symptom_assessments")
+          .select("id")
+          .in("user_id", userIds)
+          .gte("created_at", todayStr)
+          .lt("created_at", tomorrowStr);
+        setBhwPatientsSeenToday((todayIntakes ?? []).length);
       }
       const { count: unread } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
       setUnreadNotifications(unread ?? 0);
@@ -495,7 +518,7 @@ export default function Dashboard() {
                 <StatCard icon={Bell} label="Notifications" value={unreadNotifications} sub="Unread messages" color="amber" to="/notifications" />
               </motion.div>
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="col-span-12 sm:col-span-6 lg:col-span-3">
-                <StatCard icon={Activity} label="Active Today" value="Live" sub={todayDisplay} color="green" />
+                <StatCard icon={Activity} label="Intakes Today" value={bhwPatientsSeenToday} sub="Assisted consultations" color="green" />
               </motion.div>
 
               {/* Emergency Quick Report */}

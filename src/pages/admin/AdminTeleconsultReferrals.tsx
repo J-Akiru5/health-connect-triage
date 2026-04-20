@@ -1,7 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Video, ArrowRightLeft, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
@@ -31,6 +39,11 @@ export default function AdminTeleconsultReferrals() {
   const [teleconsults, setTeleconsults] = useState<TeleconsultRow[]>([]);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teleSearch, setTeleSearch] = useState("");
+  const [teleStatus, setTeleStatus] = useState("all");
+  const [refSearch, setRefSearch] = useState("");
+  const [refStatus, setRefStatus] = useState("all");
+  const [refUrgency, setRefUrgency] = useState("all");
 
   useEffect(() => {
     (async () => {
@@ -69,6 +82,39 @@ export default function AdminTeleconsultReferrals() {
     })();
   }, []);
 
+  const pendingRefs = referrals.filter((r) => r.status === "pending");
+  const overdue = teleconsults.filter(
+    (t) => t.status === "scheduled" && t.scheduled_at && new Date(t.scheduled_at) < new Date()
+  );
+
+  const filteredTeleconsults = useMemo(() => {
+    const q = teleSearch.trim().toLowerCase();
+    return teleconsults.filter((t) => {
+      const matchesSearch =
+        q.length === 0 ||
+        (t.patient_name ?? "").toLowerCase().includes(q) ||
+        (t.provider_name ?? "").toLowerCase().includes(q) ||
+        t.patient_id.toLowerCase().includes(q) ||
+        t.provider_id.toLowerCase().includes(q);
+      const matchesStatus = teleStatus === "all" || t.status === teleStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [teleconsults, teleSearch, teleStatus]);
+
+  const filteredReferrals = useMemo(() => {
+    const q = refSearch.trim().toLowerCase();
+    return referrals.filter((r) => {
+      const matchesSearch =
+        q.length === 0 ||
+        (r.patient_name ?? "").toLowerCase().includes(q) ||
+        r.patient_id.toLowerCase().includes(q) ||
+        r.facility_name.toLowerCase().includes(q);
+      const matchesStatus = refStatus === "all" || r.status === refStatus;
+      const matchesUrgency = refUrgency === "all" || r.urgency === refUrgency;
+      return matchesSearch && matchesStatus && matchesUrgency;
+    });
+  }, [referrals, refSearch, refStatus, refUrgency]);
+
   if (loading) {
     return (
       <AdminLayout>
@@ -79,11 +125,6 @@ export default function AdminTeleconsultReferrals() {
       </AdminLayout>
     );
   }
-
-  const pendingRefs = referrals.filter((r) => r.status === "pending");
-  const overdue = teleconsults.filter(
-    (t) => t.status === "scheduled" && t.scheduled_at && new Date(t.scheduled_at) < new Date()
-  );
 
   return (
     <AdminLayout>
@@ -130,6 +171,25 @@ export default function AdminTeleconsultReferrals() {
             <CardDescription>System-wide scheduling and status.</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Input
+                value={teleSearch}
+                onChange={(e) => setTeleSearch(e.target.value)}
+                placeholder="Search patient/provider..."
+              />
+              <Select value={teleStatus} onValueChange={setTeleStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="in_progress">In progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
@@ -141,14 +201,14 @@ export default function AdminTeleconsultReferrals() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teleconsults.length === 0 ? (
+                  {filteredTeleconsults.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                        No teleconsultations yet.
+                        No matching teleconsultations.
                       </td>
                     </tr>
                   ) : (
-                    teleconsults.map((t) => (
+                    filteredTeleconsults.map((t) => (
                       <tr key={t.id} className="border-t">
                         <td className="p-3">{t.patient_name ?? t.patient_id.slice(0, 8)}</td>
                         <td className="p-3">{t.provider_name ?? t.provider_id.slice(0, 8)}</td>
@@ -176,6 +236,36 @@ export default function AdminTeleconsultReferrals() {
             <CardDescription>Referral tracking and completion rates.</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <Input
+                value={refSearch}
+                onChange={(e) => setRefSearch(e.target.value)}
+                placeholder="Search patient or facility..."
+              />
+              <Select value={refStatus} onValueChange={setRefStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={refUrgency} onValueChange={setRefUrgency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter urgency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All urgency</SelectItem>
+                  <SelectItem value="emergency">Emergency</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectItem value="routine">Routine</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
@@ -188,14 +278,14 @@ export default function AdminTeleconsultReferrals() {
                   </tr>
                 </thead>
                 <tbody>
-                  {referrals.length === 0 ? (
+                  {filteredReferrals.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-4 text-center text-muted-foreground">
-                        No referrals yet.
+                        No matching referrals.
                       </td>
                     </tr>
                   ) : (
-                    referrals.map((r) => (
+                    filteredReferrals.map((r) => (
                       <tr key={r.id} className="border-t">
                         <td className="p-3">{r.patient_name ?? r.patient_id.slice(0, 8)}</td>
                         <td className="p-3">{r.facility_name}</td>
