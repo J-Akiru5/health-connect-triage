@@ -6,6 +6,7 @@ import heroImage from "@/assets/hero-telehealth.jpg";
 import { SITE_BARANGAY } from "@/lib/site";
 import { useTranslation } from "react-i18next";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ── Animated counter ── */
 function AnimatedStat({ value, label }: { value: string; label: string }) {
@@ -60,6 +61,7 @@ function TextReveal({ text, className, delay = 0 }: { text: string; className?: 
 
 export function HeroSection() {
   const { t } = useTranslation();
+  const { session } = useAuth();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -160,10 +162,10 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 1.4, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col sm:flex-row gap-4 mb-14"
           >
-            <Link to="/symptom-checker">
+            <Link to={session ? "/dashboard" : "/symptom-checker"}>
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                 <Button variant="hero" size="xl" className="w-full sm:w-auto group shadow-xl hover:shadow-2xl text-base px-8">
-                  {t("hero.ctaPrimary")}
+                  {session ? t("nav.dashboard") : t("hero.ctaPrimary")}
                   <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </Button>
               </motion.div>

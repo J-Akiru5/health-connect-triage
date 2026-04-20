@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -246,9 +247,9 @@ export default function PatientHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20 max-w-2xl">
+      <main className="container mx-auto px-4 pt-24 pb-20 flex-1 max-w-5xl">
         <div className="flex items-center gap-4 mb-8">
           <Link to="/dashboard">
             <Button variant="ghost" size="icon">
@@ -532,6 +533,7 @@ export default function PatientHistory() {
         </DialogContent>
       </Dialog>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -301,10 +302,10 @@ export default function Referrals() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20">
-        <div className="max-w-2xl mx-auto">
+      <main className="container mx-auto px-4 pt-24 pb-20 flex-1 max-w-5xl">
+        <div className="mx-auto">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">
               <Link to="/dashboard">
@@ -600,6 +601,7 @@ export default function Referrals() {
           </Dialog>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

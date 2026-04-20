@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Loader2, Users, Home, Heart, ClipboardList } from "lucide-react";
 import { format } from "date-fns";
+import { Footer } from "@/components/Footer";
 
 type ActivityType = "HOME_VISIT" | "FOLLOW_UP" | "ASSISTED_INTAKE" | "REFERRAL_ASSIST";
 
@@ -170,9 +171,9 @@ export default function BHWActivities() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-20 max-w-3xl">
+      <main className="container mx-auto px-4 pt-24 pb-20 flex-1 max-w-5xl">
         <div className="flex items-center gap-4 mb-8">
           <Link to="/dashboard">
             <Button variant="ghost" size="icon">
@@ -298,6 +299,7 @@ export default function BHWActivities() {
           <Link to="/dashboard">Back to Dashboard</Link>
         </Button>
       </main>
+      <Footer />
     </div>
   );
 }
