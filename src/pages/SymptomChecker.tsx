@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,12 +20,38 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { symptomCategories, EMERGENCY_SYMPTOM_IDS, resolveSymptomLabel } from "@/lib/symptomCategories";
-import { AlertTriangle, AlertCircle, Clock, Home, ArrowRight, ArrowLeft, Stethoscope, User, Calendar, Loader2, Activity, CheckCircle2 } from "lucide-react";
+import { symptomCategories, resolveSymptomLabel } from "@/lib/symptomCategories";
+import {
+  AlertTriangle,
+  AlertCircle,
+  Clock,
+  Home,
+  ArrowRight,
+  ArrowLeft,
+  Stethoscope,
+  User,
+  Calendar,
+  Loader2,
+  Activity,
+  CheckCircle2,
+  Sparkles,
+} from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { parseISO, format } from "date-fns";
+import { useTranslation } from "react-i18next";
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 type TriageLevel = "emergency" | "urgent" | "non-urgent" | "home-care" | null;
+
+type AiTriageResult = {
+  priorityLevel: "emergency" | "urgent" | "non-urgent" | "home-care";
+  riskScore: number;
+  urgencyLabel: "high" | "medium" | "low";
+  recommendedAction: string;
+  summary: string;
+  redFlags: string[];
+};
 
 type UserSymptomSeverity = "mild" | "moderate" | "severe";
 type SymptomDurationValue = "" | "today" | "days" | "week" | "weeks";
@@ -34,6 +60,8 @@ type SymptomDetailEntry = {
   duration: SymptomDurationValue;
   severity: UserSymptomSeverity;
 };
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 const PENDING_ASSESSMENT_LS_KEY = "bhc_pending_symptom_assessment_id";
 
@@ -45,172 +73,52 @@ const DURATION_OPTIONS: { value: SymptomDurationValue; label: string }[] = [
   { value: "weeks", label: "More than a week" },
 ];
 
-const TRIAGE_TO_DB: Record<NonNullable<TriageLevel>, "emergency" | "urgent" | "non_urgent" | "home_care"> = {
+const TRIAGE_TO_DB: Record<
+  NonNullable<TriageLevel>,
+  "emergency" | "urgent" | "non_urgent" | "home_care"
+> = {
   emergency: "emergency",
   urgent: "urgent",
   "non-urgent": "non_urgent",
   "home-care": "home_care",
 };
 
-const EMERGENCY_SYMPTOM_SET = new Set<string>(EMERGENCY_SYMPTOM_IDS);
-
-const riskFactors = [
-  { id: "senior", label: "Senior citizen (60+ years old)" },
-  { id: "pregnant", label: "Pregnant" },
-  { id: "diabetes", label: "Has diabetes" },
-  { id: "hypertension", label: "Has hypertension" },
-  { id: "heart-disease", label: "Has heart disease" },
-  { id: "immunocompromised", label: "Immunocompromised" },
-];
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function computeAgeFromBirthday(birthday: string): number | null {
   if (!birthday) return null;
   const [y, m, d] = birthday.split("-").map((v) => Number(v));
   if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
   if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
-
   const birthDate = new Date(Date.UTC(y, m - 1, d));
   if (Number.isNaN(birthDate.getTime())) return null;
-
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   if (birthDate > today) return null;
-
   let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
-  const hasHadBirthdayThisYear =
+  const hasHadBirthday =
     today.getUTCMonth() > birthDate.getUTCMonth() ||
-    (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() >= birthDate.getUTCDate());
-  if (!hasHadBirthdayThisYear) age -= 1;
-
+    (today.getUTCMonth() === birthDate.getUTCMonth() &&
+      today.getUTCDate() >= birthDate.getUTCDate());
+  if (!hasHadBirthday) age -= 1;
   if (!Number.isFinite(age) || age < 0 || age > 130) return null;
   return age;
 }
 
-function userSeverityWeight(sev: UserSymptomSeverity | undefined): number {
-  if (sev === "mild") return 0.75;
-  if (sev === "severe") return 1.35;
-  return 1;
+function formatDurationLabel(value: SymptomDurationValue): string {
+  return DURATION_OPTIONS.find((o) => o.value === value)?.label ?? "—";
 }
 
-function durationWeight(dur: SymptomDurationValue | undefined): number {
-  if (dur === "today") return 0.92;
-  if (dur === "days") return 1;
-  if (dur === "week") return 1.12;
-  if (dur === "weeks") return 1.28;
-  return 1;
-}
-
-type TriageComputation = {
-  level: TriageLevel;
-  /** Sum of weighted symptom scores only (before risk factors). */
-  symptomScore: number;
-  /** Points added from risk factors (1.5 each). */
-  riskPoints: number;
-  /** symptomScore + riskPoints; used for non-emergency levels. */
-  combinedScore: number;
-  emergencySymptomIds: string[];
-};
-
-function computeTriageAssessment(
-  selectedSymptoms: string[],
-  selectedRiskFactors: string[],
-  symptomDetails: Record<string, SymptomDetailEntry>
-): TriageComputation {
-  let symptomScore = 0;
-
-  symptomCategories.forEach((category) => {
-    category.symptoms.forEach((symptom) => {
-      if (selectedSymptoms.includes(symptom.id)) {
-        const d = symptomDetails[symptom.id];
-        const uw = userSeverityWeight(d?.severity);
-        const dw = durationWeight(d?.duration);
-        symptomScore += symptom.severity * uw * dw;
-      }
-    });
-  });
-
-  const emergencySymptomIds = selectedSymptoms.filter((s) => EMERGENCY_SYMPTOM_SET.has(s));
-  if (emergencySymptomIds.length > 0) {
-    return {
-      level: "emergency",
-      symptomScore,
-      riskPoints: 0,
-      combinedScore: symptomScore,
-      emergencySymptomIds,
-    };
-  }
-
-  const riskPoints = selectedRiskFactors.length * 1.5;
-  const combinedScore = symptomScore + riskPoints;
-
-  if (combinedScore >= 8) {
-    return { level: "urgent", symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
-  }
-  if (combinedScore >= 4) {
-    return { level: "non-urgent", symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
-  }
-  if (combinedScore >= 1) {
-    return { level: "home-care", symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
-  }
-
-  return { level: null, symptomScore, riskPoints, combinedScore, emergencySymptomIds: [] };
-}
-
-function formatTriageReasonLine(
-  computation: TriageComputation,
-  selectedRiskFactors: string[],
-  riskFactorDefs: { id: string; label: string }[]
-): string {
-  const { level, symptomScore, riskPoints, combinedScore, emergencySymptomIds } = computation;
-  if (!level) {
-    return "";
-  }
-
-  if (level === "emergency" && emergencySymptomIds.length > 0) {
-    const names = emergencySymptomIds.map((id) => resolveSymptomLabel(id)).join(", ");
-    return [
-      "This result is from our built-in rule engine (not a medical diagnosis).",
-      `We assigned emergency priority because you reported one or more symptoms that our rules always treat as highest urgency, regardless of the numeric score: ${names}.`,
-      "If you feel unsafe, symptoms are rapidly worsening, or you have severe trouble breathing, chest pain, confusion, or fainting: seek emergency care now.",
-    ].join(" ");
-  }
-
-  const riskLabels = selectedRiskFactors
-    .map((id) => riskFactorDefs.find((r) => r.id === id)?.label ?? id)
-    .filter(Boolean);
-  const riskSentence =
-    riskLabels.length > 0
-      ? `Risk factors selected (${riskLabels.join("; ")}) added ${riskPoints.toFixed(1)} points to the total.`
-      : "No additional risk factors were selected, so no extra points were added.";
-
-  const scoreRounded = Math.round(combinedScore * 10) / 10;
-  const symptomRounded = Math.round(symptomScore * 10) / 10;
-
-  if (level === "urgent") {
-    return [
-      "This result is from our built-in rule engine (not a diagnosis).",
-      `Your selected symptoms were scored using weights, then adjusted by duration and how severe they feel (${symptomRounded} points from symptoms).`,
-      riskSentence,
-      `Your combined score is ${scoreRounded}. In our rules, **Urgent** is triggered at 8 points or higher.`,
-      "Recommended next step: contact your BHW/RHU or schedule a consult today. If symptoms worsen quickly or you develop danger signs (severe breathing difficulty, chest pain, confusion, fainting), seek emergency care.",
-    ].join(" ");
-  }
-  if (level === "non-urgent") {
-    return [
-      "This result is from our built-in rule engine (not a diagnosis).",
-      `Your selected symptoms were scored using weights, then adjusted by duration and how severe they feel (${symptomRounded} points from symptoms).`,
-      riskSentence,
-      `Your combined score is ${scoreRounded}. In our rules, **Non-Urgent** is the 4 up to (but not including) 8 range—so a routine consultation is suggested rather than immediate emergency care.`,
-      "Monitor your symptoms and book a consult if they persist, interfere with daily activities, or you feel concerned. Seek urgent/emergency care if you develop danger signs (severe breathing difficulty, chest pain, confusion, fainting, uncontrolled bleeding).",
-    ].join(" ");
-  }
-  return [
-    "This result is from our built-in rule engine (not a diagnosis).",
-    `Your selected symptoms were scored using weights, then adjusted by duration and how severe they feel (${symptomRounded} points from symptoms).`,
-    riskSentence,
-    `Your combined score is ${scoreRounded}. In our rules, **Home Care** is the 1 up to (but not including) 4 range—so rest, hydration, and monitoring are suggested for now.`,
-    "What to watch for: worsening fever, increasing pain, trouble breathing, dehydration (very little urine, dizziness), persistent vomiting, or new severe symptoms. If any of these happen—or if you feel unsure—contact your BHW/RHU or seek urgent care.",
-  ].join(" ");
+function composePatientDisplayName(parts: {
+  firstName: string;
+  middleInitial: string;
+  surname: string;
+}): string {
+  const first = parts.firstName.trim();
+  const sur = parts.surname.trim();
+  let mi = parts.middleInitial.trim().replace(/\s+/g, "");
+  if (mi && !mi.endsWith(".")) mi = `${mi}.`;
+  return [first, mi, sur].filter(Boolean).join(" ");
 }
 
 function aggregateAssessmentSeverity(
@@ -223,49 +131,17 @@ function aggregateAssessmentSeverity(
   return "mild";
 }
 
-function formatDurationLabel(value: SymptomDurationValue): string {
-  return DURATION_OPTIONS.find((o) => o.value === value)?.label ?? "—";
-}
+// ─── Result Display Configs ────────────────────────────────────────────────────
 
-function getRiskScore(level: TriageLevel): number {
-  if (!level) return 0;
-  switch (level) {
-    case "emergency": return 95;
-    case "urgent": return 75;
-    case "non-urgent": return 50;
-    case "home-care": return 25;
-    default: return 0;
-  }
-}
-
-function getTriageLevelLabel(level: TriageLevel): string {
-  if (!level) return "—";
-  switch (level) {
-    case "emergency": return "HIGH";
-    case "urgent": return "HIGH";
-    case "non-urgent": return "MEDIUM";
-    case "home-care": return "LOW";
-    default: return "—";
-  }
-}
-
-/** Single-line display name for vitals (keeps `patient_name` for downstream / signup matching). */
-function composePatientDisplayName(parts: { firstName: string; middleInitial: string; surname: string }): string {
-  const first = parts.firstName.trim();
-  const sur = parts.surname.trim();
-  let mi = parts.middleInitial.trim().replace(/\s+/g, "");
-  if (mi && !mi.endsWith(".")) mi = `${mi}.`;
-  return [first, mi, sur].filter(Boolean).join(" ");
-}
-
-const triageResults = {
+const triageVisuals = {
   emergency: {
     title: "Emergency Care Needed",
     icon: AlertTriangle,
     color: "text-emergency",
     bgColor: "bg-emergency",
     borderColor: "border-emergency",
-    description: "Your symptoms indicate a potentially serious condition that requires immediate medical attention.",
+    description:
+      "Your symptoms indicate a potentially serious condition that requires immediate medical attention.",
     action: "Call emergency services or proceed to the nearest hospital immediately.",
     contact: "Emergency Hotline: 0917-123-4567",
   },
@@ -285,7 +161,8 @@ const triageResults = {
     color: "text-non-urgent",
     bgColor: "bg-non-urgent",
     borderColor: "border-non-urgent",
-    description: "Your symptoms are not immediately concerning, but you should schedule a consultation for proper evaluation.",
+    description:
+      "Your symptoms are not immediately concerning, but you should schedule a consultation for proper evaluation.",
     action: "Coordinate follow-up care or visit during regular clinic hours.",
     contact: "Book via app or call: 0917-345-6789",
   },
@@ -301,16 +178,35 @@ const triageResults = {
   },
 };
 
+function getTriageLevelLabel(level: NonNullable<TriageLevel>): string {
+  switch (level) {
+    case "emergency": return "HIGH";
+    case "urgent": return "HIGH";
+    case "non-urgent": return "MEDIUM";
+    case "home-care": return "LOW";
+  }
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────────
+
 export default function SymptomChecker() {
-  const navigate = useNavigate();
+  useNavigate();
   const { user, profile } = useAuth();
+  const { i18n } = useTranslation();
+
   const [step, setStep] = useState(1);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [symptomDetails, setSymptomDetails] = useState<Record<string, SymptomDetailEntry>>({});
   const [selectedRiskFactors, setSelectedRiskFactors] = useState<string[]>([]);
-  const [triageResult, setTriageResult] = useState<TriageLevel>(null);
-  const [triageReasonLine, setTriageReasonLine] = useState<string>("");
+
+  // AI triage result state
+  const [aiResult, setAiResult] = useState<AiTriageResult | null>(null);
+  const [isAssessing, setIsAssessing] = useState(false);
+  const [assessmentError, setAssessmentError] = useState<string | null>(null);
+
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [profileAutoFilled, setProfileAutoFilled] = useState(false);
+
   const [patientInfo, setPatientInfo] = useState({
     surname: "",
     firstName: "",
@@ -323,26 +219,73 @@ export default function SymptomChecker() {
     hr: "",
     tempC: "",
   });
+
   const [savedAssessmentId, setSavedAssessmentId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // ── Auto-fill from patient profile on mount ──────────────────────────────────
+  useEffect(() => {
+    if (!user?.id || profile?.role !== "patient") return;
+
+    (async () => {
+      const { data: pp } = await supabase
+        .from("patient_profiles")
+        .select("first_name, last_name, middle_initial, date_of_birth, sex")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!pp) return;
+
+      type PatientProfileRow = {
+        first_name: string | null;
+        last_name: string | null;
+        middle_initial: string | null;
+        date_of_birth: string | null;
+        sex: string | null;
+      };
+
+      const row = pp as PatientProfileRow;
+
+      const hasAnyData =
+        row.first_name || row.last_name || row.middle_initial || row.date_of_birth || row.sex;
+
+      if (!hasAnyData) return;
+
+      setPatientInfo((prev) => ({
+        ...prev,
+        firstName: row.first_name ?? prev.firstName,
+        surname: row.last_name ?? prev.surname,
+        middleInitial: row.middle_initial ?? prev.middleInitial,
+        birthday: row.date_of_birth ?? prev.birthday,
+        gender: (row.sex as "" | "female" | "male" | "other") ?? prev.gender,
+      }));
+      setProfileAutoFilled(true);
+    })();
+  }, [user?.id, profile?.role]);
+
+  // ── Derived state ────────────────────────────────────────────────────────────
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
   const isPatient = profile?.role === "patient";
 
   const ageNumber = computeAgeFromBirthday(patientInfo.birthday);
+
   const isStep1Valid =
     patientInfo.surname.trim().length > 0 &&
     patientInfo.firstName.trim().length > 0 &&
     patientInfo.gender !== "" &&
     typeof ageNumber === "number" &&
     ageNumber >= 0;
+
   const isStep2Valid =
     selectedSymptoms.length > 0 &&
     selectedSymptoms.every((id) => {
       const d = symptomDetails[id];
       return Boolean(d?.duration);
     });
+
+  // ── Symptom toggles ──────────────────────────────────────────────────────────
 
   const toggleSymptom = (symptomId: string) => {
     if (selectedSymptoms.includes(symptomId)) {
@@ -376,16 +319,15 @@ export default function SymptomChecker() {
   };
 
   const toggleRiskFactor = (factorId: string) => {
-    setSelectedRiskFactors(prev =>
-      prev.includes(factorId)
-        ? prev.filter(id => id !== factorId)
-        : [...prev, factorId]
+    setSelectedRiskFactors((prev) =>
+      prev.includes(factorId) ? prev.filter((id) => id !== factorId) : [...prev, factorId]
     );
   };
 
+  // ── Navigation ───────────────────────────────────────────────────────────────
+
   const handleNext = () => {
     if (step < totalSteps) {
-      // Gate progression based on required fields
       if (step === 1 && !isStep1Valid) {
         setValidationMessage("Please enter surname, first name, birthday, and gender to continue.");
         return;
@@ -410,6 +352,8 @@ export default function SymptomChecker() {
     }
   };
 
+  // ── AI Triage Submit ─────────────────────────────────────────────────────────
+
   const handleSubmit = async () => {
     if (!isStep2Valid) {
       setValidationMessage(
@@ -420,36 +364,95 @@ export default function SymptomChecker() {
       setStep(2);
       return;
     }
+
     setValidationMessage(null);
-    const computation = computeTriageAssessment(selectedSymptoms, selectedRiskFactors, symptomDetails);
-    const result = computation.level;
-    setTriageResult(result);
-    setTriageReasonLine(result ? formatTriageReasonLine(computation, selectedRiskFactors, riskFactors) : "");
+    setAiResult(null);
+    setAssessmentError(null);
+    setIsAssessing(true);
     setStep(4);
-    if (result) {
+
+    // Build payload
+    const allSymptomsFlat = symptomCategories.flatMap((c) =>
+      c.symptoms.map((s) => ({ ...s, category: c.name }))
+    );
+
+    const symptomsPayload = selectedSymptoms.map((id) => {
+      const meta = allSymptomsFlat.find((s) => s.id === id);
+      const det = symptomDetails[id];
+      return {
+        id,
+        label: meta?.label ?? id,
+        category: meta?.category ?? "General",
+        duration: det?.duration ?? "",
+        durationLabel: det?.duration ? formatDurationLabel(det.duration) : "",
+        severity: det?.severity ?? "moderate",
+      };
+    });
+
+    const riskFactorDefs = [
+      { id: "senior", label: "Senior citizen (60+ years old)" },
+      { id: "pregnant", label: "Pregnant" },
+      { id: "diabetes", label: "Has diabetes" },
+      { id: "hypertension", label: "Has hypertension" },
+      { id: "heart-disease", label: "Has heart disease" },
+      { id: "immunocompromised", label: "Immunocompromised" },
+    ];
+
+    const riskFactorLabels = selectedRiskFactors
+      .map((id) => riskFactorDefs.find((r) => r.id === id)?.label ?? id)
+      .filter(Boolean);
+
+    const payload = {
+      locale: i18n.language,
+      patient: {
+        surname: patientInfo.surname.trim(),
+        firstName: patientInfo.firstName.trim(),
+        gender: patientInfo.gender,
+        age: ageNumber,
+        birthday: patientInfo.birthday,
+      },
+      symptoms: symptomsPayload,
+      riskFactors: riskFactorLabels,
+      vitals: {
+        bpSystolic: patientInfo.bpSystolic ? Number(patientInfo.bpSystolic) : null,
+        bpDiastolic: patientInfo.bpDiastolic ? Number(patientInfo.bpDiastolic) : null,
+        tempC: patientInfo.tempC ? Number(patientInfo.tempC) : null,
+      },
+      notes: patientInfo.notes || null,
+    };
+
+    try {
+      const response = await fetch("/api/symptom-triage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.detail || body?.error || `Assessment failed (${response.status})`);
+      }
+
+      const result: AiTriageResult = {
+        priorityLevel: body.priorityLevel,
+        riskScore: Number(body.riskScore) || 0,
+        urgencyLabel: body.urgencyLabel,
+        recommendedAction: body.recommendedAction,
+        summary: body.summary,
+        redFlags: Array.isArray(body.redFlags) ? body.redFlags : [],
+      };
+      setAiResult(result);
+
+      // ── Save to DB ──────────────────────────────────────────────────────────
       setSaving(true);
       try {
         const displayName = composePatientDisplayName(patientInfo);
-        const allSymptomsFlat = symptomCategories.flatMap((c) => c.symptoms);
-        const symptomDetailsPayload = selectedSymptoms.map((id) => {
-          const meta = allSymptomsFlat.find((s) => s.id === id);
-          const det = symptomDetails[id];
-          return {
-            symptom_id: id,
-            label: meta?.label ?? id,
-            duration: det?.duration ?? "",
-            duration_label: det?.duration ? formatDurationLabel(det.duration) : "",
-            severity: det?.severity ?? "moderate",
-          };
-        });
-        const durationSummary = symptomDetailsPayload
-          .map((row) => `${row.label}: ${row.duration_label || "—"}`)
+        const durationSummary = symptomsPayload
+          .map((row) => `${row.label}: ${row.durationLabel || "—"}`)
           .join("; ");
 
         const { data: assessment, error: assessErr } = await supabase
           .from("symptom_assessments")
-          // We intentionally support "guest" submissions here.
-          // Linking to a user happens after signup/login via stored assessment id.
           .insert({
             user_id: user?.id ?? null,
             symptoms: selectedSymptoms,
@@ -459,31 +462,40 @@ export default function SymptomChecker() {
             vitals: {
               patient_surname: patientInfo.surname.trim(),
               patient_first_name: patientInfo.firstName.trim(),
-              ...(patientInfo.middleInitial.trim() ? { patient_middle_initial: patientInfo.middleInitial.trim() } : {}),
+              ...(patientInfo.middleInitial.trim()
+                ? { patient_middle_initial: patientInfo.middleInitial.trim() }
+                : {}),
               patient_gender: patientInfo.gender,
               ...(displayName ? { patient_name: displayName } : {}),
               ...(typeof ageNumber === "number" ? { patient_age: ageNumber } : {}),
               ...(patientInfo.birthday ? { patient_birthday: patientInfo.birthday } : {}),
-              ...(patientInfo.bpSystolic && patientInfo.bpDiastolic ? { bp_systolic: Number(patientInfo.bpSystolic), bp_diastolic: Number(patientInfo.bpDiastolic) } : {}),
+              ...(patientInfo.bpSystolic && patientInfo.bpDiastolic
+                ? {
+                    bp_systolic: Number(patientInfo.bpSystolic),
+                    bp_diastolic: Number(patientInfo.bpDiastolic),
+                  }
+                : {}),
               ...(patientInfo.hr ? { hr: Number(patientInfo.hr) } : {}),
               ...(patientInfo.tempC ? { temp_c: Number(patientInfo.tempC) } : {}),
-              symptom_details: symptomDetailsPayload,
+              symptom_details: symptomsPayload,
             },
           })
           .select("id")
           .single();
+
         if (assessErr) throw assessErr;
+
         await supabase.from("ai_triage_results").insert({
           assessment_id: assessment.id,
-          risk_score: getRiskScore(result),
-          triage_level: TRIAGE_TO_DB[result],
-          recommended_action: triageResults[result].action,
-          model_version: "rule-based-v1",
+          risk_score: result.riskScore,
+          triage_level: TRIAGE_TO_DB[result.priorityLevel],
+          recommended_action: result.recommendedAction,
+          model_version: "azure-openai-v1",
           factors: [...selectedSymptoms, ...selectedRiskFactors],
         });
+
         setSavedAssessmentId(assessment.id);
 
-        // If not logged in, keep a pointer we can claim after signup/login.
         if (!user?.id) {
           try {
             localStorage.setItem(PENDING_ASSESSMENT_LS_KEY, assessment.id);
@@ -496,16 +508,26 @@ export default function SymptomChecker() {
       } finally {
         setSaving(false);
       }
+    } catch (error) {
+      setAssessmentError(
+        error instanceof Error ? error.message : "Unable to complete AI triage right now."
+      );
+    } finally {
+      setIsAssessing(false);
     }
   };
+
+  // ── Reset ────────────────────────────────────────────────────────────────────
 
   const handleReset = () => {
     setStep(1);
     setSelectedSymptoms([]);
     setSymptomDetails({});
     setSelectedRiskFactors([]);
-    setTriageResult(null);
-    setTriageReasonLine("");
+    setAiResult(null);
+    setAssessmentError(null);
+    setIsAssessing(false);
+    setSavedAssessmentId(null);
     setPatientInfo({
       surname: "",
       firstName: "",
@@ -518,154 +540,324 @@ export default function SymptomChecker() {
       hr: "",
       tempC: "",
     });
-    setSavedAssessmentId(null);
+    setProfileAutoFilled(false);
   };
+
+  const visual = aiResult ? triageVisuals[aiResult.priorityLevel] : null;
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  const riskFactors = [
+    { id: "senior", label: "Senior citizen (60+ years old)" },
+    { id: "pregnant", label: "Pregnant" },
+    { id: "diabetes", label: "Has diabetes" },
+    { id: "hypertension", label: "Has hypertension" },
+    { id: "heart-disease", label: "Has heart disease" },
+    { id: "immunocompromised", label: "Immunocompromised" },
+  ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      
+
       <main className="flex-1 pt-24 pb-20">
         <div className="container mx-auto px-4 lg:px-8 max-w-[1400px]">
           <div className="grid lg:grid-cols-12 gap-8 items-start">
-            
-            {/* Left: Sticky Sidebar (Status/Progress) */}
+
+            {/* ── Left: Sticky Sidebar ── */}
             <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
               <Card className="overflow-hidden border-border/50">
                 <CardHeader className="bg-muted/30 pb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-primary uppercase tracking-wider">Assessment Progress</span>
-                    <Badge variant="outline" className="bg-background">{Math.round(progress)}%</Badge>
+                    <span className="text-sm font-semibold text-primary uppercase tracking-wider">
+                      Assessment Progress
+                    </span>
+                    <Badge variant="outline" className="bg-background">
+                      {Math.round(progress)}%
+                    </Badge>
                   </div>
                   <Progress value={progress} className="h-2" />
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
                   <div className="space-y-3">
-                    {([
-                      { s: 1, label: "Basic Information", icon: User },
-                      { s: 2, label: "Symptom Selection", icon: Stethoscope },
-                      { s: 3, label: "Risk Factors", icon: Calendar },
-                      { s: 4, label: "Triage Result", icon: Activity },
-                    ] as const).map((item) => (
-                      <div key={item.s} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${step === item.s ? "bg-primary/10 text-primary" : "text-muted-foreground opacity-60"}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${step === item.s ? "border-primary bg-primary/20" : "border-muted"}`}>
+                    {(
+                      [
+                        { s: 1, label: "Basic Information", icon: User },
+                        { s: 2, label: "Symptom Selection", icon: Stethoscope },
+                        { s: 3, label: "Risk Factors", icon: Calendar },
+                        { s: 4, label: "Triage Result", icon: Activity },
+                      ] as const
+                    ).map((item) => (
+                      <div
+                        key={item.s}
+                        className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
+                          step === item.s
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground opacity-60"
+                        }`}
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center border ${
+                            step === item.s
+                              ? "border-primary bg-primary/20"
+                              : "border-muted"
+                          }`}
+                        >
                           <item.icon className="w-4 h-4" />
                         </div>
                         <span className="text-sm font-medium">{item.label}</span>
-                        {step > item.s && <CheckCircle2 className="w-4 h-4 ml-auto text-green-500" />}
+                        {step > item.s && (
+                          <CheckCircle2 className="w-4 h-4 ml-auto text-green-500" />
+                        )}
                       </div>
                     ))}
                   </div>
 
                   {savedAssessmentId && (
                     <div className="pt-4 border-t border-border/60">
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Reference ID</p>
-                      <p className="text-xs font-mono bg-muted p-2 rounded text-foreground break-all">{savedAssessmentId}</p>
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">
+                        Reference ID
+                      </p>
+                      <p className="text-xs font-mono bg-muted p-2 rounded text-foreground break-all">
+                        {savedAssessmentId}
+                      </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Dynamic Emergency Tip */}
+              {/* Emergency Tip */}
               <div className="p-5 rounded-2xl bg-destructive/5 border border-destructive/10 space-y-3">
                 <div className="flex items-center gap-3 text-destructive">
                   <AlertTriangle className="w-5 h-5 pulse-ring" />
                   <span className="font-bold">Emergency Warning</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  If you experience sudden chest pain, severe difficulty breathing, or loss of consciousness, skip this report and seek immediate medical attention at the nearest Emergency Room.
+                  If you experience sudden chest pain, severe difficulty breathing, or loss of
+                  consciousness, skip this report and seek immediate medical attention at the
+                  nearest Emergency Room.
                 </p>
               </div>
             </div>
 
-            {/* Right: Main Form Content */}
+            {/* ── Right: Main Form Content ── */}
             <div className="lg:col-span-8">
-              {/* Step 1: Basic Info */}
+
+              {/* ── Step 1: Basic Info ── */}
               {step === 1 && (
                 <Card className="animate-fade-in border-border/50 shadow-sm">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between mb-2">
-                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                         <User className="w-6 h-6 text-primary" />
                       </div>
                       <Badge variant="outline" className="text-xs py-1">
-                        {new Date().toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
+                        {new Date().toLocaleDateString("en-CA", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </Badge>
                     </div>
                     <CardTitle className="text-2xl font-bold">Patient Information</CardTitle>
-                    <CardDescription>We need these details to ensure your assessment reaches the right medical records.</CardDescription>
+                    <CardDescription>
+                      We need these details to ensure your assessment reaches the right medical
+                      records.
+                    </CardDescription>
+
+                    {/* Auto-fill badge */}
+                    {profileAutoFilled && isPatient && (
+                      <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-xl bg-primary/8 border border-primary/20">
+                        <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                        <p className="text-xs text-primary font-semibold">
+                          Pre-filled from your profile — you can still edit any field below.
+                        </p>
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-8">
                     <div className="space-y-4">
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor="surname" className="text-sm font-semibold">Surname (Apelyido) <span className="text-destructive">*</span></Label>
-                          <Input id="surname" className="rounded-xl h-11 bg-muted/20" value={patientInfo.surname} onChange={(e) => setPatientInfo({ ...patientInfo, surname: e.target.value })} />
+                          <Label htmlFor="surname" className="text-sm font-semibold">
+                            Surname (Apelyido){" "}
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="surname"
+                            className="rounded-xl h-11 bg-muted/20"
+                            value={patientInfo.surname}
+                            onChange={(e) =>
+                              setPatientInfo({ ...patientInfo, surname: e.target.value })
+                            }
+                          />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="firstName" className="text-sm font-semibold">First Name (Pangalan) <span className="text-destructive">*</span></Label>
-                          <Input id="firstName" className="rounded-xl h-11 bg-muted/20" value={patientInfo.firstName} onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })} />
+                          <Label htmlFor="firstName" className="text-sm font-semibold">
+                            First Name (Pangalan){" "}
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="firstName"
+                            className="rounded-xl h-11 bg-muted/20"
+                            value={patientInfo.firstName}
+                            onChange={(e) =>
+                              setPatientInfo({ ...patientInfo, firstName: e.target.value })
+                            }
+                          />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="middleInitial" className="text-sm font-semibold">M.I.</Label>
-                          <Input id="middleInitial" maxLength={4} className="rounded-xl h-11 bg-muted/20 uppercase" value={patientInfo.middleInitial} onChange={(e) => setPatientInfo({ ...patientInfo, middleInitial: e.target.value.toUpperCase() })} />
+                          <Label htmlFor="middleInitial" className="text-sm font-semibold">
+                            M.I.
+                          </Label>
+                          <Input
+                            id="middleInitial"
+                            maxLength={4}
+                            className="rounded-xl h-11 bg-muted/20 uppercase"
+                            value={patientInfo.middleInitial}
+                            onChange={(e) =>
+                              setPatientInfo({
+                                ...patientInfo,
+                                middleInitial: e.target.value.toUpperCase(),
+                              })
+                            }
+                          />
                         </div>
                       </div>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8 items-start">
                       <div className="space-y-3">
-                        <Label className="text-sm font-semibold">Birth Details <span className="text-destructive">*</span></Label>
+                        <Label className="text-sm font-semibold">
+                          Birth Details <span className="text-destructive">*</span>
+                        </Label>
                         <DatePicker
                           date={patientInfo.birthday ? parseISO(patientInfo.birthday) : undefined}
-                          setDate={(date) => setPatientInfo({ ...patientInfo, birthday: date ? format(date, "yyyy-MM-dd") : "" })}
+                          setDate={(date) =>
+                            setPatientInfo({
+                              ...patientInfo,
+                              birthday: date ? format(date, "yyyy-MM-dd") : "",
+                            })
+                          }
                         />
-                        <p className="text-[10px] text-muted-foreground uppercase font-medium">Age is calculated automatically</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium">
+                          Age is calculated automatically
+                        </p>
                       </div>
 
                       <div className="space-y-3">
-                        <Label className="text-sm font-semibold">Biological Sex <span className="text-destructive">*</span></Label>
+                        <Label className="text-sm font-semibold">
+                          Biological Sex <span className="text-destructive">*</span>
+                        </Label>
                         <div className="grid grid-cols-3 gap-2">
-                          {([{ v: "female", l: "Female" }, { v: "male", l: "Male" }, { v: "other", l: "Other" }] as const).map((g) => (
-                            <button key={g.v} type="button" onClick={() => setPatientInfo({ ...patientInfo, gender: g.v })} className={`h-11 rounded-xl border text-xs font-semibold uppercase transition-all ${patientInfo.gender === g.v ? "bg-primary text-primary-foreground border-primary shadow-lg ring-2 ring-primary/20" : "bg-muted/10 hover:bg-muted/20"}`}>{g.l}</button>
+                          {(
+                            [
+                              { v: "female", l: "Female" },
+                              { v: "male", l: "Male" },
+                              { v: "other", l: "Other" },
+                            ] as const
+                          ).map((g) => (
+                            <button
+                              key={g.v}
+                              type="button"
+                              onClick={() =>
+                                setPatientInfo({ ...patientInfo, gender: g.v })
+                              }
+                              className={`h-11 rounded-xl border text-xs font-semibold uppercase transition-all ${
+                                patientInfo.gender === g.v
+                                  ? "bg-primary text-primary-foreground border-primary shadow-lg ring-2 ring-primary/20"
+                                  : "bg-muted/10 hover:bg-muted/20"
+                              }`}
+                            >
+                              {g.l}
+                            </button>
                           ))}
                         </div>
                       </div>
                     </div>
 
                     <div className="pt-6 border-t border-border/50">
-                      <Label className="text-sm font-semibold mb-3 block">Measurements (Optional Vitals)</Label>
+                      <Label className="text-sm font-semibold mb-3 block">
+                        Measurements (Optional Vitals)
+                      </Label>
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-1.5 col-span-2">
-                          <Label className="text-[11px] uppercase text-muted-foreground font-bold">Blood Pressure (SYS/DIA)</Label>
+                          <Label className="text-[11px] uppercase text-muted-foreground font-bold">
+                            Blood Pressure (SYS/DIA)
+                          </Label>
                           <div className="flex gap-2">
-                            <Input placeholder="120" className="rounded-xl h-10" value={patientInfo.bpSystolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })} />
+                            <Input
+                              placeholder="120"
+                              className="rounded-xl h-10"
+                              value={patientInfo.bpSystolic}
+                              onChange={(e) =>
+                                setPatientInfo({ ...patientInfo, bpSystolic: e.target.value })
+                              }
+                            />
                             <span className="self-center">/</span>
-                            <Input placeholder="80" className="rounded-xl h-10" value={patientInfo.bpDiastolic} onChange={(e) => setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })} />
+                            <Input
+                              placeholder="80"
+                              className="rounded-xl h-10"
+                              value={patientInfo.bpDiastolic}
+                              onChange={(e) =>
+                                setPatientInfo({ ...patientInfo, bpDiastolic: e.target.value })
+                              }
+                            />
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-[11px] uppercase text-muted-foreground font-bold">Temp (°C)</Label>
-                          <Input step="0.1" placeholder="36.5" className="rounded-xl h-10" value={patientInfo.tempC} onChange={(e) => setPatientInfo({ ...patientInfo, tempC: e.target.value })} />
+                          <Label className="text-[11px] uppercase text-muted-foreground font-bold">
+                            Temp (°C)
+                          </Label>
+                          <Input
+                            step="0.1"
+                            placeholder="36.5"
+                            className="rounded-xl h-10"
+                            value={patientInfo.tempC}
+                            onChange={(e) =>
+                              setPatientInfo({ ...patientInfo, tempC: e.target.value })
+                            }
+                          />
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-3 pt-4">
-                      <Label htmlFor="notes" className="text-sm font-semibold">Additional Context</Label>
-                      <Textarea id="notes" rows={3} className="rounded-2xl bg-muted/20 resize-none" placeholder="Medications, allergies, or when it started..." value={patientInfo.notes} onChange={(e) => setPatientInfo({ ...patientInfo, notes: e.target.value })} />
+                      <Label htmlFor="notes" className="text-sm font-semibold">
+                        Additional Context
+                      </Label>
+                      <Textarea
+                        id="notes"
+                        rows={3}
+                        className="rounded-2xl bg-muted/20 resize-none"
+                        placeholder="Medications, allergies, or when it started..."
+                        value={patientInfo.notes}
+                        onChange={(e) =>
+                          setPatientInfo({ ...patientInfo, notes: e.target.value })
+                        }
+                      />
                     </div>
 
-                    {validationMessage && <p className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">{validationMessage}</p>}
+                    {validationMessage && (
+                      <p className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
+                        {validationMessage}
+                      </p>
+                    )}
 
                     <div className="pt-4">
-                      <Button onClick={handleNext} size="lg" className="h-14 w-full rounded-2xl text-base font-bold shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">Continue to Symptoms <ArrowRight className="w-5 h-5 ml-2" /></Button>
+                      <Button
+                        onClick={handleNext}
+                        size="lg"
+                        className="h-14 w-full rounded-2xl text-base font-bold shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                      >
+                        Continue to Symptoms <ArrowRight className="w-5 h-5 ml-2" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Step 2: Symptoms */}
+              {/* ── Step 2: Symptoms ── */}
               {step === 2 && (
                 <Card className="animate-fade-in border-border/50">
                   <CardHeader>
@@ -673,10 +865,14 @@ export default function SymptomChecker() {
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                         <Stethoscope className="w-6 h-6 text-primary" />
                       </div>
-                      <Badge className="bg-primary/20 text-primary hover:bg-primary/20 border-primary/20">{selectedSymptoms.length} Selected</Badge>
+                      <Badge className="bg-primary/20 text-primary hover:bg-primary/20 border-primary/20">
+                        {selectedSymptoms.length} Selected
+                      </Badge>
                     </div>
                     <CardTitle className="text-2xl font-bold">Describe Symptoms</CardTitle>
-                    <CardDescription>Select all categories that apply to how you feel.</CardDescription>
+                    <CardDescription>
+                      Select all categories that apply to how you feel.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-10">
                     {symptomCategories.map((category) => (
@@ -689,26 +885,86 @@ export default function SymptomChecker() {
                           {category.symptoms.map((symptom) => {
                             const checked = selectedSymptoms.includes(symptom.id);
                             return (
-                              <div key={symptom.id} className={`group rounded-xl border-2 p-3 transition-all duration-300 ${checked ? "border-primary bg-primary/[0.03] shadow-md ring-2 ring-primary/10" : "border-border hover:border-primary/30"}`}>
+                              <div
+                                key={symptom.id}
+                                className={`group rounded-xl border-2 p-3 transition-all duration-300 ${
+                                  checked
+                                    ? "border-primary bg-primary/[0.03] shadow-md ring-2 ring-primary/10"
+                                    : "border-border hover:border-primary/30"
+                                }`}
+                              >
                                 <label className="flex items-start gap-3 cursor-pointer">
-                                  <Checkbox checked={checked} onCheckedChange={() => toggleSymptom(symptom.id)} className="mt-1 h-4 w-4 rounded-md shrink-0" />
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() => toggleSymptom(symptom.id)}
+                                    className="mt-1 h-4 w-4 rounded-md shrink-0"
+                                  />
                                   <div className="space-y-3 w-full">
-                                    <span className="font-bold text-sm text-foreground leading-tight">{symptom.label}</span>
+                                    <span className="font-bold text-sm text-foreground leading-tight">
+                                      {symptom.label}
+                                    </span>
                                     {checked && (
-                                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="pt-3 border-t border-border/80 space-y-4">
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        className="pt-3 border-t border-border/80 space-y-4"
+                                      >
                                         <div className="space-y-2">
-                                          <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Duration</Label>
-                                          <Select value={symptomDetails[symptom.id]?.duration ?? ""} onValueChange={(val) => setSymptomDetailField(symptom.id, "duration", val as SymptomDurationValue)}>
-                                            <SelectTrigger className="rounded-xl h-10 bg-background border-border/60"><SelectValue placeholder="How long?" /></SelectTrigger>
-                                            <SelectContent className="rounded-xl">{DURATION_OPTIONS.filter(o => o.value !== "").map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}</SelectContent>
+                                          <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                                            <Clock className="w-3 h-3" /> Duration
+                                          </Label>
+                                          <Select
+                                            value={symptomDetails[symptom.id]?.duration ?? ""}
+                                            onValueChange={(val) =>
+                                              setSymptomDetailField(
+                                                symptom.id,
+                                                "duration",
+                                                val as SymptomDurationValue
+                                              )
+                                            }
+                                          >
+                                            <SelectTrigger className="rounded-xl h-10 bg-background border-border/60">
+                                              <SelectValue placeholder="How long?" />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl">
+                                              {DURATION_OPTIONS.filter((o) => o.value !== "").map(
+                                                (o) => (
+                                                  <SelectItem key={o.value} value={o.value}>
+                                                    {o.label}
+                                                  </SelectItem>
+                                                )
+                                              )}
+                                            </SelectContent>
                                           </Select>
                                         </div>
                                         <div className="space-y-2">
-                                          <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Activity className="w-3 h-3" /> Severity</Label>
+                                          <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                                            <Activity className="w-3 h-3" /> Severity
+                                          </Label>
                                           <div className="grid grid-cols-3 gap-2">
-                                            {(["mild", "moderate", "severe"] as const).map((s) => (
-                                              <button key={s} type="button" onClick={() => setSymptomDetailField(symptom.id, "severity", s)} className={`h-9 rounded-xl border text-[10px] font-bold uppercase transition-all ${ (symptomDetails[symptom.id]?.severity ?? "moderate") === s ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted/10 border-border/60"}`}>{s}</button>
-                                            ))}
+                                            {(["mild", "moderate", "severe"] as const).map(
+                                              (s) => (
+                                                <button
+                                                  key={s}
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setSymptomDetailField(
+                                                      symptom.id,
+                                                      "severity",
+                                                      s
+                                                    )
+                                                  }
+                                                  className={`h-9 rounded-xl border text-[10px] font-bold uppercase transition-all ${
+                                                    (symptomDetails[symptom.id]?.severity ??
+                                                      "moderate") === s
+                                                      ? "bg-primary text-primary-foreground border-primary"
+                                                      : "bg-background hover:bg-muted/10 border-border/60"
+                                                  }`}
+                                                >
+                                                  {s}
+                                                </button>
+                                              )
+                                            )}
                                           </div>
                                         </div>
                                       </motion.div>
@@ -724,92 +980,253 @@ export default function SymptomChecker() {
 
                     <div className="sticky bottom-4 left-0 right-0 z-10 pt-6">
                       <div className="glass-card shadow-2xl p-4 rounded-3xl flex flex-col sm:flex-row gap-3 border-primary/20">
-                        <Button onClick={handleBack} variant="outline" size="lg" className="w-full sm:w-auto rounded-2xl px-8 h-14 border-2 font-bold text-base hover:bg-muted/10"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
-                        <Button onClick={handleNext} size="lg" className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/20" disabled={!isStep2Valid}>Continue Assessment <ArrowRight className="w-5 h-5 ml-2" /></Button>
+                        <Button
+                          onClick={handleBack}
+                          variant="outline"
+                          size="lg"
+                          className="w-full sm:w-auto rounded-2xl px-8 h-14 border-2 font-bold text-base hover:bg-muted/10"
+                        >
+                          <ArrowLeft className="w-5 h-5 mr-2" /> Back
+                        </Button>
+                        <Button
+                          onClick={handleNext}
+                          size="lg"
+                          className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/20"
+                          disabled={!isStep2Valid}
+                        >
+                          Continue Assessment <ArrowRight className="w-5 h-5 ml-2" />
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Step 3: Risk Factors */}
+              {/* ── Step 3: Risk Factors ── */}
               {step === 3 && (
                 <Card className="animate-fade-in border-border/50">
                   <CardHeader>
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
                       <Calendar className="w-6 h-6 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl font-bold">Health Context & Risks</CardTitle>
-                    <CardDescription>Select any pre-existing conditions or life factors that apply.</CardDescription>
+                    <CardTitle className="text-2xl font-bold">Health Context &amp; Risks</CardTitle>
+                    <CardDescription>
+                      Select any pre-existing conditions or life factors that apply.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {riskFactors.map((factor) => (
-                        <label key={factor.id} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedRiskFactors.includes(factor.id) ? "border-primary bg-primary/[0.03] shadow-md ring-2 ring-primary/10" : "border-border hover:border-primary/40"}`}>
-                          <Checkbox checked={selectedRiskFactors.includes(factor.id)} onCheckedChange={() => toggleRiskFactor(factor.id)} className="h-5 w-5 rounded-md shrink-0" />
-                          <span className="font-bold text-sm text-foreground leading-tight">{factor.label}</span>
+                        <label
+                          key={factor.id}
+                          className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            selectedRiskFactors.includes(factor.id)
+                              ? "border-primary bg-primary/[0.03] shadow-md ring-2 ring-primary/10"
+                              : "border-border hover:border-primary/40"
+                          }`}
+                        >
+                          <Checkbox
+                            checked={selectedRiskFactors.includes(factor.id)}
+                            onCheckedChange={() => toggleRiskFactor(factor.id)}
+                            className="h-5 w-5 rounded-md shrink-0"
+                          />
+                          <span className="font-bold text-sm text-foreground leading-tight">
+                            {factor.label}
+                          </span>
                         </label>
                       ))}
                     </div>
 
                     <div className="pt-6 flex flex-col sm:flex-row gap-3">
-                      <Button onClick={handleBack} variant="outline" size="lg" className="w-full sm:w-auto rounded-2xl h-14 px-8 border-2 font-bold text-base"><ArrowLeft className="w-5 h-5 mr-2" /> Back</Button>
-                      <Button onClick={handleSubmit} variant="hero" size="lg" className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl">Analyze My Health <ArrowRight className="w-5 h-5 ml-2" /></Button>
+                      <Button
+                        onClick={handleBack}
+                        variant="outline"
+                        size="lg"
+                        className="w-full sm:w-auto rounded-2xl h-14 px-8 border-2 font-bold text-base"
+                      >
+                        <ArrowLeft className="w-5 h-5 mr-2" /> Back
+                      </Button>
+                      <Button
+                        onClick={handleSubmit}
+                        variant="hero"
+                        size="lg"
+                        className="flex-1 h-14 rounded-2xl text-base font-bold shadow-xl"
+                        disabled={isAssessing}
+                      >
+                        {isAssessing ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Running AI Triage...
+                          </>
+                        ) : (
+                          <>
+                            Analyze My Health <ArrowRight className="w-5 h-5 ml-2" />
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Step 4: Results */}
-              {step === 4 && triageResult && (
+              {/* ── Step 4: Loading ── */}
+              {step === 4 && isAssessing && (
+                <Card className="animate-fade-in border-border/50 shadow-md">
+                  <CardContent className="p-10 text-center space-y-5">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                    <h3 className="text-2xl font-black">AI is assessing your symptoms</h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                      We are evaluating your symptom severity, duration, risk factors, and vitals
+                      to generate an accurate priority assessment.
+                    </p>
+                    <div className="flex justify-center gap-1 pt-2">
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-2 h-2 rounded-full bg-primary"
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.4 }}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* ── Step 4: Error ── */}
+              {step === 4 && !isAssessing && assessmentError && (
+                <Card className="animate-fade-in border-destructive/30 shadow-md">
+                  <CardHeader>
+                    <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mb-2">
+                      <AlertTriangle className="w-6 h-6 text-destructive" />
+                    </div>
+                    <CardTitle className="text-xl font-black text-destructive">
+                      AI Assessment Unavailable
+                    </CardTitle>
+                    <CardDescription>{assessmentError}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex gap-3">
+                    <Button onClick={handleSubmit} className="rounded-xl">
+                      Retry Assessment
+                    </Button>
+                    <Button variant="outline" onClick={() => setStep(3)} className="rounded-xl">
+                      Back to Risk Factors
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* ── Step 4: AI Result ── */}
+              {step === 4 && !isAssessing && !assessmentError && aiResult && visual && (
                 <div className="animate-fade-in space-y-6">
-                  <Card className={`border-4 overflow-hidden ${triageResults[triageResult].borderColor} shadow-2xl rounded-3xl`}>
-                    <CardHeader className={`${triageResults[triageResult].bgColor} text-primary-foreground p-8`}>
+                  <Card
+                    className={`border-4 overflow-hidden ${visual.borderColor} shadow-2xl rounded-3xl`}
+                  >
+                    <CardHeader className={`${visual.bgColor} text-primary-foreground p-8`}>
                       <div className="flex items-center gap-4">
-                        {(() => { const Icon = triageResults[triageResult].icon; return <Icon className="w-12 h-12" />; })()}
+                        {(() => {
+                          const Icon = visual.icon;
+                          return <Icon className="w-12 h-12" />;
+                        })()}
                         <div>
-                          <CardTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight">Triage Status: {getTriageLevelLabel(triageResult)}</CardTitle>
-                          <p className="opacity-90 font-medium">AI-Assisted Assessment Complete</p>
+                          <CardTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight">
+                            Triage Status: {getTriageLevelLabel(aiResult.priorityLevel)}
+                          </CardTitle>
+                          <p className="opacity-90 font-medium">AI-Powered Assessment Complete</p>
                         </div>
                       </div>
                     </CardHeader>
+
                     <CardContent className="p-8 space-y-8">
+                      {/* Score + Urgency */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div className="p-5 rounded-3xl bg-muted/40 border border-border/50 text-center">
-                          <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-1">Health Priority Score</p>
-                          <p className="text-4xl font-black text-foreground">{getRiskScore(triageResult)}</p>
+                          <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-1">
+                            AI Risk Score
+                          </p>
+                          <p className="text-4xl font-black text-foreground">
+                            {aiResult.riskScore}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-1">out of 100</p>
                         </div>
                         <div className="p-5 rounded-3xl bg-muted/40 border border-border/50 text-center flex flex-col justify-center">
-                           <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-2">Category</p>
-                           <Badge className="mx-auto h-7 px-4 rounded-full font-bold uppercase">{triageResult}</Badge>
+                          <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-2">
+                            Urgency Level
+                          </p>
+                          <Badge className="mx-auto h-7 px-4 rounded-full font-bold uppercase">
+                            {aiResult.urgencyLabel}
+                          </Badge>
                         </div>
                       </div>
 
+                      {/* Recommended Action */}
                       <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 shadow-inner">
-                        <h4 className="font-black uppercase text-xs tracking-widest text-primary mb-3">Protocol: Recommended Actions</h4>
-                        <div className="space-y-4">
-                          <p className="text-lg font-bold text-foreground leading-tight">1. {triageResults[triageResult].action}</p>
-                          {triageResult === "urgent" && <p className="text-lg font-bold text-foreground leading-tight">2. Notify Health Center BHW immediately</p>}
+                        <h4 className="font-black uppercase text-xs tracking-widest text-primary mb-3">
+                          Protocol: Recommended Actions
+                        </h4>
+                        <div className="space-y-3">
+                          <p className="text-lg font-bold text-foreground leading-tight">
+                            1. {aiResult.recommendedAction}
+                          </p>
+                          {aiResult.priorityLevel === "urgent" && (
+                            <p className="text-lg font-bold text-foreground leading-tight">
+                              2. Notify Health Center BHW immediately
+                            </p>
+                          )}
                         </div>
-                        {triageReasonLine && (
-                          <div className="mt-6 pt-4 border-t border-primary/10 italic text-sm text-muted-foreground leading-relaxed">
-                            <span className="font-bold text-foreground not-italic">Clinical Logic: </span>
-                            {triageReasonLine}
-                          </div>
-                        )}
                       </div>
 
+                      {/* AI Red Flags */}
+                      {aiResult.redFlags.length > 0 && (
+                        <div className="p-6 rounded-2xl bg-destructive/5 border border-destructive/20">
+                          <h4 className="font-black uppercase text-xs tracking-widest text-destructive mb-3">
+                            AI-Detected Warning Signs
+                          </h4>
+                          <ul className="space-y-2">
+                            {aiResult.redFlags.map((flag) => (
+                              <li
+                                key={flag}
+                                className="text-sm font-semibold text-foreground flex items-start gap-2"
+                              >
+                                <span className="text-destructive mt-0.5">●</span> {flag}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* AI Summary */}
+                      <div className="bg-muted/30 rounded-2xl p-6 border border-border/50 italic text-sm text-muted-foreground leading-relaxed">
+                        <span className="font-bold text-foreground not-italic block mb-1">
+                          AI Clinical Summary:
+                        </span>
+                        &quot;{aiResult.summary}&quot;
+                      </div>
+
+                      {/* Symptom Summary */}
                       {selectedSymptoms.length > 0 && (
                         <div className="space-y-4">
-                          <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground">Symptom Summary</h4>
+                          <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground">
+                            Symptom Summary
+                          </h4>
                           <div className="grid sm:grid-cols-2 gap-3">
                             {selectedSymptoms.map((id) => {
                               const label = resolveSymptomLabel(id);
                               const det = symptomDetails[id];
                               return (
-                                <div key={id} className="p-3 rounded-xl bg-muted/20 border border-border/50 flex justify-between items-center">
+                                <div
+                                  key={id}
+                                  className="p-3 rounded-xl bg-muted/20 border border-border/50 flex justify-between items-center"
+                                >
                                   <span className="font-bold text-sm">{label}</span>
-                                  <Badge variant="outline" className="text-[10px] font-bold">{det?.severity || "moderate"}</Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-bold"
+                                  >
+                                    {det?.severity || "moderate"}
+                                  </Badge>
                                 </div>
                               );
                             })}
@@ -817,24 +1234,53 @@ export default function SymptomChecker() {
                         </div>
                       )}
 
+                      {/* Facility Contact */}
                       <div className="p-6 rounded-2xl border-2 border-dashed border-border/60 bg-muted/10">
-                        <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground mb-2">Facility Contact</h4>
-                        <p className="text-xl font-black text-primary">{triageResults[triageResult].contact}</p>
+                        <h4 className="font-black uppercase text-xs tracking-widest text-muted-foreground mb-2">
+                          Facility Contact
+                        </h4>
+                        <p className="text-xl font-black text-primary">{visual.contact}</p>
                       </div>
 
+                      {/* Disclaimer */}
                       <div className="bg-destructive/5 rounded-2xl p-4 border border-destructive/10">
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          <strong>Medical Disclaimer:</strong> This automated guidance is for informational purposes for Barangay Health Centers. It does not replace a doctor&apos;s diagnosis. In cases of sudden severe symptoms, skip this and proceed to an ER.
+                          <strong>Medical Disclaimer:</strong> This AI-assisted guidance is for
+                          informational purposes only. It does not replace a doctor&apos;s diagnosis.
+                          In cases of sudden severe symptoms, skip this and proceed to an ER
+                          immediately.
                         </p>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <div className="flex flex-wrap gap-4 pt-4">
-                    <Button size="lg" className="flex-1 h-14 rounded-2xl text-lg font-bold shadow-2xl shadow-primary/30" asChild>
-                      <Link to={user ? "/referrals" : "/signup"}>{user ? "Open Referrals" : "Create Account to Continue"}</Link>
+                  {/* Saving indicator */}
+                  {saving && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving assessment to your records...
+                    </div>
+                  )}
+
+                  {/* CTA */}
+                  <div className="flex flex-wrap gap-4 pt-2">
+                    <Button
+                      size="lg"
+                      className="flex-1 h-14 rounded-2xl text-lg font-bold shadow-2xl shadow-primary/30"
+                      asChild
+                    >
+                      <Link to={user ? "/referrals" : "/signup"}>
+                        {user ? "Open Referrals" : "Create Account to Continue"}
+                      </Link>
                     </Button>
-                    <Button variant="outline" size="lg" className="h-14 px-8 rounded-2xl font-bold border-2" asChild><Link to={user ? "/dashboard" : "/"}>Close Assessment</Link></Button>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="h-14 px-8 rounded-2xl font-bold border-2"
+                      onClick={handleReset}
+                    >
+                      Start New Assessment
+                    </Button>
                   </div>
                 </div>
               )}
@@ -846,4 +1292,4 @@ export default function SymptomChecker() {
       <Footer />
     </div>
   );
-};
+}
