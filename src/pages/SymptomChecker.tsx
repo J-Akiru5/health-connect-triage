@@ -274,8 +274,7 @@ export default function SymptomChecker() {
     patientInfo.surname.trim().length > 0 &&
     patientInfo.firstName.trim().length > 0 &&
     patientInfo.gender !== "" &&
-    typeof ageNumber === "number" &&
-    ageNumber >= 0;
+    patientInfo.birthday.trim().length > 0;
 
   const isStep2Valid =
     selectedSymptoms.length > 0 &&
@@ -328,7 +327,12 @@ export default function SymptomChecker() {
   const handleNext = () => {
     if (step < totalSteps) {
       if (step === 1 && !isStep1Valid) {
-        setValidationMessage("Please enter surname, first name, birthday, and gender to continue.");
+        const missingFields: string[] = [];
+        if (!patientInfo.surname.trim()) missingFields.push("Surname");
+        if (!patientInfo.firstName.trim()) missingFields.push("First Name");
+        if (!patientInfo.birthday.trim()) missingFields.push("Birthday");
+        if (!patientInfo.gender) missingFields.push("Biological Sex");
+        setValidationMessage(`Please fill in: ${missingFields.join(", ")}.`);
         return;
       }
       if (step === 2 && !isStep2Valid) {
