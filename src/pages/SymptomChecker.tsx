@@ -190,7 +190,6 @@ function getTriageLevelLabel(level: NonNullable<TriageLevel>): string {
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function SymptomChecker() {
-  useNavigate();
   const { user, profile } = useAuth();
   const { i18n } = useTranslation();
 
